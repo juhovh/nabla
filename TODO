@@ -1,0 +1,7 @@
+Test pretty handling of at least following common errors:
+
+All systems: TAP driver not installed
+All systems: User not running as root
+All systems: Clock off too much
+Windows: IPv6 not loaded
+

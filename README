@@ -1,0 +1,44 @@
+
+Nabla - Automatic IPv6 Tunneling and Connecticity
+-------------------------------------------------
+
+The name of this file is somewhat misleading, because most people have no use
+reading this. However for compiling the following might be useful:
+
+make OSTYPE=unix/win/solaris
+
+Binaries will be compiled into the bin-directory.
+
+
+
+Information for developers
+--------------------------
+
+
+Related RFCs:
+
+RFC1631 - The IP Network Address Translator (NAT)
+RFC1853 - IP in IP Tunneling
+RFC1933 - Transition Mechanisms for IPv6 Hosts and Routers
+RFC2473 - Generic Packet Tunneling in IPv6 Specification
+RFC2529 - Transmission of IPv6 over IPv4 Domains without Explicit Tunnels
+RFC3053 - IPv6 Tunnel Broker
+
+
+Related Internet drafts:
+
+draft-massar-v6ops-ayiya-02
+AYIYA: Anything In Anything
+
+draft-massar-v6ops-heartbeat-01
+SixXS Heartbeat Protocol
+
+draft-blanchet-v6ops-tunnelbroker-tsp-04
+IPv6 Tunnel Broker with the Tunnel Setup Protocol (TSP)
+
+draft-bound-dstm-exp-04
+Dual Stack IPv6 Dominant Transition Mechanism (DSTM)
+
+draft-blanchet-ngtrans-tsp-dstm-profile-01
+DSTM IPv4 over IPv6 tunnel profile for Tunnel Setup Protocol(TSP)
+
