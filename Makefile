@@ -24,8 +24,6 @@ LIBS := $(LIBS_$(OSTYPE))
 all:
 	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS) $(SRCS_tapcfg) $(LIBS)
 
-client:
-	sudo LD_LIBRARY_PATH=lib valgrind bin/client tic
-
 clean:
 	rm -f bin/*.exe bin/client
+
