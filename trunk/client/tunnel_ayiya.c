@@ -263,7 +263,7 @@ writer_thread(void *arg)
 	printf("Starting writer thread\n");
 
 	do {
-		fd_set rfds;
+		fd_set wfds;
 		struct sockaddr_in saddr;
 		int len, etherType;
 
@@ -417,9 +417,9 @@ writer_thread(void *arg)
 		saddr.sin_addr = tunnel->endpoint.remote_ipv4;
 		saddr.sin_port = htons(tunnel->endpoint.remote_port);
 
-		FD_ZERO(&rfds);
-		FD_SET(data->fd, &rfds);
-		assert(select(data->fd+1, NULL, &rfds, NULL, NULL) > 0);
+		FD_ZERO(&wfds);
+		FD_SET(data->fd, &wfds);
+		assert(select(data->fd+1, NULL, &wfds, NULL, NULL) > 0);
 
 		ret = sendto(data->fd, (const char *) &s, len, 0,
 		             (struct sockaddr *) &saddr,
@@ -554,7 +554,7 @@ static int
 beat(tunnel_t *tunnel)
 {
 	tunnel_data_t *data;
-	fd_set rfds;
+	fd_set wfds;
 
 	SHA_CTX	                sha1;
 	sha1_byte               hash[SHA1_DIGEST_LENGTH];
@@ -607,9 +607,9 @@ beat(tunnel_t *tunnel)
 	/* Store the hash in the actual packet */
 	memcpy(&s.hash, &hash, sizeof(s.hash));
 
-	FD_ZERO(&rfds);
-	FD_SET(data->fd, &rfds);
-	assert(select(data->fd+1, NULL, &rfds, NULL, NULL) > 0);
+	FD_ZERO(&wfds);
+	FD_SET(data->fd, &wfds);
+	assert(select(data->fd+1, NULL, &wfds, NULL, NULL) > 0);
 
 	/* Send it onto the network */
 	n = sizeof(s)-sizeof(s.payload);
