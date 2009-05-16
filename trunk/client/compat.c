@@ -62,7 +62,17 @@ inet_pton(int af, const char *src, void *dst)
 		return -1;
 	}
 
-	memcpy(dst, res->ai_addr, res->ai_addrlen);
+	if (res->ai_family == AF_INET) {
+		struct sockaddr_in *saddr;
+		saddr = (struct sockaddr_in *) res->ai_addr;
+		memcpy(dst, &saddr->sin_addr, sizeof(struct in_addr));
+	} else if (res->ai_family == AF_INET6) {
+		struct sockaddr_in6 *saddr;
+		saddr = (struct sockaddr_in6 *) res->ai_addr;
+		memcpy(dst, &saddr->sin6_addr, sizeof(struct in6_addr));
+	} else {
+		return -1;
+	}
 	freeaddrinfo(res);
 
 	return 1;
