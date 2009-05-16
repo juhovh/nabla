@@ -154,7 +154,7 @@ writer_thread(void *arg)
 	printf("Starting writer thread\n");
 
 	do {
-		fd_set rfds;
+		fd_set wfds;
 		struct sockaddr_in saddr;
 		int len, etherType;
 
@@ -271,9 +271,9 @@ writer_thread(void *arg)
 		saddr.sin_family = AF_INET;
 		saddr.sin_addr = tunnel->endpoint.remote_ipv4;
 
-		FD_ZERO(&rfds);
-		FD_SET(data->fd, &rfds);
-		assert(select(data->fd+1, NULL, &rfds, NULL, NULL) > 0);
+		FD_ZERO(&wfds);
+		FD_SET(data->fd, &wfds);
+		assert(select(data->fd+1, NULL, &wfds, NULL, NULL) > 0);
 
 		ret = sendto(data->fd, (char *) (buf+14), len-14, 0,
 		             (struct sockaddr *) &saddr,
@@ -396,7 +396,7 @@ beat(tunnel_t *tunnel)
 	assert(tunnel->privdata);
 
 	if (tunnel->endpoint.type == TUNNEL_TYPE_HEARTBEAT) {
-		fd_set rfds;
+		fd_set wfds;
 		struct MD5Context md5;
 		unsigned char digest[16];
 		char buf[1024], *tmpstr;
@@ -439,9 +439,9 @@ beat(tunnel_t *tunnel)
 		saddr.sin_addr = tunnel->endpoint.remote_ipv4;
 		saddr.sin_port = htons(HEARTBEAT_PORT);
 
-		FD_ZERO(&rfds);
-		FD_SET(sock, &rfds);
-		assert(select(sock+1, NULL, &rfds, NULL, NULL) > 0);
+		FD_ZERO(&wfds);
+		FD_SET(sock, &wfds);
+		assert(select(sock+1, NULL, &wfds, NULL, NULL) > 0);
 
 		ret = sendto(sock, buf, strlen(buf), 0,
 			     (struct sockaddr *) &saddr, sizeof(saddr));

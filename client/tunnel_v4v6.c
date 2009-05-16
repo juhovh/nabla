@@ -190,7 +190,7 @@ writer_thread(void *arg)
 
 			if (!memcmp(buf, routerhw, 6) ||
 			    !memcmp(buf, broadcasthw, 6)) {
-				fd_set rfds;
+				fd_set wfds;
 				struct sockaddr_in6 saddr;
 				int ret;
 
@@ -198,9 +198,9 @@ writer_thread(void *arg)
 				saddr.sin6_family = AF_INET6;
 				saddr.sin6_addr = tunnel->endpoint.remote_ipv6;
 
-				FD_ZERO(&rfds);
-				FD_SET(data->fd, &rfds);
-				assert(select(data->fd+1, NULL, &rfds, NULL, NULL) > 0);
+				FD_ZERO(&wfds);
+				FD_SET(data->fd, &wfds);
+				assert(select(data->fd+1, NULL, &wfds, NULL, NULL) > 0);
 
 				ret = sendto(data->fd, (char *) (buf+14), buflen-14, 0,
 				             (struct sockaddr *) &saddr,
