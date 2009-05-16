@@ -134,6 +134,7 @@ writer_thread(void *arg)
 {
 	tunnel_t *tunnel = arg;
 	tunnel_data_t *data;
+	const char *localhw;
 	unsigned char buf[4096];
 	int running;
 
@@ -141,12 +142,14 @@ writer_thread(void *arg)
 	assert(tunnel->privdata);
 	data = tunnel->privdata;
 
+	localhw = tapcfg_iface_get_hwaddr(data->tapcfg, NULL);
+	assert(localhw);
+
 	printf("Starting writer thread\n");
 
 	do {
 		int buflen, type;
 
-		/* XXX check wait first to avoid blocking read */
 		if (!tapcfg_wait_readable(data->tapcfg, tunnel->waitms))
 			goto write_loop;
 
@@ -166,11 +169,20 @@ writer_thread(void *arg)
 				goto write_loop;
 			}
 
+			if (memcmp(buf+6, localhw, 6)) {
+				printf("ARP coming from unknown device\n");
+				goto write_loop;
+			}
+
 			memcpy(buf, buf+6, 6);
 			memcpy(buf+6, routerhw, 6);
 
 			memcpy(&ipaddr, buf+38, 4);
 			localip = tunnel->endpoint.local_ipv4;
+			if ((ipaddr.s_addr == localip.s_addr)) {
+				/* Detecting for duplicate address, ignore */
+				goto write_loop;
+			}
 			if ((ipaddr.s_addr ^ localip.s_addr) & data->netmask) {
 				printf("Target IP of ARP not available\n");
 				goto write_loop;
