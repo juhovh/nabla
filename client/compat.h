@@ -27,11 +27,12 @@
 #  include <ws2tcpip.h>
 
 /* Define Windows to be little endian */
-#define BIG_ENDIAN 4321
-#define LITTLE_ENDIAN 1234
-#define BYTE_ORDER LITTLE_ENDIAN
+#  define BIG_ENDIAN 4321
+#  define LITTLE_ENDIAN 1234
+#  define BYTE_ORDER LITTLE_ENDIAN
 
 #  define sleepms(x) Sleep(x)
+#  define GetLastError WSAGetLastError
 
 /* Define missing inet_ntop and inet_pton from compat.c on Windows */
 const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
@@ -66,12 +67,14 @@ do { \
 #  include <netdb.h>
 #  include <netinet/in.h>
 #  include <arpa/inet.h>
+#  include <errno.h>
 
 /* Include this as it knows quite a bit about endianess */
-#include <arpa/nameser_compat.h>
+#  include <arpa/nameser_compat.h>
 
 #  define sleepms(x) usleep((x)*1000)
 #  define closesocket close
+#  define GetLastError() errno
 
 #  define INIT_SOCKETLIB(success) success = 1
 #  define CLOSE_SOCKETLIB(success) success = 1

@@ -36,7 +36,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <errno.h>
 #include <time.h>
 
 #include "compat.h"
@@ -133,7 +132,8 @@ reader_thread(void *arg)
 		ret = recvfrom(data->fd, (char *) (buf+14), sizeof(buf)-14, 0,
 			       (struct sockaddr *) &saddr, &socklen);
 		if (ret == -1) {
-			printf("Error in receiving data %s\n", strerror(errno));
+			printf("Error in receiving data: %s (%d)\n",
+			       strerror(GetLastError()), GetLastError());
 			break;
 		} else if (ret == 0) {
 			printf("Disconnected from the server\n");
@@ -425,8 +425,8 @@ writer_thread(void *arg)
 		             (struct sockaddr *) &saddr,
 		             sizeof(saddr));
 		if (ret <= 0) {
-			/* XXX handle errors */
-			printf("Error in writing to socket\n");
+			printf("Error writing to socket: %s (%d)\n",
+			       strerror(GetLastError()), GetLastError());
 			break;
 		}
 #ifdef DEBUG
@@ -619,7 +619,7 @@ beat(tunnel_t *tunnel)
 
 	if (lenout < 0) {
 		printf("Error (%d) while sending %u bytes sent to network: %s (%d)\n",
-		       lenout, n, strerror(errno), errno);
+		       lenout, n, strerror(GetLastError()), GetLastError());
 
 		return 0;
 	} else if (n != lenout) {

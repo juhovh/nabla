@@ -101,7 +101,8 @@ reader_thread(void *arg)
 		ret = recvfrom(data->fd, (char *) (buf+14), sizeof(buf)-14, 0,
 			       (struct sockaddr *) &saddr, &socklen);
 		if (ret == -1) {
-			printf("Error in receiving data %s\n", strerror(errno));
+			printf("Error in receiving data: %s (%d)\n",
+			       strerror(GetLastError()), GetLastError());
 			break;
 		} else if (ret == 0) {
 			printf("Disconnected from the server\n");
@@ -279,8 +280,8 @@ writer_thread(void *arg)
 		             (struct sockaddr *) &saddr,
 		             sizeof(saddr));
 		if (ret <= 0) {
-			/* XXX handle errors */
-			printf("Error in writing to socket\n");
+			printf("Error in writing to socket: %s (%d)\n",
+			       strerror(GetLastError()), GetLastError());
 			break;
 		}
 #ifdef DEBUG
@@ -446,7 +447,8 @@ beat(tunnel_t *tunnel)
 		ret = sendto(sock, buf, strlen(buf), 0,
 			     (struct sockaddr *) &saddr, sizeof(saddr));
 		if (ret < -1) {
-			printf("Error sending heartbeat\n");
+			printf("Error sending heartbeat: %s (%d)\n",
+			       strerror(GetLastError()), GetLastError());
 			return 0;
 		}
 
