@@ -17,9 +17,20 @@
  */
 
 using System;
+using System.Net.Sockets;
 
 public class RawSocketTest {
 	private static void Main(string[] args) {
+		RawSocket rawSocket =
+			RawSocket.GetRawSocket(AddressFamily.InterNetwork, 41, 100);
+
+		byte[] address = rawSocket.GetAddress();
+		if (address != null) {
+			Console.Write("Got address:");
+			for (int i=0; i<address.Length; i++)
+				Console.Write(" 0x{0:x}", address[i]);
+			Console.WriteLine("");
+		}
 	}
 }
 
