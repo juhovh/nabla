@@ -22,7 +22,7 @@ using System.Net.Sockets;
 public class RawSocketTest {
 	private static void Main(string[] args) {
 		RawSocket rawSocket =
-			RawSocket.GetRawSocket(AddressFamily.DataLink, 0x86dd, 100);
+			RawSocket.GetRawSocket("eth0", AddressFamily.DataLink, 0x86dd, 100);
 
 		byte[] address = rawSocket.GetAddress();
 		if (address != null) {
