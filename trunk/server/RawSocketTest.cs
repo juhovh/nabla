@@ -22,7 +22,7 @@ using System.Net.Sockets;
 public class RawSocketTest {
 	private static void Main(string[] args) {
 		RawSocket rawSocket =
-			RawSocket.GetRawSocket("eth0", AddressFamily.DataLink, 0x86dd, 100);
+			RawSocket.GetRawSocket("eth0", AddressFamily.DataLink, 0x0800, 100);
 
 		byte[] address = rawSocket.GetAddress();
 		if (address != null) {
@@ -31,6 +31,8 @@ public class RawSocketTest {
 				Console.Write(" 0x{0:x}", address[i]);
 			Console.WriteLine("");
 		}
+		byte[] buf = new byte[1024];
+		Console.WriteLine("Received {0} bytes", rawSocket.Receive(buf));
 	}
 }
 

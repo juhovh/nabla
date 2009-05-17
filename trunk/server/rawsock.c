@@ -241,7 +241,9 @@ rawsock_sendto(rawsock_t *rawsock, const void *buf, int offset, int len,
 
 	assert(rawsock);
 
-	dest_addr->sa_family = rawsock->family;
+	if (dest_addr) {
+		dest_addr->sa_family = rawsock->family;
+	}
 	ret = sendto(rawsock->sockfd, buf+offset, len, 0, dest_addr, addrlen);
 	if (ret == -1) {
 		*err = GetLastError();
@@ -287,7 +289,9 @@ rawsock_recvfrom(rawsock_t *rawsock, void *buf, int offset, int len,
 
 	assert(rawsock);
 
-	src_addr->sa_family = rawsock->family;
+	if (src_addr) {
+		src_addr->sa_family = rawsock->family;
+	}
 	ret = recvfrom(rawsock->sockfd, buf+offset, len, 0, src_addr, addrlen);
 	if (ret == -1) {
 		*err = GetLastError();
