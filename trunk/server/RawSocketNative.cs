@@ -27,7 +27,7 @@ public class RawSocketNative : RawSocket {
 	private int _waitms;
 
 	[DllImport("rawsock")]
-	private static extern IntPtr rawsock_init(int family, int protocol, ref int err);
+	private static extern IntPtr rawsock_init(string ifname, int family, int protocol, ref int err);
 
 	[DllImport("rawsock")]
 	private static extern int rawsock_bind(IntPtr sock, byte[] addr, int addrlen, ref int err);
@@ -54,7 +54,7 @@ public class RawSocketNative : RawSocket {
 	private static extern void rawsock_destroy(IntPtr sock);
 
 
-	public RawSocketNative(AddressFamily addressFamily, int protocol, int waitms) {
+	public RawSocketNative(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
 		int errno = 0;
 		int family;
 
@@ -65,11 +65,14 @@ public class RawSocketNative : RawSocket {
 		case AddressFamily.InterNetworkV6:
 			family = 1;
 			break;
+		case AddressFamily.DataLink:
+			family = 2;
+			break;
 		default:
 			throw new Exception("Address family '" + addressFamily + "' not supported");
 		}
 
-		_sock = rawsock_init(family, protocol, ref errno);
+		_sock = rawsock_init(ifname, family, protocol, ref errno);
 		if (_sock == IntPtr.Zero) {
 			throw new Exception("Error initializing raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
