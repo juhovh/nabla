@@ -29,6 +29,9 @@ public class RawSocket {
 	private static extern int rawsock_init(int family, int protocol, ref int err);
 
 	[DllImport("rawsock")]
+	private static extern int rawsock_bind(int sockfd, byte[] addr, int addrlen, ref int err);
+
+	[DllImport("rawsock")]
 	private static extern int rawsock_wait_for_writable(int sockfd, int waitms, ref int err);
 
 	[DllImport("rawsock")]
@@ -65,6 +68,20 @@ public class RawSocket {
 		_sockfd = rawsock_init(family, protocol, ref errno);
 		if (_sockfd < 0) {
 			throw new Exception("Error '" + errno + "' initializing raw socket: " + rawsock_strerror(errno));
+		}
+	}
+
+	public void Bind(EndPoint localEP) {
+		SocketAddress socketAddress = localEP.Serialize();
+
+		byte[] buf = new byte[socketAddress.Size];
+		for (int i=0; i<socketAddress.Size; i++)
+			buf[i] = socketAddress[i];
+
+		int errno = 0;
+		int ret = rawsock_bind(_sockfd, buf, buf.Length, ref errno);
+		if (ret == -1) {
+			throw new Exception("Error '" + errno + "' writing to raw socket: " + rawsock_strerror(errno));
 		}
 	}
 
