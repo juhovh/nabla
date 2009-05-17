@@ -232,7 +232,7 @@ writer_thread(void *arg)
 				}
 
 #ifdef DEBUG
-				printf("Wrote %d bytes to the server\n");
+				printf("Wrote %d bytes to the server\n", ret);
 #endif
 			} else {
 #ifdef DEBUG
