@@ -117,7 +117,7 @@ public class RawSocketNative : RawSocket {
 			SocketAddress socketAddress = remoteEP.Serialize();
 
 			buf = new byte[socketAddress.Size];
-			for (int i=0; i<socketAddress.Size; i++)
+			for (int i=2; i<socketAddress.Size; i++)
 				buf[i] = socketAddress[i];
 			length = buf.Length;
 		}
@@ -152,7 +152,6 @@ public class RawSocketNative : RawSocket {
 
 			/* 128 bytes Should Be Enough(tm) for everything (Linux sockaddr_storage) */
 			buf = new byte[128];
-			buf[1] = (byte) socketAddress.Family;
 			for (int i=2; i<socketAddress.Size; i++)
 				buf[i] = socketAddress[i];
 

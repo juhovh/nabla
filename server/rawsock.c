@@ -50,7 +50,7 @@
 struct rawsock_s {
 	int sockfd;
 	char *ifname;
-	int domain;
+	int family;
 
 	char *address;
 	int addrlen;
@@ -62,7 +62,7 @@ static int
 rawsock_prepare(rawsock_t *rawsock, int *err)
 {
 #if defined(__linux__)
-	if (rawsock->domain == AF_PACKET && rawsock->ifname) {
+	if (rawsock->family == AF_PACKET && rawsock->ifname) {
 		struct ifreq ifr;
 		struct sockaddr_ll sll;
 		int index;
@@ -178,7 +178,7 @@ rawsock_init(const char *ifname, int family, int protocol, int *err)
 	}
 
 	rawsock->sockfd = ret;
-	rawsock->domain = domain;
+	rawsock->family = domain;
 	if (ifname) {
 		rawsock->ifname = strdup(ifname);
 	}
@@ -234,13 +234,14 @@ rawsock_wait_for_writable(rawsock_t *rawsock, int waitms, int *err)
 
 int
 rawsock_sendto(rawsock_t *rawsock, const void *buf, int offset, int len,
-               const struct sockaddr *dest_addr, socklen_t addrlen,
+               struct sockaddr *dest_addr, socklen_t addrlen,
                int *err)
 {
 	int ret;
 
 	assert(rawsock);
 
+	dest_addr->sa_family = rawsock->family;
 	ret = sendto(rawsock->sockfd, buf+offset, len, 0, dest_addr, addrlen);
 	if (ret == -1) {
 		*err = GetLastError();
@@ -286,6 +287,7 @@ rawsock_recvfrom(rawsock_t *rawsock, void *buf, int offset, int len,
 
 	assert(rawsock);
 
+	src_addr->sa_family = rawsock->family;
 	ret = recvfrom(rawsock->sockfd, buf+offset, len, 0, src_addr, addrlen);
 	if (ret == -1) {
 		*err = GetLastError();
