@@ -25,7 +25,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <errno.h>
 
 #include "compat.h"
 #include "tapcfg.h"
@@ -81,7 +80,8 @@ reader_thread(void *arg)
 		ret = recvfrom(data->fd, (char *) buf, sizeof(buf), 0,
 			       (struct sockaddr *) &saddr, &socklen);
 		if (ret == -1) {
-			printf("Error in receiving data %s\n", strerror(errno));
+			printf("Error in receiving data: %s (%d)\n",
+			       strerror(GetLastError()), GetLastError());
 			break;
 		} else if (ret == 0) {
 			printf("Disconnected from the server\n");
@@ -197,8 +197,8 @@ writer_thread(void *arg)
 		             (struct sockaddr *) &saddr,
 		             sizeof(saddr));
 		if (ret <= 0) {
-			/* XXX handle errors */
-			printf("Error in writing to socket\n");
+			printf("Error in writing to socket: %s (%d)\n",
+			       strerror(GetLastError()), GetLastError());
 			break;
 		}
 #ifdef DEBUG

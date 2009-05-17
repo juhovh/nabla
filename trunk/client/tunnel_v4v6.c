@@ -89,7 +89,8 @@ reader_thread(void *arg)
 		ret = recvfrom(data->fd, (char *) (buf+14), sizeof(buf)-14, 0,
 			       (struct sockaddr *) &saddr, &socklen);
 		if (ret == -1) {
-			printf("Error reading packet\n");
+			printf("Error reading packet: %s (%d)\n",
+			       strerror(GetLastError()), GetLastError());
 			break;
 		} else if (ret == 0) {
 			printf("Disconnected from the server\n");
@@ -217,7 +218,11 @@ writer_thread(void *arg)
 				ret = sendto(data->fd, (char *) (buf+14), buflen-14, 0,
 				             (struct sockaddr *) &saddr,
 				             sizeof(saddr));
-				assert(ret > 0);
+				if (ret <= 0) {
+					printf("Error writing to socket: %s (%d)\n",
+					       strerror(GetLastError()), GetLastError());
+					break;
+				}
 
 #ifdef DEBUG
 				printf("Wrote %d bytes to the server\n");
