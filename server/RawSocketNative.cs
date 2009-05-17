@@ -23,32 +23,35 @@ using System.Runtime.InteropServices;
 
 public class RawSocketNative : RawSocket {
 	private bool _disposed = false;
-	private int _sockfd;
+	private IntPtr _sock;
 	private int _waitms;
 
 	[DllImport("rawsock")]
-	private static extern int rawsock_init(int family, int protocol, ref int err);
+	private static extern IntPtr rawsock_init(int family, int protocol, ref int err);
 
 	[DllImport("rawsock")]
-	private static extern int rawsock_bind(int sockfd, byte[] addr, int addrlen, ref int err);
+	private static extern int rawsock_bind(IntPtr sock, byte[] addr, int addrlen, ref int err);
 
 	[DllImport("rawsock")]
-	private static extern int rawsock_wait_for_writable(int sockfd, int waitms, ref int err);
+	private static extern int rawsock_wait_for_writable(IntPtr sock, int waitms, ref int err);
 
 	[DllImport("rawsock")]
-	private static extern int rawsock_sendto(int sockfd, byte[] buf, int offset, int len, byte[] sockaddr, int addrlen, ref int err);
+	private static extern int rawsock_sendto(IntPtr sock, byte[] buf, int offset, int len, byte[] sockaddr, int addrlen, ref int err);
 
 	[DllImport("rawsock")]
-	private static extern int rawsock_wait_for_readable(int sockfd, int waitms, ref int err);
+	private static extern int rawsock_wait_for_readable(IntPtr sock, int waitms, ref int err);
 
 	[DllImport("rawsock")]
-	private static extern int rawsock_recvfrom(int sockfd, byte[] buf, int offset, int len, byte[] sockaddr, ref int addrlen, ref int err);
+	private static extern int rawsock_recvfrom(IntPtr sock, byte[] buf, int offset, int len, byte[] sockaddr, ref int addrlen, ref int err);
 
 	[DllImport("rawsock")]
 	private static extern string rawsock_strerror(int errno);
 
 	[DllImport("rawsock")]
-	private static extern void rawsock_destroy(int sockfd);
+	private static extern void rawsock_get_address(IntPtr sock, ref IntPtr address, ref int addrlen);
+
+	[DllImport("rawsock")]
+	private static extern void rawsock_destroy(IntPtr sock);
 
 
 	public RawSocketNative(AddressFamily addressFamily, int protocol, int waitms) {
@@ -66,8 +69,8 @@ public class RawSocketNative : RawSocket {
 			throw new Exception("Address family '" + addressFamily + "' not supported");
 		}
 
-		_sockfd = rawsock_init(family, protocol, ref errno);
-		if (_sockfd < 0) {
+		_sock = rawsock_init(family, protocol, ref errno);
+		if (_sock == IntPtr.Zero) {
 			throw new Exception("Error '" + errno + "' initializing raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
 
@@ -82,7 +85,7 @@ public class RawSocketNative : RawSocket {
 			buf[i] = socketAddress[i];
 
 		int errno = 0;
-		int ret = rawsock_bind(_sockfd, buf, buf.Length, ref errno);
+		int ret = rawsock_bind(_sock, buf, buf.Length, ref errno);
 		if (ret == -1) {
 			throw new Exception("Error '" + errno + "' writing to raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
@@ -91,7 +94,7 @@ public class RawSocketNative : RawSocket {
 	public override bool WaitForWritable() {
 		int errno = 0;
 
-		int ret = rawsock_wait_for_writable(_sockfd, _waitms, ref errno);
+		int ret = rawsock_wait_for_writable(_sock, _waitms, ref errno);
 		if (ret == -1) {
 			throw new Exception("Error '" + errno + "' selecting raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
@@ -107,7 +110,7 @@ public class RawSocketNative : RawSocket {
 			buf[i] = socketAddress[i];
 
 		int errno = 0;
-		int ret = rawsock_sendto(_sockfd, buffer, offset, size, buf, buf.Length, ref errno);
+		int ret = rawsock_sendto(_sock, buffer, offset, size, buf, buf.Length, ref errno);
 		if (ret == -1) {
 			throw new Exception("Error '" + errno + "' writing to raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
@@ -118,7 +121,7 @@ public class RawSocketNative : RawSocket {
 	public override bool WaitForReadable() {
 		int errno = 0;
 
-		int ret = rawsock_wait_for_readable(_sockfd, _waitms, ref errno);
+		int ret = rawsock_wait_for_readable(_sock, _waitms, ref errno);
 		if (ret == -1) {
 			throw new Exception("Error '" + errno + "' selecting raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
@@ -137,7 +140,7 @@ public class RawSocketNative : RawSocket {
 
 		int errno = 0;
 		int length = buf.Length;
-		int ret = rawsock_recvfrom(_sockfd, buffer, offset, size, buf, ref length, ref errno);
+		int ret = rawsock_recvfrom(_sock, buffer, offset, size, buf, ref length, ref errno);
 		if (ret == -1) {
 			throw new Exception("Error '" + errno + "' reading from raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
@@ -148,6 +151,20 @@ public class RawSocketNative : RawSocket {
 
 		remoteEP = remoteEP.Create(socketAddress);
 		return ret;
+	}
+
+	public override byte[] GetAddress() {
+		IntPtr address = IntPtr.Zero;
+		int addrlen = 0;
+
+		rawsock_get_address(_sock, ref address, ref addrlen);
+		if (address == IntPtr.Zero || addrlen == 0)
+			return null;
+
+		byte[] array = new byte[addrlen];
+		Marshal.Copy(address, array, 0, addrlen);
+
+		return array;
 	}
 
 	public void Dispose() {
@@ -161,7 +178,7 @@ public class RawSocketNative : RawSocket {
 				// Managed resources can be disposed here
 			}
 
-			rawsock_destroy(_sockfd);
+			rawsock_destroy(_sock);
 			_disposed = true;
 		}
 	}
