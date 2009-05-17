@@ -41,6 +41,9 @@
 struct rawsock_s {
 	int sockfd;
 	int domain;
+
+	char *address;
+	int addrlen;
 };
 typedef struct rawsock_s rawsock_t;
 
@@ -216,8 +219,8 @@ rawsock_get_address(rawsock_t *rawsock, char **address, int *addrlen)
 {
 	assert(rawsock);
 
-	*address = NULL;
-	*addrlen = 0;
+	*address = rawsock->address;
+	*addrlen = rawsock->addrlen;
 }
 
 void
@@ -225,6 +228,10 @@ rawsock_destroy(rawsock_t *rawsock)
 {
 	if (rawsock) {
 		closesocket(rawsock->sockfd);
+
+		if (rawsock->address) {
+			free(rawsock->address);
+		}
 		free(rawsock);
 
 #if defined(_WIN32) || defined(_WIN64)
