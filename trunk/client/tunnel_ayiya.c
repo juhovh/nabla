@@ -113,7 +113,9 @@ reader_thread(void *arg)
 		tv.tv_usec = (tunnel->waitms % 1000) * 1000;
 		ret = select(data->fd+1, &rfds, NULL, NULL, &tv);
 		if (ret == -1) {
-			printf("Error when selecting for fd\n");
+			printf("Error when selecting for fd: %s (%d)\n",
+			       strerror(GetLastError()), GetLastError());
+			break;
 		}
 
 		if (!FD_ISSET(data->fd, &rfds))
@@ -419,7 +421,12 @@ writer_thread(void *arg)
 
 		FD_ZERO(&wfds);
 		FD_SET(data->fd, &wfds);
-		assert(select(data->fd+1, NULL, &wfds, NULL, NULL) > 0);
+		ret = select(data->fd+1, NULL, &wfds, NULL, NULL);
+		if (ret == -1) {
+			printf("Error when selecting for fd: %s (%d)\n",
+			       strerror(GetLastError()), GetLastError());
+			break;
+		}
 
 		ret = sendto(data->fd, (const char *) &s, len, 0,
 		             (struct sockaddr *) &saddr,
@@ -555,6 +562,7 @@ beat(tunnel_t *tunnel)
 {
 	tunnel_data_t *data;
 	fd_set wfds;
+	int ret;
 
 	SHA_CTX	                sha1;
 	sha1_byte               hash[SHA1_DIGEST_LENGTH];
@@ -609,7 +617,12 @@ beat(tunnel_t *tunnel)
 
 	FD_ZERO(&wfds);
 	FD_SET(data->fd, &wfds);
-	assert(select(data->fd+1, NULL, &wfds, NULL, NULL) > 0);
+	ret = select(data->fd+1, NULL, &wfds, NULL, NULL);
+	if (ret == -1) {
+		printf("Error when selecting for fd: %s (%d)\n",
+		       strerror(GetLastError()), GetLastError());
+		return 0;
+	}
 
 	/* Send it onto the network */
 	n = sizeof(s)-sizeof(s.payload);
