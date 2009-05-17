@@ -31,7 +31,7 @@ public abstract class RawSocket {
 	}
 
 	public static RawSocket GetRawSocket(AddressFamily addressFamily, int protocol) {
-		return GetRawSocket(null, addressFamily, protocol, 100);
+		return GetRawSocket(addressFamily, protocol, 100);
 	}
 
 	public abstract void Bind(EndPoint localEP);
@@ -45,6 +45,15 @@ public abstract class RawSocket {
 	public int SendTo(byte[] buffer, EndPoint remoteEP) {
 		return SendTo(buffer, buffer.Length, remoteEP);
 	}
+	public int Send(byte[] buffer, int offset, int size) {
+		return SendTo(buffer, offset, size, null);
+	}
+	public int Send(byte[] buffer, int size) {
+		return Send(buffer, 0, size);
+	}
+	public int Send(byte[] buffer) {
+		return Send(buffer, buffer.Length);
+	}
 
 	public abstract bool WaitForReadable();
 	public abstract int ReceiveFrom(byte[] buffer, int offset, int size, ref EndPoint remoteEP);
@@ -54,6 +63,16 @@ public abstract class RawSocket {
 	}
 	public int ReceiveFrom(byte[] buffer, ref EndPoint remoteEP) {
 		return ReceiveFrom(buffer, buffer.Length, ref remoteEP);
+	}
+	public int Receive(byte[] buffer, int offset, int size) {
+		EndPoint endPoint = null;
+		return ReceiveFrom(buffer, offset, size, ref endPoint);
+	}
+	public int Receive(byte[] buffer, int size) {
+		return Receive(buffer, 0, size);
+	}
+	public int Receive(byte[] buffer) {
+		return Receive(buffer, buffer.Length);
 	}
 
 	public abstract byte[] GetAddress();
