@@ -80,6 +80,21 @@ rawsock_init(int family, int protocol, int *err)
 }
 
 int
+rawsock_bind(int sockfd,
+             const struct sockaddr *addr, socklen_t addrlen,
+             int *err)
+{
+	int ret;
+
+	ret = bind(sockfd, addr, addrlen);
+	if (ret == -1) {
+		*err = GetLastError();
+	}
+
+	return ret;
+}
+
+int
 rawsock_wait_for_writable(int sockfd, int waitms, int *err)
 {
 	fd_set wfds;
