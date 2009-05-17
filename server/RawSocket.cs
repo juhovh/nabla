@@ -67,7 +67,7 @@ public class RawSocket {
 
 		_sockfd = rawsock_init(family, protocol, ref errno);
 		if (_sockfd < 0) {
-			throw new Exception("Error '" + errno + "' initializing raw socket: " + rawsock_strerror(errno));
+			throw new Exception("Error '" + errno + "' initializing raw socket: " + rawsock_strerror(errno) + "(" + errno + ")");
 		}
 	}
 
@@ -81,7 +81,7 @@ public class RawSocket {
 		int errno = 0;
 		int ret = rawsock_bind(_sockfd, buf, buf.Length, ref errno);
 		if (ret == -1) {
-			throw new Exception("Error '" + errno + "' writing to raw socket: " + rawsock_strerror(errno));
+			throw new Exception("Error '" + errno + "' writing to raw socket: " + rawsock_strerror(errno) + "(" + errno + ")");
 		}
 	}
 
@@ -90,7 +90,7 @@ public class RawSocket {
 
 		int ret = rawsock_wait_for_writable(_sockfd, waitms, ref errno);
 		if (ret == -1) {
-			throw new Exception("Error '" + errno + "' selecting raw socket: " + rawsock_strerror(errno));
+			throw new Exception("Error '" + errno + "' selecting raw socket: " + rawsock_strerror(errno) + "(" + errno + ")");
 		}
 
 		return (ret == 1) ? true : false;
@@ -114,7 +114,7 @@ public class RawSocket {
 		int errno = 0;
 		int ret = rawsock_sendto(_sockfd, buffer, offset, size, buf, buf.Length, ref errno);
 		if (ret == -1) {
-			throw new Exception("Error '" + errno + "' writing to raw socket: " + rawsock_strerror(errno));
+			throw new Exception("Error '" + errno + "' writing to raw socket: " + rawsock_strerror(errno) + "(" + errno + ")");
 		}
 
 		return ret;
@@ -125,7 +125,7 @@ public class RawSocket {
 
 		int ret = rawsock_wait_for_readable(_sockfd, waitms, ref errno);
 		if (ret == -1) {
-			throw new Exception("Error '" + errno + "' selecting raw socket: " + rawsock_strerror(errno));
+			throw new Exception("Error '" + errno + "' selecting raw socket: " + rawsock_strerror(errno) + "(" + errno + ")");
 		}
 
 		return (ret == 1) ? true : false;
@@ -152,7 +152,7 @@ public class RawSocket {
 		int length = buf.Length;
 		int ret = rawsock_recvfrom(_sockfd, buffer, offset, size, buf, ref length, ref errno);
 		if (ret == -1) {
-			throw new Exception("Error '" + errno + "' reading from raw socket: " + rawsock_strerror(errno));
+			throw new Exception("Error '" + errno + "' reading from raw socket: " + rawsock_strerror(errno) + "(" + errno + ")");
 		}
 
 		socketAddress = new SocketAddress(socketAddress.Family, length);
@@ -178,5 +178,7 @@ public class RawSocket {
 			_disposed = true;
 		}
 	}
+
+	private static void Main(string[] args) {}
 }
 
