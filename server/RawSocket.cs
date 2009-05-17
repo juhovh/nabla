@@ -22,8 +22,16 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 
 public abstract class RawSocket {
+	public static RawSocket GetRawSocket(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
+		return new RawSocketNative(ifname, addressFamily, protocol, waitms);
+	}
+
 	public static RawSocket GetRawSocket(AddressFamily addressFamily, int protocol, int waitms) {
-		return new RawSocketNative(addressFamily, protocol, waitms);
+		return GetRawSocket(null, addressFamily, protocol, waitms);
+	}
+
+	public static RawSocket GetRawSocket(AddressFamily addressFamily, int protocol) {
+		return GetRawSocket(null, addressFamily, protocol, 100);
 	}
 
 	public abstract void Bind(EndPoint localEP);

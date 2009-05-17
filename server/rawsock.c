@@ -35,11 +35,21 @@
 #  define GetLastError() errno
 #endif
 
-#define FAMILY_IPv4 0
-#define FAMILY_IPv6 1
+#if defined(__linux__)
+#  include <sys/ioctl.h>
+#  include <arpa/inet.h>
+#  include <linux/if.h>
+#  include <linux/if_arp.h>
+#  include <linux/if_packet.h>
+#endif
+
+#define FAMILY_IPv4    0
+#define FAMILY_IPv6    1
+#define FAMILY_PACKET  2
 
 struct rawsock_s {
 	int sockfd;
+	char *ifname;
 	int domain;
 
 	char *address;
@@ -47,8 +57,68 @@ struct rawsock_s {
 };
 typedef struct rawsock_s rawsock_t;
 
+
+static int
+rawsock_prepare(rawsock_t *rawsock, int *err)
+{
+#if defined(__linux__)
+	if (rawsock->domain == AF_PACKET && rawsock->ifname) {
+		struct ifreq ifr;
+		struct sockaddr_ll sll;
+		int index;
+		int ret;
+
+		memset(&ifr, 0, sizeof(ifr));
+		strcpy(ifr.ifr_name, rawsock->ifname);
+		ret = ioctl(rawsock->sockfd, SIOCGIFINDEX, &ifr);
+		if (ret == -1) {
+			*err = errno;
+			return -1;
+		}
+		index = ifr.ifr_ifindex;
+
+		memset(&sll, 0, sizeof(sll));
+		sll.sll_family = AF_PACKET;
+		sll.sll_ifindex = ifr.ifr_ifindex;
+		ret = bind(rawsock->sockfd,
+		           (const struct sockaddr *) &sll,
+		           sizeof(sll));
+		if (ret == -1) {
+			*err = errno;
+			return -1;
+		}
+
+		memset(&ifr, 0, sizeof(ifr));
+		strcpy(ifr.ifr_name, rawsock->ifname);
+		ret = ioctl(rawsock->sockfd, SIOCGIFHWADDR, &ifr);
+		if (ret == -1) {
+			*err = errno;
+			return -1;
+		}
+
+		if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER) {
+			*err = EINVAL;
+			return -1;
+		}
+
+		rawsock->addrlen = 6;
+		rawsock->address = malloc(rawsock->addrlen);
+		if (!rawsock->address) {
+			rawsock->addrlen = 0;
+			*err = ENOMEM;
+			return -1;
+		}
+		memcpy(rawsock->address,
+		       ifr.ifr_hwaddr.sa_data,
+		       rawsock->addrlen);
+	}
+#endif
+
+	return 0;
+}
+
 rawsock_t *
-rawsock_init(int family, int protocol, int *err)
+rawsock_init(const char *ifname, int family, int protocol, int *err)
 {
 	rawsock_t *rawsock;
 	int domain = 0;
@@ -62,12 +132,14 @@ rawsock_init(int family, int protocol, int *err)
 	ret = WSAStartup(wVersionRequested, &wsaData);
 	if (ret) {
 		/* Couldn't find WinSock DLL */
+		*err = GetLastError();
 		return NULL;
 	}
 
 	if (LOBYTE(wsaData.wVersion) != 2 ||
 	    HIBYTE(wsaData.wVersion) != 2) {
 		/* Version mismatch, requested version not found */
+		*err = WSAEINVAL;
 		return NULL;
 	}
 #endif
@@ -79,6 +151,16 @@ rawsock_init(int family, int protocol, int *err)
 	case FAMILY_IPv6:
 		domain = AF_INET6;
 		break;
+	case FAMILY_PACKET:
+#if defined(__linux__)
+		if (!ifname) {
+			*err = EINVAL;
+			return NULL;
+		}
+		domain = AF_PACKET;
+		protocol = htons(protocol);
+		break;
+#endif
 	default:
 		/* Unknown protocol family */
 		return NULL;
@@ -97,6 +179,10 @@ rawsock_init(int family, int protocol, int *err)
 
 	rawsock->sockfd = ret;
 	rawsock->domain = domain;
+	if (ifname) {
+		rawsock->ifname = strdup(ifname);
+	}
+	rawsock_prepare(rawsock, err);
 
 	return rawsock;
 }
@@ -228,10 +314,8 @@ rawsock_destroy(rawsock_t *rawsock)
 {
 	if (rawsock) {
 		closesocket(rawsock->sockfd);
-
-		if (rawsock->address) {
-			free(rawsock->address);
-		}
+		free(rawsock->ifname);
+		free(rawsock->address);
 		free(rawsock);
 
 #if defined(_WIN32) || defined(_WIN64)
