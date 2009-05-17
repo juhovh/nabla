@@ -47,5 +47,7 @@ public abstract class RawSocket {
 	public int ReceiveFrom(byte[] buffer, ref EndPoint remoteEP) {
 		return ReceiveFrom(buffer, buffer.Length, ref remoteEP);
 	}
+
+	public abstract byte[] GetAddress();
 }
 

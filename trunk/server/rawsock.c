@@ -16,6 +16,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
+#include <assert.h>
+
 #if defined(_WIN32) || defined(_WIN64)
 #  include <windows.h>
 #  include <winsock2.h>
@@ -35,9 +38,16 @@
 #define FAMILY_IPv4 0
 #define FAMILY_IPv6 1
 
-int
+struct rawsock_s {
+	int sockfd;
+	int domain;
+};
+typedef struct rawsock_s rawsock_t;
+
+rawsock_t *
 rawsock_init(int family, int protocol, int *err)
 {
+	rawsock_t *rawsock;
 	int domain = 0;
 	int ret;
 
@@ -49,13 +59,13 @@ rawsock_init(int family, int protocol, int *err)
 	ret = WSAStartup(wVersionRequested, &wsaData);
 	if (ret) {
 		/* Couldn't find WinSock DLL */
-		return -1;
+		return NULL;
 	}
 
 	if (LOBYTE(wsaData.wVersion) != 2 ||
 	    HIBYTE(wsaData.wVersion) != 2) {
 		/* Version mismatch, requested version not found */
-		return -1;
+		return NULL;
 	}
 #endif
 
@@ -68,25 +78,36 @@ rawsock_init(int family, int protocol, int *err)
 		break;
 	default:
 		/* Unknown protocol family */
-		return -1;
+		return NULL;
 	}
 
 	ret = socket(domain, SOCK_RAW, protocol);
 	if (ret == -1) {
 		*err = GetLastError();
+		return NULL;
 	}
 
-	return ret;
+	rawsock = calloc(1, sizeof(rawsock_t));
+	if (!rawsock) {
+		return NULL;
+	}
+
+	rawsock->sockfd = ret;
+	rawsock->domain = domain;
+
+	return rawsock;
 }
 
 int
-rawsock_bind(int sockfd,
+rawsock_bind(rawsock_t *rawsock,
              const struct sockaddr *addr, socklen_t addrlen,
              int *err)
 {
 	int ret;
 
-	ret = bind(sockfd, addr, addrlen);
+	assert(rawsock);
+
+	ret = bind(rawsock->sockfd, addr, addrlen);
 	if (ret == -1) {
 		*err = GetLastError();
 	}
@@ -95,25 +116,27 @@ rawsock_bind(int sockfd,
 }
 
 int
-rawsock_wait_for_writable(int sockfd, int waitms, int *err)
+rawsock_wait_for_writable(rawsock_t *rawsock, int waitms, int *err)
 {
 	fd_set wfds;
 	struct timeval tv;
 	int ret;
 
+	assert(rawsock);
+
 	FD_ZERO(&wfds);
-	FD_SET(sockfd, &wfds);
+	FD_SET(rawsock->sockfd, &wfds);
 
 	tv.tv_sec = waitms / 1000;
 	tv.tv_usec = (waitms % 1000) * 1000;
 
-	ret = select(sockfd+1, NULL, &wfds, NULL, &tv);
+	ret = select(rawsock->sockfd+1, NULL, &wfds, NULL, &tv);
 	if (ret == -1) {
 		*err = GetLastError();
 		return -1;
 	}
 
-	if (FD_ISSET(sockfd, &wfds)) {
+	if (FD_ISSET(rawsock->sockfd, &wfds)) {
 		return 1;
 	}
 
@@ -121,13 +144,15 @@ rawsock_wait_for_writable(int sockfd, int waitms, int *err)
 }
 
 int
-rawsock_sendto(int sockfd, const void *buf, int offset, int len,
+rawsock_sendto(rawsock_t *rawsock, const void *buf, int offset, int len,
                const struct sockaddr *dest_addr, socklen_t addrlen,
                int *err)
 {
 	int ret;
 
-	ret = sendto(sockfd, buf+offset, len, 0, dest_addr, addrlen);
+	assert(rawsock);
+
+	ret = sendto(rawsock->sockfd, buf+offset, len, 0, dest_addr, addrlen);
 	if (ret == -1) {
 		*err = GetLastError();
 	}
@@ -136,25 +161,27 @@ rawsock_sendto(int sockfd, const void *buf, int offset, int len,
 }
 
 int
-rawsock_wait_for_readable(int sockfd, int waitms, int *err)
+rawsock_wait_for_readable(rawsock_t *rawsock, int waitms, int *err)
 {
 	fd_set rfds;
 	struct timeval tv;
 	int ret;
 
+	assert(rawsock);
+
 	FD_ZERO(&rfds);
-	FD_SET(sockfd, &rfds);
+	FD_SET(rawsock->sockfd, &rfds);
 
 	tv.tv_sec = waitms / 1000;
 	tv.tv_usec = (waitms % 1000) * 1000;
 
-	ret = select(sockfd+1, &rfds, NULL, NULL, &tv);
+	ret = select(rawsock->sockfd+1, &rfds, NULL, NULL, &tv);
 	if (ret == -1) {
 		*err = GetLastError();
 		return -1;
 	}
 
-	if (FD_ISSET(sockfd, &rfds)) {
+	if (FD_ISSET(rawsock->sockfd, &rfds)) {
 		return 1;
 	}
 
@@ -162,13 +189,15 @@ rawsock_wait_for_readable(int sockfd, int waitms, int *err)
 }
 
 int
-rawsock_recvfrom(int socket, void *buf, int offset, int len,
+rawsock_recvfrom(rawsock_t *rawsock, void *buf, int offset, int len,
                  struct sockaddr *src_addr, socklen_t *addrlen,
                  int *err)
 {
 	int ret;
 
-	ret = recvfrom(socket, buf+offset, len, 0, src_addr, addrlen);
+	assert(rawsock);
+
+	ret = recvfrom(rawsock->sockfd, buf+offset, len, 0, src_addr, addrlen);
 	if (ret == -1) {
 		*err = GetLastError();
 	}
@@ -183,11 +212,23 @@ rawsock_strerror(int errnum)
 }
 
 void
-rawsock_destroy(int sockfd)
+rawsock_get_address(rawsock_t *rawsock, char **address, int *addrlen)
 {
-	closesocket(sockfd);
+	assert(rawsock);
+
+	*address = NULL;
+	*addrlen = 0;
+}
+
+void
+rawsock_destroy(rawsock_t *rawsock)
+{
+	if (rawsock) {
+		closesocket(rawsock->sockfd);
+		free(rawsock);
 
 #if defined(_WIN32) || defined(_WIN64)
-	WSACleanup();
+		WSACleanup();
 #endif
+	}
 }
