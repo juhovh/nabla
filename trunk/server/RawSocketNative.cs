@@ -23,6 +23,7 @@ using System.Runtime.InteropServices;
 
 public class RawSocketNative : RawSocket {
 	private bool _disposed = false;
+	private AddressFamily _family;
 	private IntPtr _sock;
 	private int _waitms;
 
@@ -72,6 +73,7 @@ public class RawSocketNative : RawSocket {
 			throw new Exception("Address family '" + addressFamily + "' not supported");
 		}
 
+		_family = addressFamily;
 		_sock = rawsock_init(ifname, family, protocol, ref errno);
 		if (_sock == IntPtr.Zero) {
 			throw new Exception("Error initializing raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
@@ -106,14 +108,21 @@ public class RawSocketNative : RawSocket {
 	}
 
 	public override int SendTo(byte[] buffer, int offset, int size, EndPoint remoteEP) {
-		SocketAddress socketAddress = remoteEP.Serialize();
-
-		byte[] buf = new byte[socketAddress.Size];
-		for (int i=0; i<socketAddress.Size; i++)
-			buf[i] = socketAddress[i];
-
 		int errno = 0;
-		int ret = rawsock_sendto(_sock, buffer, offset, size, buf, buf.Length, ref errno);
+		byte[] buf = null;
+		int length = 0;
+		int ret;
+
+		if (remoteEP != null) {
+			SocketAddress socketAddress = remoteEP.Serialize();
+
+			buf = new byte[socketAddress.Size];
+			for (int i=0; i<socketAddress.Size; i++)
+				buf[i] = socketAddress[i];
+			length = buf.Length;
+		}
+
+		ret = rawsock_sendto(_sock, buffer, offset, size, buf, length, ref errno);
 		if (ret == -1) {
 			throw new Exception("Error writing to raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
@@ -133,26 +142,35 @@ public class RawSocketNative : RawSocket {
 	}
 
 	public override int ReceiveFrom(byte[] buffer, int offset, int size, ref EndPoint remoteEP) {
-		SocketAddress socketAddress = remoteEP.Serialize();
-
-		/* 128 bytes Should Be Enough(tm) for everything (Linux sockaddr_storage) */
-		byte[] buf = new byte[128];
-		buf[1] = (byte) socketAddress.Family;
-		for (int i=2; i<socketAddress.Size; i++)
-			buf[i] = socketAddress[i];
-
 		int errno = 0;
-		int length = buf.Length;
-		int ret = rawsock_recvfrom(_sock, buffer, offset, size, buf, ref length, ref errno);
+		byte[] buf = null;
+		int length = 0;
+		int ret;
+
+		if (remoteEP != null) {
+			SocketAddress socketAddress = remoteEP.Serialize();
+
+			/* 128 bytes Should Be Enough(tm) for everything (Linux sockaddr_storage) */
+			buf = new byte[128];
+			buf[1] = (byte) socketAddress.Family;
+			for (int i=2; i<socketAddress.Size; i++)
+				buf[i] = socketAddress[i];
+
+			length = buf.Length;
+		}
+
+		ret = rawsock_recvfrom(_sock, buffer, offset, size, buf, ref length, ref errno);
 		if (ret == -1) {
 			throw new Exception("Error reading from raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
 
-		socketAddress = new SocketAddress(socketAddress.Family, length);
-		for (int i=2; i<socketAddress.Size; i++)
-			socketAddress[i] = buf[i];
+		if (remoteEP != null) {
+			SocketAddress socketAddress = new SocketAddress(_family, length);
+			for (int i=2; i<socketAddress.Size; i++)
+				socketAddress[i] = buf[i];
+			remoteEP = remoteEP.Create(socketAddress);
+		}
 
-		remoteEP = remoteEP.Create(socketAddress);
 		return ret;
 	}
 
