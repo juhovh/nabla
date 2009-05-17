@@ -71,7 +71,7 @@ public class RawSocketNative : RawSocket {
 
 		_sock = rawsock_init(family, protocol, ref errno);
 		if (_sock == IntPtr.Zero) {
-			throw new Exception("Error '" + errno + "' initializing raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
+			throw new Exception("Error initializing raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
 
 		_waitms = waitms;
@@ -87,7 +87,7 @@ public class RawSocketNative : RawSocket {
 		int errno = 0;
 		int ret = rawsock_bind(_sock, buf, buf.Length, ref errno);
 		if (ret == -1) {
-			throw new Exception("Error '" + errno + "' writing to raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
+			throw new Exception("Error writing to raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
 	}
 
@@ -96,7 +96,7 @@ public class RawSocketNative : RawSocket {
 
 		int ret = rawsock_wait_for_writable(_sock, _waitms, ref errno);
 		if (ret == -1) {
-			throw new Exception("Error '" + errno + "' selecting raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
+			throw new Exception("Error selecting raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
 
 		return (ret == 1) ? true : false;
@@ -112,7 +112,7 @@ public class RawSocketNative : RawSocket {
 		int errno = 0;
 		int ret = rawsock_sendto(_sock, buffer, offset, size, buf, buf.Length, ref errno);
 		if (ret == -1) {
-			throw new Exception("Error '" + errno + "' writing to raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
+			throw new Exception("Error writing to raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
 
 		return ret;
@@ -123,7 +123,7 @@ public class RawSocketNative : RawSocket {
 
 		int ret = rawsock_wait_for_readable(_sock, _waitms, ref errno);
 		if (ret == -1) {
-			throw new Exception("Error '" + errno + "' selecting raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
+			throw new Exception("Error selecting raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
 
 		return (ret == 1) ? true : false;
@@ -142,7 +142,7 @@ public class RawSocketNative : RawSocket {
 		int length = buf.Length;
 		int ret = rawsock_recvfrom(_sock, buffer, offset, size, buf, ref length, ref errno);
 		if (ret == -1) {
-			throw new Exception("Error '" + errno + "' reading from raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
+			throw new Exception("Error reading from raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 		}
 
 		socketAddress = new SocketAddress(socketAddress.Family, length);
