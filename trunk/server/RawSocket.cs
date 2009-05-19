@@ -26,9 +26,6 @@ using System.Collections;
 
 namespace Nabla.RawSocket {
 	public abstract class RawSocket {
-		[DllImport("rawsock")]
-		private static extern int rawsock_get_hardware_address(string ifname, byte[] address, ref int addrlen, ref int err);
-
 		public static RawSocket GetRawSocket(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
 			try {
 				if (Environment.OSVersion.Platform == PlatformID.Unix) {
@@ -127,21 +124,15 @@ namespace Nabla.RawSocket {
 					}
 				}
 			} else {
-				byte[] address = new byte[6];
-				int addrlen = 6;
-				int ret, err = 0;
+				try {
+					return RawSocketNative.GetHardwareAddress(ifname);
+				} catch (Exception) {}
 
 				try {
 					return RawSocketPcap.GetHardwareAddress(ifname);
 				} catch (Exception) {}
 
-				ret = rawsock_get_hardware_address(ifname, address, ref addrlen, ref err);
-				if (ret == -1) {
-					throw new Exception("Error getting hardware address");
-				}
-
-				retaddr = new byte[addrlen];
-				Array.Copy(address, 0, retaddr, 0, addrlen);
+				throw new Exception("Error getting hardware address for interface " + ifname);
 			}
 
 			return retaddr;

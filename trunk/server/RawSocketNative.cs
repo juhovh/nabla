@@ -57,6 +57,25 @@ namespace Nabla.RawSocket {
 		[DllImport("rawsock")]
 		private static extern void rawsock_destroy(IntPtr sock);
 
+		[DllImport("rawsock")]
+		private static extern int rawsock_get_hardware_address(string ifname, byte[] address, ref int addrlen, ref int err);
+
+
+		public static new byte[] GetHardwareAddress(string ifname) {
+			byte[] address = new byte[12];
+			int addrlen = 12;
+			int ret, err = 0;
+
+			ret = rawsock_get_hardware_address(ifname, address, ref addrlen, ref err);
+			if (ret == -1) {
+				throw new Exception("Error getting hardware address");
+			}
+
+			byte[] retaddr = new byte[addrlen];
+			Array.Copy(address, 0, retaddr, 0, addrlen);
+
+			return address;
+		}
 
 		public RawSocketNative(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
 			int errno = 0;
