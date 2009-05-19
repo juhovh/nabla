@@ -67,18 +67,6 @@ namespace Nabla {
 			public IntPtr dstaddr;
 		}
 
-		[StructLayout(LayoutKind.Sequential)]
-		private struct sockaddr_ll {
-			public UInt16 sll_family;
-			public UInt16 sll_protocol;
-			public UInt32 sll_ifindex;
-			public UInt16 sll_hatype;
-			public byte   sll_pkttype;
-			public byte   sll_halen;
-			[MarshalAs(UnmanagedType.ByValArray, SizeConst=8)]
-			public byte[] sll_addr;
-		};
-		
 		[DllImport("wpcap.dll", CharSet=CharSet.Ansi)]
 		private extern static IntPtr pcap_open_live(string dev, int packetLen, short mode, short timeout, StringBuilder errbuf);
 
@@ -132,7 +120,6 @@ namespace Nabla {
 						} else {
 							family = (AddressFamily) Marshal.ReadByte(addr.addr, 0);
 						}
-						Console.WriteLine("Address family is: " + family);
 
 						SocketAddress saddr;
 						IPEndPoint endPoint;
@@ -142,15 +129,6 @@ namespace Nabla {
 						} else if (family == AddressFamily.InterNetworkV6) {
 							saddr = new SocketAddress(family, 28);
 							endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
-						} else if (family == AddressFamily.DataLink) {
-							sockaddr_ll sll = (sockaddr_ll) Marshal.PtrToStructure(addr.addr, typeof(sockaddr_ll));
-							byte[] hwaddr = new byte[6];
-							for (int i=0; i<6; i++)
-								hwaddr[i] = sll.sll_addr[i];
-							Console.WriteLine("Hardware address of interface {0}: {1}",
-							                  iface.name,
-							                  BitConverter.ToString(hwaddr));
-							continue;
 						} else {
 							Console.WriteLine("Unknown address family found: " + family);
 							continue;
@@ -158,11 +136,11 @@ namespace Nabla {
 						for (int i=2; i<saddr.Size; i++) {
 							saddr[i] = Marshal.ReadByte(addr.addr, i);
 						}
-						endPoint = (IPEndPoint) endPoint.Create(saddr);
+						IPAddress address = ((IPEndPoint) endPoint.Create(saddr)).Address;
 						Console.WriteLine("Found address type {0} of interface {1} ({2}): {3}",
 						                  family,
 						                  iface.name, iface.description,
-						                  endPoint.Address);
+						                  address);
 					}
 				}
 				curr = iface.next;
