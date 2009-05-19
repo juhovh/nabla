@@ -308,6 +308,8 @@ rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, in
 	int index;
 	int ret;
 
+	assert(ifname);
+
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock == -1) {
 		*err = errno;
@@ -360,6 +362,7 @@ rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, in
 		*addrlen = ETH_ALEN;
 		memcpy(address, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
 	}
+	closesocket(sock);
 
 	return 0;
 #endif
