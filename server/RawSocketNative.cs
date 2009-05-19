@@ -55,9 +55,6 @@ namespace Nabla {
 		private static extern string rawsock_strerror(int errno);
 
 		[DllImport("rawsock")]
-		private static extern void rawsock_get_address(IntPtr sock, ref IntPtr address, ref int addrlen);
-
-		[DllImport("rawsock")]
 		private static extern void rawsock_destroy(IntPtr sock);
 
 
@@ -186,20 +183,6 @@ namespace Nabla {
 			}
 
 			return ret;
-		}
-
-		public override byte[] GetAddress() {
-			IntPtr address = IntPtr.Zero;
-			int addrlen = 0;
-
-			rawsock_get_address(_sock, ref address, ref addrlen);
-			if (address == IntPtr.Zero || addrlen == 0)
-				return null;
-
-			byte[] array = new byte[addrlen];
-			Marshal.Copy(address, array, 0, addrlen);
-
-			return array;
 		}
 
 		public void Dispose() {

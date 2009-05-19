@@ -82,8 +82,6 @@ namespace Nabla {
 		public int Receive(byte[] buffer) {
 			return Receive(buffer, buffer.Length);
 		}
-
-		public abstract byte[] GetAddress();
 	}
 }
 

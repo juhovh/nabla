@@ -25,6 +25,7 @@ public class RawSocketTest {
 		RawSocket rawSocket =
 			RawSocket.GetRawSocket("eth0", AddressFamily.DataLink, 0x0800, 100);
 
+/*
 		byte[] address = rawSocket.GetAddress();
 		if (address != null) {
 			Console.Write("Got address:");
@@ -32,6 +33,7 @@ public class RawSocketTest {
 				Console.Write(" 0x{0:x}", address[i]);
 			Console.WriteLine("");
 		}
+*/
 		byte[] buf = new byte[1024];
 		Console.WriteLine("Received {0} bytes", rawSocket.Receive(buf));
 	}

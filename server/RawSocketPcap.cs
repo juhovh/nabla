@@ -132,6 +132,8 @@ namespace Nabla {
 						} else {
 							family = (AddressFamily) Marshal.ReadByte(addr.addr, 0);
 						}
+						Console.WriteLine("Address family is: " + family);
+
 						SocketAddress saddr;
 						IPEndPoint endPoint;
 						if (family == AddressFamily.InterNetwork) {
@@ -257,10 +259,6 @@ namespace Nabla {
 			Marshal.Copy(_data, buffer, offset, (int) pkt_header.caplen);
 
 			return (int) pkt_header.caplen;
-		}
-
-		public override byte[] GetAddress() {
-			return null;
 		}
 
 		public void Dispose() {
