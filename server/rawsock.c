@@ -46,6 +46,7 @@
 #  include <linux/if_packet.h>
 #elif defined(__sun__)
 #else
+#  include <net/if_dl.h>
 #  include <ifaddrs.h>
 #endif
 
@@ -411,7 +412,7 @@ rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, in
 	{
 		struct ifaddrs *ifa, *curr;
 
-		if (getifaddrs(&ifa) != 0)
+		if (getifaddrs(&ifa) != 0) {
 			*err = errno;
 			return -1;
 		}
@@ -423,15 +424,14 @@ rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, in
 					(struct sockaddr_dl *) curr->ifa_addr;
 
 				if (addrlen) {
-					if (*addrlen < HWADDRLEN) {
-						closesocket(sock);
+					if (*addrlen < 6) {
 						*err = EINVAL;
 						return -1;
 					}
-					*addrlen = HWADDRLEN;
-					memcpy(tapcfg->hwaddr,
+					*addrlen = 6;
+					memcpy(address,
 					       sdp->sdl_data + sdp->sdl_nlen,
-					       HWADDRLEN);
+					       *addrlen);
 				}
 			}
 		}
