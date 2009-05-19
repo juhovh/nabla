@@ -35,7 +35,7 @@ public class RawSocketTest {
 
 		RawSocket rawSocket =
 			RawSocket.GetRawSocket(args[0], AddressFamily.DataLink, 0x0800, 100);
-		byte[] buf = new byte[1024];
+		byte[] buf = new byte[2048];
 		Console.WriteLine("Received {0} bytes", rawSocket.Receive(buf));
 	}
 }
