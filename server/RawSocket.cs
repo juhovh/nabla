@@ -21,8 +21,14 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 
+using System.Reflection;
+using System.Collections;
+
 namespace Nabla {
 	public abstract class RawSocket {
+		[DllImport("rawsock")]
+		private static extern int rawsock_get_hardware_address(string ifname, byte[] address, ref int addrlen, ref int err);
+
 		public static RawSocket GetRawSocket(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
 			try {
 				if (Environment.OSVersion.Platform == PlatformID.Unix) {
@@ -81,6 +87,54 @@ namespace Nabla {
 		}
 		public int Receive(byte[] buffer) {
 			return Receive(buffer, buffer.Length);
+		}
+
+		public static byte[] GetHardwareAddress(string ifname) {
+			byte[] retaddr = null;
+
+			if (Environment.OSVersion.Platform != PlatformID.Unix) {
+				Assembly assembly = Assembly.GetEntryAssembly();
+
+				Type mosType = assembly.GetType("System.Management.ManagementObjectSearcher");
+				Type moType = assembly.GetType("System.Management.ManagementObject");
+
+				string query = "SELECT * FROM Win32_NetworkAdapterConfiguration";
+				object mosObj = Activator.CreateInstance(mosType, new object[] { query });
+
+				IEnumerable queryCollection;
+				BindingFlags getFlags = BindingFlags.InvokeMethod;
+				queryCollection = (IEnumerable) mosType.InvokeMember("Get", getFlags, null, mosObj, null);
+
+				foreach (object moObj in queryCollection) {
+					BindingFlags itemFlags = BindingFlags.GetProperty;
+
+					object descr = moType.InvokeMember("Item", itemFlags, null, moObj, new object[] { "Description" });
+					if (descr == null)
+						continue;
+
+					Console.WriteLine("Description is " + descr);
+
+					object mac = moType.InvokeMember("Item", itemFlags, null, moObj, new object[] { "MacAddress" });
+					if (mac == null) 
+						continue;
+
+					Console.WriteLine("MAC Address is " + mac);
+				}
+			} else {
+				byte[] address = new byte[6];
+				int addrlen = 6;
+				int ret, err = 0;
+
+				ret = rawsock_get_hardware_address(ifname, address, ref addrlen, ref err);
+				if (ret == -1) {
+					throw new Exception("Error getting hardware address");
+				}
+
+				retaddr = new byte[addrlen];
+				Array.Copy(address, 0, retaddr, 0, addrlen);
+			}
+
+			return retaddr;
 		}
 	}
 }
