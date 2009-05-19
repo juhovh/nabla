@@ -118,7 +118,7 @@ namespace Nabla {
 					caption = caption.ToString().Substring(11);
 					Console.WriteLine("Name: \"{0}\" Address: \"{1}\"", caption, mac);
 
-					if (caption.ToString().Equals(ifname) && mac.ToString().Length == 17) {
+					if (ifname.IndexOf(caption.ToString()) == 0 && mac.ToString().Length == 17) {
 						retaddr = new byte[6];
 						for (int i=0; i<6; i++) {
 							retaddr[i] = Byte.Parse(mac.ToString().Substring(i*3, 2),
