@@ -33,7 +33,6 @@ namespace Nabla {
 		IntPtr _header = IntPtr.Zero;
 		IntPtr _data = IntPtr.Zero;
 
-		AddressFamily _family;
 		IntPtr _handle;
 		int _protocol;
 
@@ -68,6 +67,12 @@ namespace Nabla {
 		[DllImport("wpcap.dll", CharSet=CharSet.Ansi)]
 		private extern static int pcap_next_ex(IntPtr handle, ref IntPtr header, ref IntPtr data);
 
+		[DllImport("rawsock")]
+		private extern static int rawsock_get_family(IntPtr sockaddr);
+
+		[DllImport("rawsock")]
+		private extern static int rawsock_set_family(IntPtr sockaddr, int family);
+
 
 		public RawSocketPcap(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
 			int ret;
@@ -91,7 +96,6 @@ namespace Nabla {
 				throw new Exception("Unsupported datalink type (" + ret + "), should be DLT_EN10MB");
 			}
 
-			_family = addressFamily;
 			_protocol = protocol;
 		}
 

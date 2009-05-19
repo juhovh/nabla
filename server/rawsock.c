@@ -50,7 +50,7 @@
 struct rawsock_s {
 	int sockfd;
 	char *ifname;
-	int family;
+	int domain;
 
 	char *address;
 	int addrlen;
@@ -62,7 +62,7 @@ static int
 rawsock_prepare(rawsock_t *rawsock, int *err)
 {
 #if defined(__linux__)
-	if (rawsock->family == AF_PACKET && rawsock->ifname) {
+	if (rawsock->domain == AF_PACKET && rawsock->ifname) {
 		struct ifreq ifr;
 		struct sockaddr_ll sll;
 		int index;
@@ -116,6 +116,58 @@ rawsock_prepare(rawsock_t *rawsock, int *err)
 
 	return 0;
 }
+
+int
+rawsock_get_family(struct sockaddr *saddr)
+{
+	assert(saddr);
+
+	switch (saddr->sa_family) {
+	case AF_INET:
+		return 2;
+	case AF_INET6:
+		return 23;
+#if defined(_WIN32) || defined(_WIN64)
+	case AF_NETBIOS:
+#elif defined(__linux__)
+	case AF_PACKET:
+#else
+	case AF_LINK:
+#endif
+		return 13;
+	default:
+		return -1;
+	}
+}
+
+int
+rawsock_set_family(struct sockaddr *saddr, int family)
+{
+	assert(saddr);
+
+	switch (family) {
+	case 2:
+		saddr->sa_family = AF_INET;
+		break;
+	case 23:
+		saddr->sa_family = AF_INET6;
+		break;
+	case 13:
+#if defined(_WIN32) || defined(_WIN64)
+		saddr->sa_family = AF_NETBIOS;
+#elif defined(__linux__)
+		saddr->sa_family = AF_PACKET;
+#else
+		saddr->sa_family = AF_LINK;
+#endif
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
 
 rawsock_t *
 rawsock_init(const char *ifname, int family, int protocol, int *err)
@@ -178,7 +230,7 @@ rawsock_init(const char *ifname, int family, int protocol, int *err)
 	}
 
 	rawsock->sockfd = ret;
-	rawsock->family = domain;
+	rawsock->domain = domain;
 	if (ifname) {
 		rawsock->ifname = strdup(ifname);
 	}
@@ -241,9 +293,6 @@ rawsock_sendto(rawsock_t *rawsock, const void *buf, int offset, int len,
 
 	assert(rawsock);
 
-	if (dest_addr) {
-		dest_addr->sa_family = rawsock->family;
-	}
 	ret = sendto(rawsock->sockfd, buf+offset, len, 0, dest_addr, addrlen);
 	if (ret == -1) {
 		*err = GetLastError();
@@ -289,9 +338,6 @@ rawsock_recvfrom(rawsock_t *rawsock, void *buf, int offset, int len,
 
 	assert(rawsock);
 
-	if (src_addr) {
-		src_addr->sa_family = rawsock->family;
-	}
 	ret = recvfrom(rawsock->sockfd, buf+offset, len, 0, src_addr, addrlen);
 	if (ret == -1) {
 		*err = GetLastError();
