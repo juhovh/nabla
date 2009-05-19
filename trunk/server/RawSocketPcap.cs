@@ -126,8 +126,12 @@ namespace Nabla {
 						pcap_addr addr = (pcap_addr) Marshal.PtrToStructure(curr_addr, typeof(pcap_addr));
 						curr_addr = addr.next;
 
-						/* XXX: Don't call rawsock methods if on Windows */
-						AddressFamily family = (AddressFamily) rawsock_get_family(addr.addr);
+						AddressFamily family;
+						if (Environment.OSVersion.Platform == PlatformID.Unix) {
+							family = (AddressFamily) rawsock_get_family(addr.addr);
+						} else {
+							family = (AddressFamily) Marshal.ReadByte(addr.addr, 0);
+						}
 						SocketAddress saddr;
 						if (family == AddressFamily.InterNetwork) {
 							saddr = new SocketAddress(family, 16);
