@@ -93,12 +93,13 @@ namespace Nabla {
 			byte[] retaddr = null;
 
 			if (Environment.OSVersion.Platform != PlatformID.Unix) {
-				Assembly assembly = Assembly.GetEntryAssembly();
+				string rtDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
+				Assembly assembly = Assembly.LoadFile(rtDir + "System.Management.dll");
 
 				Type mosType = assembly.GetType("System.Management.ManagementObjectSearcher");
 				Type moType = assembly.GetType("System.Management.ManagementObject");
 
-				string query = "SELECT * FROM Win32_NetworkAdapterConfiguration";
+				string query = "SELECT * FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled=1";
 				object mosObj = Activator.CreateInstance(mosType, new object[] { query });
 
 				IEnumerable queryCollection;
@@ -108,17 +109,22 @@ namespace Nabla {
 				foreach (object moObj in queryCollection) {
 					BindingFlags itemFlags = BindingFlags.GetProperty;
 
-					object descr = moType.InvokeMember("Item", itemFlags, null, moObj, new object[] { "Description" });
-					if (descr == null)
+					object caption = moType.InvokeMember("Item", itemFlags, null, moObj, new object[] { "Caption" });
+					object mac = moType.InvokeMember("Item", itemFlags, null, moObj, new object[] { "MACAddress" });
+					if (caption == null || mac == null)
 						continue;
 
-					Console.WriteLine("Description is " + descr);
+					/* XXX: This cuts the index away, should be probably tested more? */
+					caption = caption.ToString().Substring(11);
+					Console.WriteLine("Name: \"{0}\" Address: \"{1}\"", caption, mac);
 
-					object mac = moType.InvokeMember("Item", itemFlags, null, moObj, new object[] { "MacAddress" });
-					if (mac == null) 
-						continue;
-
-					Console.WriteLine("MAC Address is " + mac);
+					if (caption.ToString().Equals(ifname) && mac.ToString().Length == 17) {
+						retaddr = new byte[6];
+						for (int i=0; i<6; i++) {
+							retaddr[i] = Byte.Parse(mac.ToString().Substring(i*3, 2),
+								System.Globalization.NumberStyles.HexNumber);
+						}
+					}
 				}
 			} else {
 				byte[] address = new byte[6];

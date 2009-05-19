@@ -159,9 +159,9 @@ namespace Nabla {
 							saddr[i] = Marshal.ReadByte(addr.addr, i);
 						}
 						endPoint = (IPEndPoint) endPoint.Create(saddr);
-						Console.WriteLine("Found address type {0} of interface {1}: {2}",
+						Console.WriteLine("Found address type {0} of interface {1} ({2}): {3}",
 						                  family,
-						                  iface.name,
+						                  iface.name, iface.description,
 						                  endPoint.Address);
 					}
 				}

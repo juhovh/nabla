@@ -22,18 +22,21 @@ using Nabla;
 
 public class RawSocketTest {
 	private static void Main(string[] args) {
-		RawSocket rawSocket =
-			RawSocket.GetRawSocket("eth0", AddressFamily.DataLink, 0x0800, 100);
+		if (args.Length < 1) {
+			Console.WriteLine("Give the interface name as an argument");
+			return;
+		}
 
-/*
-		byte[] address = rawSocket.GetAddress();
+		byte[] address = RawSocket.GetHardwareAddress("AMD PCNET Family PCI Ethernet Adapter");
 		if (address != null) {
 			Console.Write("Got address:");
 			for (int i=0; i<address.Length; i++)
 				Console.Write(" 0x{0:x}", address[i]);
 			Console.WriteLine("");
 		}
-*/
+
+		RawSocket rawSocket =
+			RawSocket.GetRawSocket(args[0], AddressFamily.DataLink, 0x0800, 100);
 		byte[] buf = new byte[1024];
 		Console.WriteLine("Received {0} bytes", rawSocket.Receive(buf));
 	}
