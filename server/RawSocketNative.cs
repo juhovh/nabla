@@ -74,7 +74,7 @@ namespace Nabla.RawSocket {
 			byte[] retaddr = new byte[addrlen];
 			Array.Copy(address, 0, retaddr, 0, addrlen);
 
-			return address;
+			return retaddr;
 		}
 
 		public RawSocketNative(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
