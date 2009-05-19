@@ -40,6 +40,7 @@
 #  include <arpa/inet.h>
 #  include <linux/if.h>
 #  include <linux/if_arp.h>
+#  include <linux/if_ether.h>
 #  include <linux/if_packet.h>
 #endif
 
@@ -57,65 +58,7 @@ struct rawsock_s {
 };
 typedef struct rawsock_s rawsock_t;
 
-
-static int
-rawsock_prepare(rawsock_t *rawsock, int *err)
-{
-#if defined(__linux__)
-	if (rawsock->domain == AF_PACKET && rawsock->ifname) {
-		struct ifreq ifr;
-		struct sockaddr_ll sll;
-		int index;
-		int ret;
-
-		memset(&ifr, 0, sizeof(ifr));
-		strcpy(ifr.ifr_name, rawsock->ifname);
-		ret = ioctl(rawsock->sockfd, SIOCGIFINDEX, &ifr);
-		if (ret == -1) {
-			*err = errno;
-			return -1;
-		}
-		index = ifr.ifr_ifindex;
-
-		memset(&sll, 0, sizeof(sll));
-		sll.sll_family = AF_PACKET;
-		sll.sll_ifindex = ifr.ifr_ifindex;
-		ret = bind(rawsock->sockfd,
-		           (const struct sockaddr *) &sll,
-		           sizeof(sll));
-		if (ret == -1) {
-			*err = errno;
-			return -1;
-		}
-
-		memset(&ifr, 0, sizeof(ifr));
-		strcpy(ifr.ifr_name, rawsock->ifname);
-		ret = ioctl(rawsock->sockfd, SIOCGIFHWADDR, &ifr);
-		if (ret == -1) {
-			*err = errno;
-			return -1;
-		}
-
-		if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER) {
-			*err = EINVAL;
-			return -1;
-		}
-
-		rawsock->addrlen = 6;
-		rawsock->address = malloc(rawsock->addrlen);
-		if (!rawsock->address) {
-			rawsock->addrlen = 0;
-			*err = ENOMEM;
-			return -1;
-		}
-		memcpy(rawsock->address,
-		       ifr.ifr_hwaddr.sa_data,
-		       rawsock->addrlen);
-	}
-#endif
-
-	return 0;
-}
+int rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, int *err);
 
 int
 rawsock_get_family(struct sockaddr *saddr)
@@ -128,9 +71,9 @@ rawsock_get_family(struct sockaddr *saddr)
 	case AF_INET6:
 		return 23;
 #if defined(_WIN32) || defined(_WIN64)
-	case AF_NETBIOS:
 #elif defined(__linux__)
 	case AF_PACKET:
+#elif defined(__sun__)
 #else
 	case AF_LINK:
 #endif
@@ -224,6 +167,10 @@ rawsock_init(const char *ifname, int family, int protocol, int *err)
 		return NULL;
 	}
 
+	if (rawsock_get_hardware_address(ifname, NULL, NULL, err) < 0) {
+		return NULL;
+	}
+
 	rawsock = calloc(1, sizeof(rawsock_t));
 	if (!rawsock) {
 		return NULL;
@@ -234,7 +181,6 @@ rawsock_init(const char *ifname, int family, int protocol, int *err)
 	if (ifname) {
 		rawsock->ifname = strdup(ifname);
 	}
-	rawsock_prepare(rawsock, err);
 
 	return rawsock;
 }
@@ -352,13 +298,73 @@ rawsock_strerror(int errnum)
 	return strdup(strerror(errnum));
 }
 
-void
-rawsock_get_address(rawsock_t *rawsock, char **address, int *addrlen)
+int
+rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, int *err)
 {
-	assert(rawsock);
+#if defined(__linux__)
+	int sock;
+	struct ifreq ifr;
+	struct sockaddr_ll sll;
+	int index;
+	int ret;
 
-	*address = rawsock->address;
-	*addrlen = rawsock->addrlen;
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sock == -1) {
+		*err = errno;
+		return -1;
+	}
+
+	memset(&ifr, 0, sizeof(ifr));
+	strcpy(ifr.ifr_name, ifname);
+	ret = ioctl(sock, SIOCGIFINDEX, &ifr);
+	if (ret == -1) {
+		closesocket(sock);
+		*err = errno;
+		return -1;
+	}
+	index = ifr.ifr_ifindex;
+
+	memset(&sll, 0, sizeof(sll));
+	sll.sll_family = AF_PACKET;
+	sll.sll_ifindex = ifr.ifr_ifindex;
+	ret = bind(sock,
+		   (const struct sockaddr *) &sll,
+		   sizeof(sll));
+	if (ret == -1) {
+		closesocket(sock);
+		*err = errno;
+		return -1;
+	}
+
+	memset(&ifr, 0, sizeof(ifr));
+	strcpy(ifr.ifr_name, ifname);
+	ret = ioctl(sock, SIOCGIFHWADDR, &ifr);
+	if (ret == -1) {
+		closesocket(sock);
+		*err = errno;
+		return -1;
+	}
+
+	if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER) {
+		closesocket(sock);
+		*err = EINVAL;
+		return -1;
+	}
+
+	if (addrlen) {
+		if (!address || *addrlen < ETH_ALEN) {
+			closesocket(sock);
+			*err = EINVAL;
+			return -1;
+		}
+		*addrlen = ETH_ALEN;
+		memcpy(address, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
+	}
+
+	return 0;
+#endif
+
+	return -1;
 }
 
 void
