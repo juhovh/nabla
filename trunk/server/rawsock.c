@@ -138,6 +138,19 @@ rawsock_prepare(rawsock_t *rawsock, int *err)
 			*err = errno;
 			return -1;
 		}
+
+		memset(&ifr, 0, sizeof(ifr));
+		strncpy(ifr.ifr_name, rawsock->ifname, sizeof(ifr.ifr_name));
+		ret = ioctl(rawsock->sockfd, SIOCGIFHWADDR, &ifr);
+		if (ret == -1) {
+			*err = errno;
+			return -1;
+		}
+
+		if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER) {
+			*err = EINVAL;
+			return -1;
+		}
 	}
 #endif
 
