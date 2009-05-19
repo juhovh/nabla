@@ -24,9 +24,14 @@ using System.Runtime.InteropServices;
 namespace Nabla {
 	public class RawSocketNative : RawSocket {
 		private bool _disposed = false;
-		private AddressFamily _family;
 		private IntPtr _sock;
 		private int _waitms;
+
+		[DllImport("rawsock")]
+		private static extern int rawsock_get_family(byte[] sockaddr);
+
+		[DllImport("rawsock")]
+		private static extern int rawsock_set_family(byte[] sockaddr, int family);
 
 		[DllImport("rawsock")]
 		private static extern IntPtr rawsock_init(string ifname, int family, int protocol, ref int err);
@@ -74,7 +79,6 @@ namespace Nabla {
 				throw new Exception("Address family '" + addressFamily + "' not supported");
 			}
 
-			_family = addressFamily;
 			_sock = rawsock_init(ifname, family, protocol, ref errno);
 			if (_sock == IntPtr.Zero) {
 				throw new Exception("Error initializing raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
@@ -120,6 +124,11 @@ namespace Nabla {
 				buf = new byte[socketAddress.Size];
 				for (int i=2; i<socketAddress.Size; i++)
 					buf[i] = socketAddress[i];
+				ret = rawsock_set_family(buf, (int) socketAddress.Family);
+				if (ret < 0) {
+					throw new Exception("Address family " + socketAddress.Family + " of endpoint unsupported");
+				}
+
 				length = buf.Length;
 			}
 
@@ -155,6 +164,10 @@ namespace Nabla {
 				buf = new byte[128];
 				for (int i=2; i<socketAddress.Size; i++)
 					buf[i] = socketAddress[i];
+				ret = rawsock_set_family(buf, (int) socketAddress.Family);
+				if (ret < 0) {
+					throw new Exception("Address family " + socketAddress.Family + " of endpoint unsupported");
+				}
 
 				length = buf.Length;
 			}
@@ -165,7 +178,8 @@ namespace Nabla {
 			}
 
 			if (remoteEP != null) {
-				SocketAddress socketAddress = new SocketAddress(_family, length);
+				AddressFamily family = (AddressFamily) rawsock_get_family(buf);
+				SocketAddress socketAddress = new SocketAddress(family, length);
 				for (int i=2; i<socketAddress.Size; i++)
 					socketAddress[i] = buf[i];
 				remoteEP = remoteEP.Create(socketAddress);
