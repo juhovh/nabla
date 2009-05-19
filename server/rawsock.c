@@ -121,7 +121,7 @@ rawsock_prepare(rawsock_t *rawsock, int *err)
 		int ret;
 
 		memset(&ifr, 0, sizeof(ifr));
-		strcpy(ifr.ifr_name, rawsock->ifname);
+		strncpy(ifr.ifr_name, rawsock->ifname, sizeof(ifr.ifr_name));
 		ret = ioctl(rawsock->sockfd, SIOCGIFINDEX, &ifr);
 		if (ret == -1) {
 			*err = errno;
@@ -356,7 +356,7 @@ rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, in
 	}
 
 	memset(&ifr, 0, sizeof(ifr));
-	strcpy(ifr.ifr_name, ifname);
+	strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
 	ret = ioctl(sock, SIOCGIFHWADDR, &ifr);
 	if (ret == -1) {
 		closesocket(sock);
