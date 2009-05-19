@@ -23,7 +23,7 @@ using System.Text;
 using System.Runtime.InteropServices;
 
 
-namespace Nabla {
+namespace Nabla.RawSocket {
 	public class RawSocketPcap : RawSocket {
 		private const int PCAP_ERRBUF_SIZE = 256;
 		private const int DLT_EN10MB = 1;
@@ -91,11 +91,10 @@ namespace Nabla {
 		[DllImport("wpcap.dll", CharSet=CharSet.Ansi)]
 		internal extern static void pcap_freealldevs(IntPtr alldevs);
 
-		[DllImport("rawsock")]
-		private extern static int rawsock_get_family(IntPtr sockaddr);
 
+		public static new byte[] GetHardwareAddress(string ifname) {
+			byte[] hwaddr = null;
 
-		private void getAddresses() {
 			IntPtr ifaces = IntPtr.Zero;
 			StringBuilder errbuf = new StringBuilder(PCAP_ERRBUF_SIZE); 
 
@@ -108,74 +107,44 @@ namespace Nabla {
 			while (curr != IntPtr.Zero) {
 				pcap_if iface = (pcap_if) Marshal.PtrToStructure(curr, typeof(pcap_if));
 
-				if (iface.addresses != IntPtr.Zero) {
+				if (iface.name.Equals(ifname) && iface.addresses != IntPtr.Zero) {
 					IntPtr curr_addr = iface.addresses;
 					while (curr_addr != IntPtr.Zero) {
 						pcap_addr addr = (pcap_addr) Marshal.PtrToStructure(curr_addr, typeof(pcap_addr));
 						curr_addr = addr.next;
 
-						AddressFamily family;
-						if (Environment.OSVersion.Platform == PlatformID.Unix) {
-							family = (AddressFamily) rawsock_get_family(addr.addr);
+						byte byte1 = Marshal.ReadByte(addr.addr, 0);
+						byte byte2 = Marshal.ReadByte(addr.addr, 1);
+
+						if ((byte1 == 17 && byte2 == 0) || (byte1 == 0 && byte2 == 17)) {
+							/* This should be Linux sockaddr_ll, address at 12 */
+							hwaddr = new byte[6];
+							for (int i=0; i<6; i++)
+								hwaddr[i] = Marshal.ReadByte(addr.addr, 12+i);
+						} else if (byte1 == 20 && byte2 == 18) {
+							/* This should be BSD sockaddr_dl, address at 8+(namelen) */
+							hwaddr = new byte[6];
+							int ifnlen = Marshal.ReadByte(addr.addr, 5);
+							for (int i=0; i<6; i++)
+								hwaddr[i] = Marshal.ReadByte(addr.addr, 8+ifnlen+i);
 						} else {
-							family = (AddressFamily) Marshal.ReadByte(addr.addr, 0);
-						}
-
-						SocketAddress saddr;
-						IPEndPoint endPoint;
-						if (family == AddressFamily.InterNetwork) {
-							saddr = new SocketAddress(family, 16);
-							endPoint = new IPEndPoint(IPAddress.Any, 0);
-						} else if (family == AddressFamily.InterNetworkV6) {
-							saddr = new SocketAddress(family, 28);
-							endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
-						} else if (family == AddressFamily.DataLink) {
-							byte byte1 = Marshal.ReadByte(addr.addr, 0);
-							byte byte2 = Marshal.ReadByte(addr.addr, 1);
-							byte[] hwaddr = new byte[6];
-
-							if ((byte1 == 17 && byte2 == 0) || (byte1 == 0 && byte2 == 17)) {
-								/* This should be Linux sockaddr_ll, address at 12 */
-								for (int i=0; i<6; i++)
-									hwaddr[i] = Marshal.ReadByte(addr.addr, 12+i);
-								
-							} else if (byte1 == 20 && byte2 == 18) {
-								/* This should be BSD sockaddr_dl, address at 8+(namelen) */
-								int ifnlen = Marshal.ReadByte(addr.addr, 5);
-								for (int i=0; i<6; i++)
-									hwaddr[i] = Marshal.ReadByte(addr.addr, 8+ifnlen+i);
-							} else {
-								throw new Exception("Unknown sockaddr struct for DataLink");
-							}
-
-							Console.WriteLine("HWAddress of interface {0}: {1}",
-							                  iface.name, BitConverter.ToString(hwaddr));
-							continue;
-						} else {
-							Console.WriteLine("Unknown address family on interface " + iface.name + " found: " + family);
 							continue;
 						}
-
-						for (int i=2; i<saddr.Size; i++) {
-							saddr[i] = Marshal.ReadByte(addr.addr, i);
-						}
-						IPAddress address = ((IPEndPoint) endPoint.Create(saddr)).Address;
-						Console.WriteLine("Found address type {0} of interface {1} ({2}): {3}",
-						                  family,
-						                  iface.name, iface.description,
-						                  address);
+						break;
 					}
 				}
 				curr = iface.next;
 			}
-
 			pcap_freealldevs(ifaces);
+			if (hwaddr == null) {
+				throw new Exception("Error getting hardware address for interface " + ifname);
+			}
+
+			return hwaddr;
 		}
 
 		public RawSocketPcap(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
 			int ret;
-
-			getAddresses();
 
 			if (ifname == null) {
 				throw new Exception("Interface name required for pcap capture");

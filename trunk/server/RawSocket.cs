@@ -24,7 +24,7 @@ using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Collections;
 
-namespace Nabla {
+namespace Nabla.RawSocket {
 	public abstract class RawSocket {
 		[DllImport("rawsock")]
 		private static extern int rawsock_get_hardware_address(string ifname, byte[] address, ref int addrlen, ref int err);
@@ -130,6 +130,10 @@ namespace Nabla {
 				byte[] address = new byte[6];
 				int addrlen = 6;
 				int ret, err = 0;
+
+				try {
+					return RawSocketPcap.GetHardwareAddress(ifname);
+				} catch (Exception) {}
 
 				ret = rawsock_get_hardware_address(ifname, address, ref addrlen, ref err);
 				if (ret == -1) {
