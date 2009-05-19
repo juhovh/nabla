@@ -49,6 +49,36 @@ namespace Nabla {
 			public UInt32   len;
 		}
 
+		[StructLayout(LayoutKind.Sequential)]
+		private struct pcap_if {
+			public IntPtr next;
+			public string name;
+			public string description;
+			public IntPtr addresses;
+			public UInt32 flags;
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
+		private struct pcap_addr {
+			public IntPtr next;
+			public IntPtr addr;
+			public IntPtr netmask;
+			public IntPtr broadaddr;
+			public IntPtr dstaddr;
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
+		private struct sockaddr_ll {
+			public UInt16 sll_family;
+			public UInt16 sll_protocol;
+			public UInt32 sll_ifindex;
+			public UInt16 sll_hatype;
+			public byte   sll_pkttype;
+			public byte   sll_halen;
+			[MarshalAs(UnmanagedType.ByValArray, SizeConst=8)]
+			public byte[] sll_addr;
+		};
+		
 		[DllImport("wpcap.dll", CharSet=CharSet.Ansi)]
 		private extern static IntPtr pcap_open_live(string dev, int packetLen, short mode, short timeout, StringBuilder errbuf);
 
@@ -67,15 +97,76 @@ namespace Nabla {
 		[DllImport("wpcap.dll", CharSet=CharSet.Ansi)]
 		private extern static int pcap_next_ex(IntPtr handle, ref IntPtr header, ref IntPtr data);
 
+		[DllImport("wpcap.dll", CharSet=CharSet.Ansi)]
+		private extern static int pcap_findalldevs(ref IntPtr alldevs, StringBuilder errbuf);
+
+		[DllImport("wpcap.dll", CharSet=CharSet.Ansi)]
+		internal extern static void pcap_freealldevs(IntPtr alldevs);
+
 		[DllImport("rawsock")]
 		private extern static int rawsock_get_family(IntPtr sockaddr);
 
-		[DllImport("rawsock")]
-		private extern static int rawsock_set_family(IntPtr sockaddr, int family);
 
+		private void getAddresses() {
+			IntPtr ifaces = IntPtr.Zero;
+			StringBuilder errbuf = new StringBuilder(PCAP_ERRBUF_SIZE); 
+
+			int ret = pcap_findalldevs(ref ifaces, errbuf);
+			if (ret == -1) {
+				throw new Exception("Error in pcap_findalldevs(): " + errbuf);
+			}
+
+			IntPtr curr = ifaces;
+			while (curr != IntPtr.Zero) {
+				pcap_if iface = (pcap_if) Marshal.PtrToStructure(curr, typeof(pcap_if));
+
+				if (iface.addresses != IntPtr.Zero) {
+					IntPtr curr_addr = iface.addresses;
+					while (curr_addr != IntPtr.Zero) {
+						pcap_addr addr = (pcap_addr) Marshal.PtrToStructure(curr_addr, typeof(pcap_addr));
+						curr_addr = addr.next;
+
+						/* XXX: Don't call rawsock methods if on Windows */
+						AddressFamily family = (AddressFamily) rawsock_get_family(addr.addr);
+						SocketAddress saddr;
+						if (family == AddressFamily.InterNetwork) {
+							saddr = new SocketAddress(family, 16);
+						} else if (family == AddressFamily.InterNetworkV6) {
+							saddr = new SocketAddress(family, 28);
+						} else if (family == AddressFamily.DataLink) {
+							sockaddr_ll sll = (sockaddr_ll) Marshal.PtrToStructure(addr.addr, typeof(sockaddr_ll));
+							byte[] hwaddr = new byte[6];
+							for (int i=0; i<6; i++)
+								hwaddr[i] = sll.sll_addr[i];
+							Console.WriteLine("Hardware address of interface {0}: {1}",
+							                  iface.name,
+							                  BitConverter.ToString(hwaddr));
+							continue;
+						} else {
+							Console.WriteLine("Unknown address family found");
+							continue;
+						}
+						for (int i=2; i<saddr.Size; i++) {
+							saddr[i] = Marshal.ReadByte(addr.addr, i);
+						}
+						IPEndPoint endPoint = new IPEndPoint(0, 0);
+						endPoint = (IPEndPoint) endPoint.Create(saddr);
+						Console.WriteLine("Found address type {0} of interface {1}: {2}",
+						                  family,
+						                  iface.name,
+						                  endPoint.Address);
+					}
+				}
+				curr = iface.next;
+			}
+
+			pcap_freealldevs(ifaces);
+		}
 
 		public RawSocketPcap(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
 			int ret;
+
+			getAddresses();
 
 			if (ifname == null) {
 				throw new Exception("Interface name required for pcap capture");
