@@ -27,7 +27,7 @@ public class RawSocketTest {
 			return;
 		}
 
-		byte[] address = RawSocket.GetHardwareAddress("AMD PCNET Family PCI Ethernet Adapter");
+		byte[] address = RawSocket.GetHardwareAddress(args[0]);
 		if (address != null) {
 			Console.Write("Got address:");
 			for (int i=0; i<address.Length; i++)
