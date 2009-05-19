@@ -24,8 +24,14 @@ using System.Runtime.InteropServices;
 namespace Nabla {
 	public abstract class RawSocket {
 		public static RawSocket GetRawSocket(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
+			try {
+				if (Environment.OSVersion.Platform == PlatformID.Unix) {
+					return new RawSocketNative(ifname, addressFamily, protocol, waitms);
+				}
+			} catch (Exception) {
+			}
+
 			return new RawSocketPcap(ifname, addressFamily, protocol, waitms);
-			//return new RawSocketNative(ifname, addressFamily, protocol, waitms);
 		}
 
 		public static RawSocket GetRawSocket(AddressFamily addressFamily, int protocol, int waitms) {
