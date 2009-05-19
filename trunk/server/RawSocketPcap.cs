@@ -132,7 +132,7 @@ namespace Nabla.RawSocket {
 						byte byte2 = Marshal.ReadByte(addr.addr, 1);
 
 						AddressFamily family;
-						if ((byte1 == 17 && byte2 == 0) || (byte1 == 0 && byte2 == 17)) {
+						if ((byte1 == 2 && byte2 == 0) || (byte1 == 0 && byte2 == 2)) {
 							/* This should be AF_INET on platform without sa_len */
 							family = AddressFamily.InterNetwork;
 						} else if (byte1 == 16 && byte2 == 2) {
