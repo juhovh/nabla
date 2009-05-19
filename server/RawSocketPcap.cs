@@ -258,9 +258,10 @@ namespace Nabla.RawSocket {
 								hwaddr[i] = Marshal.ReadByte(addr.addr, 12+i);
 						} else if (byte1 == 20 && byte2 == 18) {
 							/* This should be BSD sockaddr_dl, address at 8+(namelen) */
-							hwaddr = new byte[6];
 							int ifnlen = Marshal.ReadByte(addr.addr, 5);
-							for (int i=0; i<6; i++)
+							int addrlen = Marshal.ReadByte(addr.addr, 6);
+							hwaddr = new byte[addrlen];
+							for (int i=0; i<addrlen; i++)
 								hwaddr[i] = Marshal.ReadByte(addr.addr, 8+ifnlen+i);
 						} else {
 							continue;
