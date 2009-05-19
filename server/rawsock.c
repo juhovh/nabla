@@ -35,13 +35,18 @@
 #  define GetLastError() errno
 #endif
 
-#if defined(__linux__)
+
+#if defined(_WIN32) || defined(_WIN64)
+#elif defined(__linux__)
 #  include <sys/ioctl.h>
 #  include <arpa/inet.h>
 #  include <linux/if.h>
 #  include <linux/if_arp.h>
 #  include <linux/if_ether.h>
 #  include <linux/if_packet.h>
+#elif defined(__sun__)
+#else
+#  include <ifaddrs.h>
 #endif
 
 #define FAMILY_IPv4    0
@@ -355,46 +360,85 @@ rawsock_strerror(int errnum)
 int
 rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, int *err)
 {
-#if defined(__linux__)
-	int sock;
-	struct ifreq ifr;
-	int ret;
-
 	assert(ifname);
 
-	sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sock == -1) {
-		*err = errno;
+	if (addrlen && !address) {
 		return -1;
 	}
+#if defined(_WIN32) || defined(_WIN64)
+#elif defined(__linux__)
+	{
+		int sock;
+		struct ifreq ifr;
+		int ret;
 
-	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-	ret = ioctl(sock, SIOCGIFHWADDR, &ifr);
-	if (ret == -1) {
-		closesocket(sock);
-		*err = errno;
-		return -1;
-	}
+		sock = socket(AF_INET, SOCK_DGRAM, 0);
+		if (sock == -1) {
+			*err = errno;
+			return -1;
+		}
 
-	if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER) {
-		closesocket(sock);
-		*err = EINVAL;
-		return -1;
-	}
+		memset(&ifr, 0, sizeof(ifr));
+		strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+		ret = ioctl(sock, SIOCGIFHWADDR, &ifr);
+		if (ret == -1) {
+			closesocket(sock);
+			*err = errno;
+			return -1;
+		}
 
-	if (addrlen) {
-		if (!address || *addrlen < ETH_ALEN) {
+		if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER) {
 			closesocket(sock);
 			*err = EINVAL;
 			return -1;
 		}
-		*addrlen = ETH_ALEN;
-		memcpy(address, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
-	}
-	closesocket(sock);
 
-	return 0;
+		if (addrlen) {
+			if (*addrlen < ETH_ALEN) {
+				closesocket(sock);
+				*err = EINVAL;
+				return -1;
+			}
+			*addrlen = ETH_ALEN;
+			memcpy(address, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
+		}
+		closesocket(sock);
+
+		return 0;
+	}
+#elif defined(__sun__)
+#else
+	{
+		struct ifaddrs *ifa, *curr;
+
+		if (getifaddrs(&ifa) != 0)
+			*err = errno;
+			return -1;
+		}
+
+		for (curr = ifa; curr; curr = curr->ifa_next) {
+			if (!strcmp(curr->ifa_name, ifname) &&
+			    curr->ifa_addr->sa_family == AF_LINK) {
+				struct sockaddr_dl *sdp =
+					(struct sockaddr_dl *) curr->ifa_addr;
+
+				if (addrlen) {
+					if (*addrlen < HWADDRLEN) {
+						closesocket(sock);
+						*err = EINVAL;
+						return -1;
+					}
+					*addrlen = HWADDRLEN;
+					memcpy(tapcfg->hwaddr,
+					       sdp->sdl_data + sdp->sdl_nlen,
+					       HWADDRLEN);
+				}
+			}
+		}
+
+		freeifaddrs(ifa);
+		return 0;
+	}
 #endif
 
 	return -1;
