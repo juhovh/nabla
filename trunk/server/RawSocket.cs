@@ -89,7 +89,7 @@ namespace Nabla.RawSocket {
 		public static byte[] GetHardwareAddress(string ifname) {
 			byte[] retaddr = null;
 
-			if (Environment.OSVersion.Platform != PlatformID.Unix) {
+			if (Type.GetType("System.Management.ManagementObject") != null) {
 				string rtDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
 				Assembly assembly = Assembly.LoadFile(rtDir + "System.Management.dll");
 
