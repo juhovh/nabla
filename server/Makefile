@@ -12,4 +12,4 @@ libmac:
 	gcc -Wall -Werror -fPIC -o librawsock.dylib -dynamiclib rawsock.c
 
 clean:
-	rm -f *.exe *.so *.dll *.lib *.def
+	rm -f *.exe *.so *.dll *.lib *.def *.dylib
