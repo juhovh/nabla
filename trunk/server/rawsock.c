@@ -411,6 +411,7 @@ rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, in
 #else
 	{
 		struct ifaddrs *ifa, *curr;
+		int found=0;
 
 		if (getifaddrs(&ifa) != 0) {
 			*err = errno;
@@ -432,12 +433,13 @@ rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, in
 					memcpy(address,
 					       sdp->sdl_data + sdp->sdl_nlen,
 					       *addrlen);
+					found = 1;
 				}
 			}
 		}
-
 		freeifaddrs(ifa);
-		return 0;
+
+		return (found ? 0 : -1);;
 	}
 #endif
 

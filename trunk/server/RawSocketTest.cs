@@ -29,10 +29,8 @@ public class RawSocketTest {
 
 		byte[] address = RawSocket.GetHardwareAddress(args[0]);
 		if (address != null) {
-			Console.Write("Got address:");
-			for (int i=0; i<address.Length; i++)
-				Console.Write(" 0x{0:x}", address[i]);
-			Console.WriteLine("");
+			Console.WriteLine("Got address: {0}",
+				BitConverter.ToString(address).Replace('-', ':').ToLower());
 		}
 
 		RawSocket rawSocket =
