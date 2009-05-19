@@ -111,6 +111,39 @@ rawsock_set_family(struct sockaddr *saddr, int family)
 	return 0;
 }
 
+static int
+rawsock_prepare(rawsock_t *rawsock, int *err)
+{
+#if defined(__linux__)
+	if (rawsock->domain == AF_PACKET && rawsock->ifname) {
+		struct ifreq ifr;
+		struct sockaddr_ll sll;
+		int ret;
+
+		memset(&ifr, 0, sizeof(ifr));
+		strcpy(ifr.ifr_name, rawsock->ifname);
+		ret = ioctl(rawsock->sockfd, SIOCGIFINDEX, &ifr);
+		if (ret == -1) {
+			*err = errno;
+			return -1;
+		}
+
+		memset(&sll, 0, sizeof(sll));
+		sll.sll_family = AF_PACKET;
+		sll.sll_ifindex = ifr.ifr_ifindex;
+		ret = bind(rawsock->sockfd,
+		           (const struct sockaddr *) &sll,
+		           sizeof(sll));
+		if (ret == -1) {
+			*err = errno;
+			return -1;
+		}
+	}
+#endif
+
+	return 0;
+}
+
 
 rawsock_t *
 rawsock_init(const char *ifname, int family, int protocol, int *err)
@@ -180,6 +213,14 @@ rawsock_init(const char *ifname, int family, int protocol, int *err)
 	rawsock->domain = domain;
 	if (ifname) {
 		rawsock->ifname = strdup(ifname);
+	}
+
+	ret = rawsock_prepare(rawsock, err);
+	if (ret == -1) {
+		*err = GetLastError();
+		closesocket(rawsock->sockfd);
+		free(rawsock);
+		return NULL;
 	}
 
 	return rawsock;
@@ -304,36 +345,12 @@ rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, in
 #if defined(__linux__)
 	int sock;
 	struct ifreq ifr;
-	struct sockaddr_ll sll;
-	int index;
 	int ret;
 
 	assert(ifname);
 
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock == -1) {
-		*err = errno;
-		return -1;
-	}
-
-	memset(&ifr, 0, sizeof(ifr));
-	strcpy(ifr.ifr_name, ifname);
-	ret = ioctl(sock, SIOCGIFINDEX, &ifr);
-	if (ret == -1) {
-		closesocket(sock);
-		*err = errno;
-		return -1;
-	}
-	index = ifr.ifr_ifindex;
-
-	memset(&sll, 0, sizeof(sll));
-	sll.sll_family = AF_PACKET;
-	sll.sll_ifindex = ifr.ifr_ifindex;
-	ret = bind(sock,
-		   (const struct sockaddr *) &sll,
-		   sizeof(sll));
-	if (ret == -1) {
-		closesocket(sock);
 		*err = errno;
 		return -1;
 	}
