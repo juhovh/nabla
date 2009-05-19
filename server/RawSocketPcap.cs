@@ -21,6 +21,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
 
 
 namespace Nabla.RawSocket {
@@ -32,9 +33,11 @@ namespace Nabla.RawSocket {
 		private bool _disposed = false;
 		IntPtr _header = IntPtr.Zero;
 		IntPtr _data = IntPtr.Zero;
+		byte[] _readbuf = new byte[512];
 
 		IntPtr _handle;
 		int _protocol;
+		AddressFamily _family;
 
 		[StructLayout(LayoutKind.Sequential)]
 		private struct timeval {
@@ -92,6 +95,126 @@ namespace Nabla.RawSocket {
 		internal extern static void pcap_freealldevs(IntPtr alldevs);
 
 
+		private void getAddresses(string ifname) {
+			List<IPAddress> addresses = new List<IPAddress>();
+
+			IntPtr ifaces = IntPtr.Zero;
+			StringBuilder errbuf = new StringBuilder(PCAP_ERRBUF_SIZE); 
+
+			int ret = pcap_findalldevs(ref ifaces, errbuf);
+			if (ret == -1) {
+				throw new Exception("Error in pcap_findalldevs(): " + errbuf);
+			}
+
+			IntPtr curr = ifaces;
+			while (curr != IntPtr.Zero) {
+				pcap_if iface = (pcap_if) Marshal.PtrToStructure(curr, typeof(pcap_if));
+				curr = iface.next;
+
+				string id;
+				if (Environment.OSVersion.Platform == PlatformID.Unix) {
+					id = iface.name;	
+				} else {
+					id = iface.description;
+				}
+
+				if (!ifname.Equals(id)) {
+					continue;
+				}
+
+				if (iface.addresses != IntPtr.Zero) {
+					IntPtr curr_addr = iface.addresses;
+					while (curr_addr != IntPtr.Zero) {
+						pcap_addr addr = (pcap_addr) Marshal.PtrToStructure(curr_addr, typeof(pcap_addr));
+						curr_addr = addr.next;
+
+						byte byte1 = Marshal.ReadByte(addr.addr, 0);
+						byte byte2 = Marshal.ReadByte(addr.addr, 1);
+
+						AddressFamily family;
+						if ((byte1 == 17 && byte2 == 0) || (byte1 == 0 && byte2 == 17)) {
+							/* This should be AF_INET on platform without sa_len */
+							family = AddressFamily.InterNetwork;
+						} else if (byte1 == 16 && byte2 == 2) {
+							/* This should be AF_INET on platform with sa_len */
+							family = AddressFamily.InterNetwork;
+						} else if (byte1 == 23 && byte2 == 0) {
+							/* This should be AF_INET6 on Windows */
+							family = AddressFamily.InterNetworkV6;
+						} else if ((byte1 == 10 && byte2 == 0) || (byte1 == 0 && byte2 == 10)) {
+							/* This should be AF_INET6 on Linux */
+							family = AddressFamily.InterNetworkV6;
+						} else if (byte1 == 28 && byte2 == 30) {
+							/* This should be AF_INET6 on BSD with sa_len */
+							family = AddressFamily.InterNetworkV6;
+						} else if ((byte1 == 26 && byte2 == 0) || (byte1 == 0 && byte2 == 26)) {
+							/* This should be AF_INET6 on Solaris */
+							family = AddressFamily.InterNetworkV6;
+						} else  {
+							family = AddressFamily.Unknown;
+						}
+
+						if (family == AddressFamily.InterNetwork) {
+							SocketAddress socketAddress = new SocketAddress(family, 16);
+							for (int i=2; i<socketAddress.Size; i++)
+								socketAddress[i] = Marshal.ReadByte(addr.addr, i);
+							IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
+							endPoint = (IPEndPoint) endPoint.Create(socketAddress);
+							addresses.Add(endPoint.Address);
+						} else if (family == AddressFamily.InterNetworkV6) {
+							SocketAddress socketAddress = new SocketAddress(family, 28);
+							for (int i=2; i<socketAddress.Size; i++)
+								socketAddress[i] = Marshal.ReadByte(addr.addr, i);
+							IPEndPoint endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
+							endPoint = (IPEndPoint) endPoint.Create(socketAddress);
+							addresses.Add(endPoint.Address);
+						}
+					}
+				}
+			}
+			pcap_freealldevs(ifaces);
+
+			foreach (IPAddress addr in addresses) {
+				Console.WriteLine("Found IP address: " + addr);
+			}
+		}
+
+		private string findInterface(string ifname) {
+			string interfaceId = null;
+
+			IntPtr ifaces = IntPtr.Zero;
+			StringBuilder errbuf = new StringBuilder(PCAP_ERRBUF_SIZE); 
+
+			int ret = pcap_findalldevs(ref ifaces, errbuf);
+			if (ret == -1) {
+				throw new Exception("Error in pcap_findalldevs(): " + errbuf);
+			}
+
+			IntPtr curr = ifaces;
+			while (curr != IntPtr.Zero) {
+				pcap_if iface = (pcap_if) Marshal.PtrToStructure(curr, typeof(pcap_if));
+				curr = iface.next;
+
+				string id;
+				if (Environment.OSVersion.Platform == PlatformID.Unix) {
+					id = iface.name;	
+				} else {
+					id = iface.description;
+				}
+
+				if (ifname.Equals(id)) {
+					interfaceId = iface.name;
+					break;
+				}
+			}
+			pcap_freealldevs(ifaces);
+			if (interfaceId == null) {
+				throw new Exception("Cannot find adapter '" + ifname);
+			}
+
+			return interfaceId;
+		}
+
 		public static new byte[] GetHardwareAddress(string ifname) {
 			byte[] hwaddr = null;
 
@@ -106,8 +229,20 @@ namespace Nabla.RawSocket {
 			IntPtr curr = ifaces;
 			while (curr != IntPtr.Zero) {
 				pcap_if iface = (pcap_if) Marshal.PtrToStructure(curr, typeof(pcap_if));
+				curr = iface.next;
 
-				if (iface.name.Equals(ifname) && iface.addresses != IntPtr.Zero) {
+				string id;
+				if (Environment.OSVersion.Platform == PlatformID.Unix) {
+					id = iface.name;	
+				} else {
+					id = iface.description;
+				}
+
+				if (!ifname.Equals(id)) {
+					continue;
+				}
+
+				if (iface.addresses != IntPtr.Zero) {
 					IntPtr curr_addr = iface.addresses;
 					while (curr_addr != IntPtr.Zero) {
 						pcap_addr addr = (pcap_addr) Marshal.PtrToStructure(curr_addr, typeof(pcap_addr));
@@ -133,7 +268,6 @@ namespace Nabla.RawSocket {
 						break;
 					}
 				}
-				curr = iface.next;
 			}
 			pcap_freealldevs(ifaces);
 			if (hwaddr == null) {
@@ -150,12 +284,18 @@ namespace Nabla.RawSocket {
 				throw new Exception("Interface name required for pcap capture");
 			}
 
-			if (addressFamily != AddressFamily.DataLink) {
+			if (addressFamily != AddressFamily.DataLink &&
+			    addressFamily != AddressFamily.InterNetwork &&
+			    addressFamily != AddressFamily.InterNetworkV6) {
 				throw new Exception("Address family '" + addressFamily + "' not supported");
 			}
 
+			getAddresses(ifname);
+
+			/* Map the human readable name to the name to open */
+			string interfaceId = findInterface(ifname);
 			StringBuilder errbuf = new StringBuilder(PCAP_ERRBUF_SIZE);
-			_handle = pcap_open_live(ifname, MAX_PACKET_SIZE, 0, (short) waitms, errbuf);
+			_handle = pcap_open_live(interfaceId, MAX_PACKET_SIZE, 0, (short) waitms, errbuf);
 			if (_handle == IntPtr.Zero) {
 				throw new Exception("Unable to open adapter '" + ifname + "': " + errbuf);
 			}
@@ -166,6 +306,7 @@ namespace Nabla.RawSocket {
 			}
 
 			_protocol = protocol;
+			_family = addressFamily;
 		}
 
 		public override void Bind(EndPoint localEP) {
@@ -178,57 +319,135 @@ namespace Nabla.RawSocket {
 		public override int SendTo(byte[] buffer, int offset, int size, EndPoint remoteEP) {
 			int ret;
 
-			/* This is really ugly but has to do for now */
-			if (offset != 0) {
-				byte[] newbuf = new byte[size];
-				Array.Copy(buffer, offset, newbuf, 0, size);
-				buffer = newbuf;
+			byte[] outbuf;
+			if (_family == AddressFamily.InterNetwork) {
+				/* Ethernet + IPv4 header size */
+				outbuf = new byte[14 + 20 + size];
+
+				/* XXX: Construct Ethernet and IPv4 headers */
+
+				Array.Copy(buffer, offset, outbuf, 14+20, size);
+			} else if (_family == AddressFamily.InterNetworkV6) {
+				/* Ethernet + IPv6 header size */
+				outbuf = new byte[14 + 40 + size];
+
+				/* XXX: Construct Ethernet and IPv6 headers */
+
+				Array.Copy(buffer, offset, outbuf, 14+40, size);
+			} else {
+				outbuf = new byte[size];
+				Array.Copy(buffer, offset, outbuf, 0, size);
 			}
 
-			ret = (buffer[12] << 8) | buffer[13];
+			ret = (outbuf[12] << 8) | outbuf[13];
 			if (ret != _protocol) {
 				throw new Exception("Ethernet frame type (" + ret + ") incorrect");
 			}
 
-			ret = pcap_inject(_handle, buffer, size);
+			ret = pcap_inject(_handle, outbuf, size);
 
 			return ret;
 		}
 
 		public override bool WaitForReadable() {
+			int requiredType = 0;
 			int ret;
 
 			if (_header != IntPtr.Zero && _data != IntPtr.Zero) {
 				return true;
 			}
 
-			ret = pcap_next_ex(_handle, ref _header, ref _data);
-			if (ret < 0) {
-				/* XXX: Fix the pcap_geterr */
-				throw new Exception("Error reading packet: " + pcap_geterr(_handle));
+			if (_family == AddressFamily.InterNetwork) {
+				requiredType = 0x0800;
+			} else if (_family == AddressFamily.InterNetworkV6) {
+				requiredType = 0x86dd;
 			}
 
-			return ((ret > 0) ? true : false);
+			while (true) {
+				_header = IntPtr.Zero;
+				_data = IntPtr.Zero;
+				ret = pcap_next_ex(_handle, ref _header, ref _data);
+
+				if (ret < 0) {
+					/* XXX: Fix the pcap_geterr */
+					throw new Exception("Error reading packet: " + pcap_geterr(_handle));
+				} else if (ret == 0) {
+					/* Read timed out */
+					return false;
+				} else if (requiredType > 0) {
+					/* Check that received type match the required one */
+					int type = Marshal.ReadByte(_data, 12) << 8 |
+					           Marshal.ReadByte(_data, 13);
+
+					if (type != requiredType) {
+						/* XXX: Should return 0 here if timeout elapsed */
+
+						continue;
+					}
+
+					break;
+				} else {
+					/* Any type is accepted and data was read, return */
+					break;
+				}
+			}
+
+			return true;
 		}
 
 		public override int ReceiveFrom(byte[] buffer, int offset, int size, ref EndPoint remoteEP) {
-			bool readable = false;
+			bool readable;
+			int packetOffset;
+			int ret;
 
-			while (!readable) {
-				readable = WaitForReadable();
+			while (true) {
+				readable = false;
+				while (!readable) {
+					readable = WaitForReadable();
+				}
+
+				if (_header == IntPtr.Zero || _data == IntPtr.Zero) {
+					throw new Exception("Header or data null after pcap read");
+				}
+
+				pcap_pkthdr pkt_header = (pcap_pkthdr) Marshal.PtrToStructure(_header, typeof(pcap_pkthdr));
+				if (pkt_header.caplen != pkt_header.len) {
+					throw new Exception("Incoming packet didn't fit into internal buffer");
+				}
+				if (pkt_header.caplen > _readbuf.Length)
+					_readbuf = new byte[pkt_header.caplen];
+				Marshal.Copy(_data, _readbuf, 0, (int) pkt_header.caplen);
+				_header = IntPtr.Zero;
+				_data = IntPtr.Zero;
+
+				if (_family == AddressFamily.InterNetwork) {
+					packetOffset = 14;
+					packetOffset += (_readbuf[14] & 0x0f) * 4;
+
+					/* XXX: Should check for the destination address and protocol type */
+				} else if (_family == AddressFamily.InterNetworkV6) {
+					packetOffset = 40;
+
+					/* XXX: Should check for the destination address and protocol type */
+				} else {
+					packetOffset = 0;
+
+					int protocol = (_readbuf[12] << 8) | _readbuf[13];
+					if (protocol != _protocol) {
+						continue;
+					}
+				}
+
+				if (pkt_header.caplen - packetOffset > size) {
+					throw new Exception("Incoming packet didn't fit into given external buffer");
+				}
+
+				Array.Copy(_readbuf, packetOffset, buffer, offset, pkt_header.caplen - packetOffset);
+				ret = (int) pkt_header.caplen - packetOffset;
+				break;
 			}
 
-			if (_header == IntPtr.Zero || _data == IntPtr.Zero) {
-				throw new Exception("Header or data null after pcap read");
-			}
-
-			pcap_pkthdr pkt_header = (pcap_pkthdr) Marshal.PtrToStructure(_header, typeof(pcap_pkthdr));
-			if (pkt_header.caplen != pkt_header.len || pkt_header.caplen > size) {
-				throw new Exception("Incoming packet didn't fit into the buffer provided");
-			}
-			Marshal.Copy(_data, buffer, offset, (int) pkt_header.caplen);
-
-			return (int) pkt_header.caplen;
+			return ret;
 		}
 
 		public void Dispose() {
