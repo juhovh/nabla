@@ -133,10 +133,13 @@ namespace Nabla {
 							family = (AddressFamily) Marshal.ReadByte(addr.addr, 0);
 						}
 						SocketAddress saddr;
+						IPEndPoint endPoint;
 						if (family == AddressFamily.InterNetwork) {
 							saddr = new SocketAddress(family, 16);
+							endPoint = new IPEndPoint(IPAddress.Any, 0);
 						} else if (family == AddressFamily.InterNetworkV6) {
 							saddr = new SocketAddress(family, 28);
+							endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
 						} else if (family == AddressFamily.DataLink) {
 							sockaddr_ll sll = (sockaddr_ll) Marshal.PtrToStructure(addr.addr, typeof(sockaddr_ll));
 							byte[] hwaddr = new byte[6];
@@ -147,13 +150,12 @@ namespace Nabla {
 							                  BitConverter.ToString(hwaddr));
 							continue;
 						} else {
-							Console.WriteLine("Unknown address family found");
+							Console.WriteLine("Unknown address family found: " + family);
 							continue;
 						}
 						for (int i=2; i<saddr.Size; i++) {
 							saddr[i] = Marshal.ReadByte(addr.addr, i);
 						}
-						IPEndPoint endPoint = new IPEndPoint(0, 0);
 						endPoint = (IPEndPoint) endPoint.Create(saddr);
 						Console.WriteLine("Found address type {0} of interface {1}: {2}",
 						                  family,
