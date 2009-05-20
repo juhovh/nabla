@@ -325,9 +325,6 @@ namespace Nabla.Sockets {
 			_family = addressFamily;
 		}
 
-		public override void Bind(EndPoint localEP) {
-		}
-
 		public override bool WaitForWritable() {
 			return true;
 		}

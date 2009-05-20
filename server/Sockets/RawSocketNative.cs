@@ -35,9 +35,6 @@ namespace Nabla.Sockets {
 		private static extern IntPtr rawsock_init(string ifname, int family, int protocol, ref int err);
 
 		[DllImport("rawsock")]
-		private static extern int rawsock_bind(IntPtr sock, byte[] addr, int addrlen, ref int err);
-
-		[DllImport("rawsock")]
 		private static extern int rawsock_wait_for_writable(IntPtr sock, int waitms, ref int err);
 
 		[DllImport("rawsock")]
@@ -103,20 +100,6 @@ namespace Nabla.Sockets {
 			}
 
 			_waitms = waitms;
-		}
-
-		public override void Bind(EndPoint localEP) {
-			SocketAddress socketAddress = localEP.Serialize();
-
-			byte[] buf = new byte[socketAddress.Size];
-			for (int i=0; i<socketAddress.Size; i++)
-				buf[i] = socketAddress[i];
-
-			int errno = 0;
-			int ret = rawsock_bind(_sock, buf, buf.Length, ref errno);
-			if (ret == -1) {
-				throw new Exception("Error writing to raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
-			}
 		}
 
 		public override bool WaitForWritable() {

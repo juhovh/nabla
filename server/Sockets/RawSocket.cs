@@ -49,8 +49,6 @@ namespace Nabla.Sockets {
 			return GetRawSocket(addressFamily, protocol, 100);
 		}
 
-		public abstract void Bind(EndPoint localEP);
-
 		public abstract bool WaitForWritable();
 		public abstract int SendTo(byte[] buffer, int offset, int size, IPEndPoint remoteEP);
 
