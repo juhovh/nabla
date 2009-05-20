@@ -21,7 +21,7 @@ using System.Runtime.InteropServices;
 using System.Collections.Generic;
 
 
-namespace Nabla.RawSocket {
+namespace Nabla.Sockets {
 	public class RawSocketPcap : RawSocket {
 		private const int PCAP_ERRBUF_SIZE = 256;
 		private const int DLT_EN10MB = 1;

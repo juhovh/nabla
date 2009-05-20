@@ -18,7 +18,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 
-namespace Nabla.RawSocket {
+namespace Nabla.Sockets {
 	public class RawSocketNative : RawSocket {
 		private bool _disposed = false;
 		private IntPtr _sock;

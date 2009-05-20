@@ -1,7 +1,7 @@
 
 all:
-	gmcs -t:library -out:Nabla.RawSocket.dll RawSocket/RawSocket.cs RawSocket/RawSocketNative.cs RawSocket/RawSocketPcap.cs
-	gmcs -out:RawSocketTest.exe -r:Nabla.RawSocket RawSocketTest.cs
+	gmcs -t:library -out:Nabla.Sockets.dll Sockets/RawSocket.cs Sockets/RawSocketNative.cs Sockets/RawSocketPcap.cs
+	gmcs -out:RawSocketTest.exe -r:Nabla.Sockets RawSocketTest.cs
 
 lib:
 	gcc -Wall -Werror -fPIC -o librawsock.so -shared rawsock.c
