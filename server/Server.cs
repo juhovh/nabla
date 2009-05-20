@@ -66,8 +66,6 @@ namespace Nabla {
 					continue;
 
 				int datalen = _intSocket.Receive(data);
-				if ((data[12] << 8 | data[13]) != 0x86dd)
-					continue;
 
 				/* These assume that it's an IPv4-in-IPv6 packet */
 				byte[] gateway = new byte[6];
@@ -76,7 +74,7 @@ namespace Nabla {
 				byte[] publicIP = new byte[16];
 				Array.Copy(data, 14+8, publicIP, 0, 16);
 
-				NATPacket packet = new NATPacket(data, 54, data.Length-54);
+				NATPacket packet = new NATPacket(data, 54, datalen-54);
 				if (!packet.Supported)
 					continue;
 
@@ -117,6 +115,65 @@ namespace Nabla {
 		}
 
 		private void extLoop() {
+			byte[] data = new byte[2048];
+
+			while (true) {
+				if (!_extSocket.WaitForReadable())
+					continue;
+
+				int datalen = _extSocket.Receive(data);
+
+				byte[] gateway = new byte[6];
+				Array.Copy(data, 6, gateway, 0, 6);
+
+				/* This assumes that it's an IPv4 packet in Ethernet frame */
+				NATPacket packet = new NATPacket(data, 14, datalen-14);
+				if (!packet.Supported)
+					return;
+
+				Console.WriteLine("Protocol type {0}, NAT identifier {0}",
+				packet.ProtocolType, packet.GetNatID(true));
+
+				NATMapping m = _mapper.GetExtMapping(packet.ProtocolType,
+				                                     packet.GetNatID(true));
+				if (m == null) {
+					Console.WriteLine("Unmapped connection, drop packet");
+					return;
+				}
+
+				Console.WriteLine("Using external IP {0} with port {1} (0x{1:x})",
+				                  m.ExternalAddress, m.ExternalPort);
+
+				packet.DestinationAddress = m.ClientPrivateAddress;
+				packet.SetNatID(m.ClientPort, true);
+
+				/* Add space for the IPv6 header */
+				datalen += 40;
+				if (data.Length < datalen) {
+					throw new Exception("Buffer not big enough");
+				}
+
+				/* Copy the Ethernet header values */
+				Array.Copy(m.ClientGateway, 0, data, 0, 6);
+				Array.Copy(_intHWAddress, 0, data, 6, 6);
+				data[12] = 0x86;
+				data[13] = 0xdd;
+
+				/* This is ugly and should be replaced */
+				int packetlen = packet.Bytes.Length;
+				data[14] = 0x60;
+				data[18] = (byte) (packetlen >> 8);
+				data[19] = (byte) packetlen;
+				data[20] = 0x04;
+				data[21] = 64;
+				data[37] = 0x01;
+				data[53] = 0x01;
+
+				/* Overwrite the packet data */
+				Array.Copy(packet.Bytes, 0, data, 54, packet.Bytes.Length);
+
+				_intSocket.Send(data, datalen);
+			}
 		}
 
 		private static void Main(string[] args) {
