@@ -332,7 +332,7 @@ namespace Nabla.Sockets {
 			return true;
 		}
 
-		public override int SendTo(byte[] buffer, int offset, int size, EndPoint remoteEP) {
+		public override int SendTo(byte[] buffer, int offset, int size, IPEndPoint remoteEP) {
 			int ret;
 
 			byte[] outbuf;
@@ -411,7 +411,7 @@ namespace Nabla.Sockets {
 			return true;
 		}
 
-		public override int ReceiveFrom(byte[] buffer, int offset, int size, ref EndPoint remoteEP) {
+		public override int ReceiveFrom(byte[] buffer, int offset, int size, ref IPEndPoint remoteEP) {
 			bool readable;
 			int packetOffset;
 			int ret;

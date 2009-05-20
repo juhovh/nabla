@@ -52,12 +52,12 @@ namespace Nabla.Sockets {
 		public abstract void Bind(EndPoint localEP);
 
 		public abstract bool WaitForWritable();
-		public abstract int SendTo(byte[] buffer, int offset, int size, EndPoint remoteEP);
+		public abstract int SendTo(byte[] buffer, int offset, int size, IPEndPoint remoteEP);
 
-		public int SendTo(byte[] buffer, int size, EndPoint remoteEP) {
+		public int SendTo(byte[] buffer, int size, IPEndPoint remoteEP) {
 			return SendTo(buffer, 0, size, remoteEP);
 		}
-		public int SendTo(byte[] buffer, EndPoint remoteEP) {
+		public int SendTo(byte[] buffer, IPEndPoint remoteEP) {
 			return SendTo(buffer, buffer.Length, remoteEP);
 		}
 		public int Send(byte[] buffer, int offset, int size) {
@@ -71,16 +71,16 @@ namespace Nabla.Sockets {
 		}
 
 		public abstract bool WaitForReadable();
-		public abstract int ReceiveFrom(byte[] buffer, int offset, int size, ref EndPoint remoteEP);
+		public abstract int ReceiveFrom(byte[] buffer, int offset, int size, ref IPEndPoint remoteEP);
 
-		public int ReceiveFrom(byte[] buffer, int size, ref EndPoint remoteEP) {
-			return ReceiveFrom(buffer, 0, size, ref remoteEP);
+		public int ReceiveFrom(byte[] buffer, int size, ref IPEndPoint remoteEP) {
+			return ReceiveFrom(buffer, 0, buffer.Length, ref remoteEP);
 		}
-		public int ReceiveFrom(byte[] buffer, ref EndPoint remoteEP) {
+		public int ReceiveFrom(byte[] buffer, ref IPEndPoint remoteEP) {
 			return ReceiveFrom(buffer, buffer.Length, ref remoteEP);
 		}
 		public int Receive(byte[] buffer, int offset, int size) {
-			EndPoint endPoint = null;
+			IPEndPoint endPoint = null;
 			return ReceiveFrom(buffer, offset, size, ref endPoint);
 		}
 		public int Receive(byte[] buffer, int size) {
