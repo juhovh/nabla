@@ -45,6 +45,8 @@
 #  include <linux/if_ether.h>
 #  include <linux/if_packet.h>
 #elif defined(__sun__)
+#  include <stdio.h>
+#  include <fcntl.h>
 #  include "dlpi.h"
 #else
 #  include <net/if_dl.h>
@@ -422,11 +424,12 @@ rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, in
 			return -1;
 		}
 
-		ret = dlpi_get_physaddr(fd, address, addrlen);
+		ret = dlpi_get_physaddr(fd, (unsigned char *) address, *addrlen);
 		if (ret == -1) {
 			*err = errno;
 			return -1;
 		}
+		*addrlen = ret;
 		close(fd);
 
 		return 0;
