@@ -240,23 +240,6 @@ rawsock_init(const char *ifname, int family, int protocol, int *err)
 }
 
 int
-rawsock_bind(rawsock_t *rawsock,
-             const struct sockaddr *addr, socklen_t addrlen,
-             int *err)
-{
-	int ret;
-
-	assert(rawsock);
-
-	ret = bind(rawsock->sockfd, addr, addrlen);
-	if (ret == -1) {
-		*err = GetLastError();
-	}
-
-	return ret;
-}
-
-int
 rawsock_wait_for_writable(rawsock_t *rawsock, int waitms, int *err)
 {
 	fd_set wfds;
