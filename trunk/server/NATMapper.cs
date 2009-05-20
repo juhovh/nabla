@@ -25,22 +25,18 @@ namespace Nabla {
 		public readonly ProtocolType Protocol;
 		public DateTime LastActive;
 
-		public readonly byte[] ClientGateway;
 		public readonly IPAddress ClientPublicAddress;
 		public readonly IPAddress ClientPrivateAddress;
 		public readonly UInt16 ClientPort;
 
-		public byte[] ExternalGateway;
 		public IPAddress ExternalAddress;
 		public UInt16 ExternalPort;
 
 		public NATMapping(ProtocolType protocol,
-				  byte[] gateway,
 				  IPAddress publicIP,
 				  IPAddress privateIP,
 				  UInt16 port) {
 			Protocol = protocol;
-			ClientGateway = gateway;
 			ClientPublicAddress = publicIP;
 			ClientPrivateAddress = privateIP;
 			ClientPort = port;
@@ -109,7 +105,6 @@ namespace Nabla {
 				throw new Exception("Couldn't find external port, ran out of ports?");
 
 			/* XXX: Should get the default gateway MAC address */
-			m.ExternalGateway = new byte[] { 0x00, 0x13, 0x10, 0x7b, 0x17, 0x61 };
 			m.ExternalAddress = _externalAddrs[0];
 			m.ExternalPort = (UInt16) externalPort;
 			m.LastActive = DateTime.Now;
