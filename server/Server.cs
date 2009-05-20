@@ -28,6 +28,9 @@ namespace Nabla {
 		private Thread _extThread;
 		private byte[] _extHWAddress;
 
+		/* XXX: Should be replaced by the real gateway */
+		private byte[] _extGateway = new byte[] { 0x00, 0x13, 0x10, 0x7b, 0x17, 0x61 };
+
 		private RawSocket _intSocket;
 		private RawSocket _extSocket;
 		private NATMapper _mapper;
@@ -88,7 +91,7 @@ namespace Nabla {
 				if (m == null) {
 					Console.WriteLine("Unmapped connection, add mapping");
 
-					m = new NATMapping(packet.ProtocolType, null,
+					m = new NATMapping(packet.ProtocolType,
 					                   endPoint.Address,
 					                   packet.SourceAddress,
 					                   packet.GetNatID(false));
@@ -102,7 +105,7 @@ namespace Nabla {
 				packet.SetNatID(m.ExternalPort, false);
 
 				/* Copy the Ethernet header values */
-				Array.Copy(m.ExternalGateway, 0, data, 0, 6);
+				Array.Copy(_extGateway, 0, data, 0, 6);
 				Array.Copy(_extHWAddress, 0, data, 6, 6);
 				data[12] = 0x08;
 				data[13] = 0x00;
