@@ -64,8 +64,6 @@ struct rawsock_s {
 };
 typedef struct rawsock_s rawsock_t;
 
-int rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, int *err);
-
 int
 rawsock_get_family(struct sockaddr *saddr)
 {
@@ -216,10 +214,6 @@ rawsock_init(const char *ifname, int family, int protocol, int *err)
 	ret = socket(domain, SOCK_RAW, protocol);
 	if (ret == -1) {
 		*err = GetLastError();
-		return NULL;
-	}
-
-	if (rawsock_get_hardware_address(ifname, NULL, NULL, err) < 0) {
 		return NULL;
 	}
 
