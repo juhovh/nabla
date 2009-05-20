@@ -130,7 +130,7 @@ namespace Nabla.Sockets {
 			return (ret == 1) ? true : false;
 		}
 
-		public override int SendTo(byte[] buffer, int offset, int size, EndPoint remoteEP) {
+		public override int SendTo(byte[] buffer, int offset, int size, IPEndPoint remoteEP) {
 			int errno = 0;
 			byte[] buf = null;
 			int length = 0;
@@ -169,7 +169,7 @@ namespace Nabla.Sockets {
 			return (ret == 1) ? true : false;
 		}
 
-		public override int ReceiveFrom(byte[] buffer, int offset, int size, ref EndPoint remoteEP) {
+		public override int ReceiveFrom(byte[] buffer, int offset, int size, ref IPEndPoint remoteEP) {
 			int errno = 0;
 			byte[] buf = null;
 			int length = 0;
@@ -200,7 +200,7 @@ namespace Nabla.Sockets {
 				SocketAddress socketAddress = new SocketAddress(family, length);
 				for (int i=2; i<socketAddress.Size; i++)
 					socketAddress[i] = buf[i];
-				remoteEP = remoteEP.Create(socketAddress);
+				remoteEP = (IPEndPoint) remoteEP.Create(socketAddress);
 			}
 
 			return ret;

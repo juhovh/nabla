@@ -26,8 +26,6 @@ namespace Nabla {
 	public class Server {
 		private Thread _intThread;
 		private Thread _extThread;
-
-		private byte[] _intHWAddress;
 		private byte[] _extHWAddress;
 
 		private RawSocket _intSocket;
@@ -38,8 +36,7 @@ namespace Nabla {
 			_intSocket = intSocket;
 			_extSocket = extSocket;
 
-			_intHWAddress = RawSocket.GetHardwareAddress("eth0");
-			_extHWAddress = RawSocket.GetHardwareAddress("eth0");
+			_extHWAddress = _extSocket.GetHardwareAddress();
 
 			Dictionary<IPAddress, IPAddress> dict = _extSocket.GetIPAddresses();
 			List<IPAddress> addressList = new List<IPAddress>();
@@ -52,7 +49,7 @@ namespace Nabla {
 			_mapper = new NATMapper(addressList.ToArray());
 			_mapper.AddProtocol(ProtocolType.Tcp);
 			_mapper.AddProtocol(ProtocolType.Udp);
-			_mapper.AddProtocol(ProtocolType.Icmp);
+			//_mapper.AddProtocol(ProtocolType.Icmp);
 		}
 
 		public void Start() {
@@ -73,16 +70,11 @@ namespace Nabla {
 				if (!_intSocket.WaitForReadable())
 					continue;
 
-				int datalen = _intSocket.Receive(data);
+				IPEndPoint endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
+				int datalen = _intSocket.ReceiveFrom(data, ref endPoint);
+				Console.WriteLine("Received a packet from {0}", endPoint);
 
-				/* These assume that it's an IPv4-in-IPv6 packet */
-				byte[] gateway = new byte[6];
-				Array.Copy(data, 6, gateway, 0, 6);
-
-				byte[] publicIP = new byte[16];
-				Array.Copy(data, 14+8, publicIP, 0, 16);
-
-				NATPacket packet = new NATPacket(data, 54, datalen-54);
+				NATPacket packet = new NATPacket(data, datalen);
 				if (!packet.Supported)
 					continue;
 
@@ -96,8 +88,8 @@ namespace Nabla {
 				if (m == null) {
 					Console.WriteLine("Unmapped connection, add mapping");
 
-					m = new NATMapping(packet.ProtocolType, gateway,
-					                   new IPAddress(publicIP),
+					m = new NATMapping(packet.ProtocolType, null,
+					                   endPoint.Address,
 					                   packet.SourceAddress,
 					                   packet.GetNatID(false));
 					_mapper.AddMapping(m);
@@ -155,32 +147,8 @@ namespace Nabla {
 				packet.DestinationAddress = m.ClientPrivateAddress;
 				packet.SetNatID(m.ClientPort, true);
 
-				/* Add space for the IPv6 header */
-				datalen += 40;
-				if (data.Length < datalen) {
-					throw new Exception("Buffer not big enough");
-				}
-
-				/* Copy the Ethernet header values */
-				Array.Copy(m.ClientGateway, 0, data, 0, 6);
-				Array.Copy(_intHWAddress, 0, data, 6, 6);
-				data[12] = 0x86;
-				data[13] = 0xdd;
-
-				/* This is ugly and should be replaced */
-				int packetlen = packet.Bytes.Length;
-				data[14] = 0x60;
-				data[18] = (byte) (packetlen >> 8);
-				data[19] = (byte) packetlen;
-				data[20] = 0x04;
-				data[21] = 64;
-				data[37] = 0x01;
-				data[53] = 0x01;
-
-				/* Overwrite the packet data */
-				Array.Copy(packet.Bytes, 0, data, 54, packet.Bytes.Length);
-
-				_intSocket.Send(data, datalen);
+				IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("::1"), 0);
+				_intSocket.SendTo(packet.Bytes, endPoint);
 			}
 		}
 
@@ -190,7 +158,7 @@ namespace Nabla {
 				return;
 			}
 
-			RawSocket intSocket = RawSocket.GetRawSocket(args[0], AddressFamily.DataLink, 0x86dd, 100);
+			RawSocket intSocket = RawSocket.GetRawSocket(args[0], AddressFamily.InterNetworkV6, 4, 100);
 			RawSocket extSocket = RawSocket.GetRawSocket(args[1], AddressFamily.DataLink, 0x0800, 100);
 
 			Server server = new Server(intSocket, extSocket);
