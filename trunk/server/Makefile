@@ -13,8 +13,5 @@ libwin:
 libmac:
 	gcc -Wall -Werror -fPIC -o librawsock.dylib -dynamiclib rawsock.c
 
-libsunos:
-	gcc -Wall -Werror -fPIC -I../libtapcfg/ -o librawsock.so -shared rawsock.c ../libtapcfg/dlpi.c
-
 clean:
 	rm -f *.exe *.so *.dll *.lib *.def *.dylib

@@ -47,7 +47,7 @@
 #elif defined(__sun__)
 #  include <stdio.h>
 #  include <fcntl.h>
-#  include "dlpi.h"
+#  include "../libtapcfg/dlpi.c"
 #else
 #  include <net/if_dl.h>
 #  include <ifaddrs.h>
