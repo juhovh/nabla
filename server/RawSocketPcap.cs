@@ -95,6 +95,39 @@ namespace Nabla.RawSocket {
 		internal extern static void pcap_freealldevs(IntPtr alldevs);
 
 
+		private AddressFamily pointerToAddressFamily(IntPtr ptr) {
+			byte byte1 = Marshal.ReadByte(ptr, 0);
+			byte byte2 = Marshal.ReadByte(ptr, 1);
+
+			AddressFamily family;
+			if ((byte1 == 2 && byte2 == 0) || (byte1 == 0 && byte2 == 2)) {
+				/* This should be AF_INET on platform without sa_len */
+				family = AddressFamily.InterNetwork;
+			} else if (byte1 == 16 && byte2 == 2) {
+				/* This should be AF_INET on platform with sa_len */
+				family = AddressFamily.InterNetwork;
+			} else if (byte1 == 23 && byte2 == 0) {
+				/* This should be AF_INET6 on Windows */
+				family = AddressFamily.InterNetworkV6;
+			} else if ((byte1 == 10 && byte2 == 0) || (byte1 == 0 && byte2 == 10)) {
+				/* This should be AF_INET6 on Linux */
+				family = AddressFamily.InterNetworkV6;
+			} else if (byte1 == 28 && byte2 == 30) {
+				/* This should be AF_INET6 on FreeBSD with sa_len */
+				family = AddressFamily.InterNetworkV6;
+			} else if (byte1 == 28 && byte2 == 24) {
+				/* This should be AF_INET6 on NetBSD/OpenBSD with sa_len */
+				family = AddressFamily.InterNetworkV6;
+			} else if ((byte1 == 26 && byte2 == 0) || (byte1 == 0 && byte2 == 26)) {
+				/* This should be AF_INET6 on Solaris */
+				family = AddressFamily.InterNetworkV6;
+			} else  {
+				family = AddressFamily.Unknown;
+			}
+
+			return family;
+		}
+
 		private void getAddresses(string ifname) {
 			List<IPAddress> addresses = new List<IPAddress>();
 
@@ -128,35 +161,7 @@ namespace Nabla.RawSocket {
 						pcap_addr addr = (pcap_addr) Marshal.PtrToStructure(curr_addr, typeof(pcap_addr));
 						curr_addr = addr.next;
 
-						byte byte1 = Marshal.ReadByte(addr.addr, 0);
-						byte byte2 = Marshal.ReadByte(addr.addr, 1);
-
-						AddressFamily family;
-						if ((byte1 == 2 && byte2 == 0) || (byte1 == 0 && byte2 == 2)) {
-							/* This should be AF_INET on platform without sa_len */
-							family = AddressFamily.InterNetwork;
-						} else if (byte1 == 16 && byte2 == 2) {
-							/* This should be AF_INET on platform with sa_len */
-							family = AddressFamily.InterNetwork;
-						} else if (byte1 == 23 && byte2 == 0) {
-							/* This should be AF_INET6 on Windows */
-							family = AddressFamily.InterNetworkV6;
-						} else if ((byte1 == 10 && byte2 == 0) || (byte1 == 0 && byte2 == 10)) {
-							/* This should be AF_INET6 on Linux */
-							family = AddressFamily.InterNetworkV6;
-						} else if (byte1 == 28 && byte2 == 30) {
-							/* This should be AF_INET6 on FreeBSD with sa_len */
-							family = AddressFamily.InterNetworkV6;
-						} else if (byte1 == 28 && byte2 == 24) {
-							/* This should be AF_INET6 on NetBSD/OpenBSD with sa_len */
-							family = AddressFamily.InterNetworkV6;
-						} else if ((byte1 == 26 && byte2 == 0) || (byte1 == 0 && byte2 == 26)) {
-							/* This should be AF_INET6 on Solaris */
-							family = AddressFamily.InterNetworkV6;
-						} else  {
-							family = AddressFamily.Unknown;
-						}
-
+						AddressFamily family = pointerToAddressFamily(addr.addr);
 						if (family == AddressFamily.InterNetwork) {
 							SocketAddress socketAddress = new SocketAddress(family, 16);
 							for (int i=2; i<socketAddress.Size; i++)
