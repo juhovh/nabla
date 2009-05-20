@@ -104,7 +104,6 @@ namespace Nabla {
 			if (externalPort == -1)
 				throw new Exception("Couldn't find external port, ran out of ports?");
 
-			/* XXX: Should get the default gateway MAC address */
 			m.ExternalAddress = _externalAddrs[0];
 			m.ExternalPort = (UInt16) externalPort;
 			m.LastActive = DateTime.Now;
