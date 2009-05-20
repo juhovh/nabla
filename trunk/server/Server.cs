@@ -41,8 +41,13 @@ namespace Nabla {
 			_intHWAddress = RawSocket.GetHardwareAddress("eth0");
 			_extHWAddress = RawSocket.GetHardwareAddress("eth0");
 
+			Dictionary<IPAddress, IPAddress> dict = _extSocket.GetIPAddresses();
 			List<IPAddress> addressList = new List<IPAddress>();
-			addressList.Add(IPAddress.Parse("59.64.158.119"));
+			foreach (IPAddress addr in dict.Keys) {
+				if (addr.AddressFamily == AddressFamily.InterNetwork) {
+					addressList.Add(addr);
+				}
+			}
 
 			_mapper = new NATMapper(addressList.ToArray());
 			_mapper.AddProtocol(ProtocolType.Tcp);
