@@ -53,6 +53,9 @@ namespace Nabla {
 		public void Start() {
 			_intThread = new Thread(new ThreadStart(this.intLoop));
 			_extThread = new Thread(new ThreadStart(this.extLoop));
+
+			_intThread.Start();
+			_extThread.Start();
 		}
 
 		public void Stop() {
@@ -187,6 +190,10 @@ namespace Nabla {
 
 			Server server = new Server(intSocket, extSocket);
 			server.Start();
+
+			while (true) {
+				Thread.Sleep(1000);
+			}
 		}
 	}
 }
