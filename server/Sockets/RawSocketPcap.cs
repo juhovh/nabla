@@ -92,7 +92,7 @@ namespace Nabla.Sockets {
 		internal extern static void pcap_freealldevs(IntPtr alldevs);
 
 
-		private IPAddress pointerToIPAddress(IntPtr ptr) {
+		private static IPAddress pointerToIPAddress(IntPtr ptr) {
 			if (ptr == IntPtr.Zero)
 				return null;
 
@@ -145,8 +145,8 @@ namespace Nabla.Sockets {
 			return address;
 		}
 
-		private void getAddresses(string ifname) {
-			List<IPAddress> addresses = new List<IPAddress>();
+		public static new Dictionary<IPAddress, IPAddress> GetIPAddresses(string ifname) {
+			Dictionary<IPAddress, IPAddress> addresses = new Dictionary<IPAddress, IPAddress>();
 
 			IntPtr ifaces = IntPtr.Zero;
 			StringBuilder errbuf = new StringBuilder(PCAP_ERRBUF_SIZE); 
@@ -180,17 +180,20 @@ namespace Nabla.Sockets {
 
 						IPAddress address = pointerToIPAddress(addr.addr);
 						IPAddress netmask = pointerToIPAddress(addr.netmask);
-						IPAddress broadaddr = pointerToIPAddress(addr.broadaddr);
 
-						Console.WriteLine("Address: {0} Netmask: {1} Broadcast {2}", address, netmask, broadaddr);
+						if (address != null && netmask != null) {
+							addresses.Add(address, netmask);
+						}
 					}
 				}
 			}
 			pcap_freealldevs(ifaces);
 
-			foreach (IPAddress addr in addresses) {
+			foreach (IPAddress addr in addresses.Keys) {
 				Console.WriteLine("Found IP address: " + addr);
 			}
+
+			return addresses;
 		}
 
 		private string findInterface(string ifname) {
@@ -270,7 +273,7 @@ namespace Nabla.Sockets {
 							hwaddr = new byte[6];
 							for (int i=0; i<6; i++)
 								hwaddr[i] = Marshal.ReadByte(addr.addr, 12+i);
-						} else if (byte1 == 20 && byte2 == 18) {
+						} else if (byte1 >= 8 && byte2 == 18) {
 							/* This should be BSD sockaddr_dl, address at 8+(namelen) */
 							int ifnlen = Marshal.ReadByte(addr.addr, 5);
 							int addrlen = Marshal.ReadByte(addr.addr, 6);
@@ -292,7 +295,7 @@ namespace Nabla.Sockets {
 			return hwaddr;
 		}
 
-		public RawSocketPcap(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
+		public RawSocketPcap(string ifname, AddressFamily addressFamily, int protocol, int waitms) : base(ifname) {
 			int ret;
 
 			if (ifname == null) {
@@ -304,8 +307,6 @@ namespace Nabla.Sockets {
 			    addressFamily != AddressFamily.InterNetworkV6) {
 				throw new Exception("Address family '" + addressFamily + "' not supported");
 			}
-
-			getAddresses(ifname);
 
 			/* Map the human readable name to the name to open */
 			string interfaceId = findInterface(ifname);

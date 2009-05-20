@@ -17,12 +17,19 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
 
 using System.Reflection;
 using System.Collections;
 
 namespace Nabla.Sockets {
 	public abstract class RawSocket {
+		private string _ifname;
+
+		public RawSocket(string ifname) {
+			_ifname = ifname;
+		}
+
 		public static RawSocket GetRawSocket(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
 			try {
 				if (Environment.OSVersion.Platform == PlatformID.Unix) {
@@ -83,6 +90,14 @@ namespace Nabla.Sockets {
 			return Receive(buffer, buffer.Length);
 		}
 
+		public byte[] GetHardwareAddress() {
+			return GetHardwareAddress(_ifname);
+		}
+
+		public Dictionary<IPAddress, IPAddress> GetIPAddresses() {
+			return GetIPAddresses(_ifname);
+		}
+
 		public static byte[] GetHardwareAddress(string ifname) {
 			byte[] retaddr = null;
 
@@ -133,6 +148,18 @@ namespace Nabla.Sockets {
 			}
 
 			return retaddr;
+		}
+
+		public static Dictionary<IPAddress, IPAddress> GetIPAddresses(string ifname) {
+			try {
+				return RawSocketNative.GetIPAddresses(ifname);
+			} catch (Exception) {}
+
+			try {
+				return RawSocketPcap.GetIPAddresses(ifname);
+			} catch (Exception) {}
+
+			throw new Exception("Error getting IP addresses for interface " + ifname);
 		}
 	}
 }
