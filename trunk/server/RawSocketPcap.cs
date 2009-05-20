@@ -145,7 +145,10 @@ namespace Nabla.RawSocket {
 							/* This should be AF_INET6 on Linux */
 							family = AddressFamily.InterNetworkV6;
 						} else if (byte1 == 28 && byte2 == 30) {
-							/* This should be AF_INET6 on BSD with sa_len */
+							/* This should be AF_INET6 on FreeBSD with sa_len */
+							family = AddressFamily.InterNetworkV6;
+						} else if (byte1 == 28 && byte2 == 24) {
+							/* This should be AF_INET6 on NetBSD/OpenBSD with sa_len */
 							family = AddressFamily.InterNetworkV6;
 						} else if ((byte1 == 26 && byte2 == 0) || (byte1 == 0 && byte2 == 26)) {
 							/* This should be AF_INET6 on Solaris */
