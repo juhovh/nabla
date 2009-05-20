@@ -20,104 +20,106 @@ using System.Net;
 using System.Net.Sockets;
 using System.Collections.Generic;
 
-public class NATMapping {
-	public readonly ProtocolType Protocol;
-	public DateTime LastActive;
+namespace Nabla {
+	public class NATMapping {
+		public readonly ProtocolType Protocol;
+		public DateTime LastActive;
 
-	public readonly byte[] ClientGateway;
-	public readonly IPAddress ClientPublicAddress;
-	public readonly IPAddress ClientPrivateAddress;
-	public readonly UInt16 ClientPort;
+		public readonly byte[] ClientGateway;
+		public readonly IPAddress ClientPublicAddress;
+		public readonly IPAddress ClientPrivateAddress;
+		public readonly UInt16 ClientPort;
 
-	public byte[] ExternalGateway;
-	public IPAddress ExternalAddress;
-	public UInt16 ExternalPort;
+		public byte[] ExternalGateway;
+		public IPAddress ExternalAddress;
+		public UInt16 ExternalPort;
 
-	public NATMapping(ProtocolType protocol,
-	                  byte[] gateway,
-	                  IPAddress publicIP,
-	                  IPAddress privateIP,
-	                  UInt16 port) {
-		Protocol = protocol;
-		ClientGateway = gateway;
-		ClientPublicAddress = publicIP;
-		ClientPrivateAddress = privateIP;
-		ClientPort = port;
-	}
-}
-
-public class NATMapper {
-	private Dictionary<ProtocolType, Dictionary<UInt16, List<NATMapping>>> _intMap
-		= new Dictionary<ProtocolType, Dictionary<UInt16, List<NATMapping>>>();
-	private Dictionary<ProtocolType, Dictionary<UInt16, NATMapping>> _extMap
-		= new Dictionary<ProtocolType, Dictionary<UInt16, NATMapping>>();
-	private IPAddress[] _externalAddrs;
-
-	public NATMapper(IPAddress[] externalAddrs) {
-		if (externalAddrs.Length == 0)
-			throw new Exception("External address list needs at least one entry");
-
-		_externalAddrs = externalAddrs;
-		Console.WriteLine("Using address {0} as source",
-		                  _externalAddrs[0]);
+		public NATMapping(ProtocolType protocol,
+				  byte[] gateway,
+				  IPAddress publicIP,
+				  IPAddress privateIP,
+				  UInt16 port) {
+			Protocol = protocol;
+			ClientGateway = gateway;
+			ClientPublicAddress = publicIP;
+			ClientPrivateAddress = privateIP;
+			ClientPort = port;
+		}
 	}
 
-	public NATMapping GetIntMapping(ProtocolType type, IPAddress ipAddr, UInt16 port) {
-		try {
-			foreach (NATMapping m in _intMap[type][port]) {
-				if (ipAddr.Equals(m.ClientPrivateAddress)) {
-					m.LastActive = DateTime.Now;
-					return m;
-				}
-			}
-		} catch (KeyNotFoundException) {
+	public class NATMapper {
+		private Dictionary<ProtocolType, Dictionary<UInt16, List<NATMapping>>> _intMap
+			= new Dictionary<ProtocolType, Dictionary<UInt16, List<NATMapping>>>();
+		private Dictionary<ProtocolType, Dictionary<UInt16, NATMapping>> _extMap
+			= new Dictionary<ProtocolType, Dictionary<UInt16, NATMapping>>();
+		private IPAddress[] _externalAddrs;
+
+		public NATMapper(IPAddress[] externalAddrs) {
+			if (externalAddrs.Length == 0)
+				throw new Exception("External address list needs at least one entry");
+
+			_externalAddrs = externalAddrs;
+			Console.WriteLine("Using address {0} as source",
+					  _externalAddrs[0]);
 		}
 
-		return null;
-	}
+		public NATMapping GetIntMapping(ProtocolType type, IPAddress ipAddr, UInt16 port) {
+			try {
+				foreach (NATMapping m in _intMap[type][port]) {
+					if (ipAddr.Equals(m.ClientPrivateAddress)) {
+						m.LastActive = DateTime.Now;
+						return m;
+					}
+				}
+			} catch (KeyNotFoundException) {
+			}
 
-	public NATMapping GetExtMapping(ProtocolType type, UInt16 port) {
-		try {
-			return _extMap[type][port];
-		} catch (KeyNotFoundException) {
 			return null;
 		}
-	}
 
-	public void AddProtocol(ProtocolType t) {
-		if (_intMap.ContainsKey(t) || _extMap.ContainsKey(t))
-			throw new Exception("Protocol already added");
-
-		_intMap.Add(t, new Dictionary<UInt16, List<NATMapping>>());
-		_extMap.Add(t, new Dictionary<UInt16, NATMapping>());
-	}
-
-	public void AddMapping(NATMapping m) {
-		/* This shouldn't happen since getIntMapping should be checked first */
-		if (GetIntMapping(m.Protocol, m.ClientPrivateAddress, m.ClientPort) != null)
-			throw new Exception("Client port already mapped");
-
-		int externalPort = -1;
-		for (int i=0; i<65536; i++) {
-			if (!_extMap[m.Protocol].ContainsKey((UInt16) (m.ClientPort+i))) {
-				externalPort = (m.ClientPort+i)&0xffff;
-				break;
+		public NATMapping GetExtMapping(ProtocolType type, UInt16 port) {
+			try {
+				return _extMap[type][port];
+			} catch (KeyNotFoundException) {
+				return null;
 			}
 		}
-		if (externalPort == -1)
-			throw new Exception("Couldn't find external port, ran out of ports?");
 
-		/* XXX: Should get the default gateway MAC address */
-		m.ExternalGateway = new byte[] { 0x00, 0x13, 0x10, 0x7b, 0x17, 0x61 };
-		m.ExternalAddress = _externalAddrs[0];
-		m.ExternalPort = (UInt16) externalPort;
-		m.LastActive = DateTime.Now;
+		public void AddProtocol(ProtocolType t) {
+			if (_intMap.ContainsKey(t) || _extMap.ContainsKey(t))
+				throw new Exception("Protocol already added");
 
-		if (!_intMap[m.Protocol].ContainsKey(m.ClientPort))
-			_intMap[m.Protocol].Add(m.ClientPort, new List<NATMapping>());
+			_intMap.Add(t, new Dictionary<UInt16, List<NATMapping>>());
+			_extMap.Add(t, new Dictionary<UInt16, NATMapping>());
+		}
 
-		_intMap[m.Protocol][m.ClientPort].Add(m);
-		_extMap[m.Protocol].Add(m.ExternalPort, m);
+		public void AddMapping(NATMapping m) {
+			/* This shouldn't happen since getIntMapping should be checked first */
+			if (GetIntMapping(m.Protocol, m.ClientPrivateAddress, m.ClientPort) != null)
+				throw new Exception("Client port already mapped");
+
+			int externalPort = -1;
+			for (int i=0; i<65536; i++) {
+				if (!_extMap[m.Protocol].ContainsKey((UInt16) (m.ClientPort+i))) {
+					externalPort = (m.ClientPort+i)&0xffff;
+					break;
+				}
+			}
+			if (externalPort == -1)
+				throw new Exception("Couldn't find external port, ran out of ports?");
+
+			/* XXX: Should get the default gateway MAC address */
+			m.ExternalGateway = new byte[] { 0x00, 0x13, 0x10, 0x7b, 0x17, 0x61 };
+			m.ExternalAddress = _externalAddrs[0];
+			m.ExternalPort = (UInt16) externalPort;
+			m.LastActive = DateTime.Now;
+
+			if (!_intMap[m.Protocol].ContainsKey(m.ClientPort))
+				_intMap[m.Protocol].Add(m.ClientPort, new List<NATMapping>());
+
+			_intMap[m.Protocol][m.ClientPort].Add(m);
+			_extMap[m.Protocol].Add(m.ExternalPort, m);
+		}
 	}
 }
 
