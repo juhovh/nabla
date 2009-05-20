@@ -17,6 +17,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
 
 namespace Nabla.Sockets {
 	public class RawSocketNative : RawSocket {
@@ -74,7 +75,11 @@ namespace Nabla.Sockets {
 			return retaddr;
 		}
 
-		public RawSocketNative(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
+		public static new Dictionary<IPAddress, IPAddress> GetIPAddresses(string ifname) {
+			throw new Exception("Getting IP addresses not implemented in rawsock");
+		}
+
+		public RawSocketNative(string ifname, AddressFamily addressFamily, int protocol, int waitms) : base(ifname) {
 			int errno = 0;
 			int family;
 
