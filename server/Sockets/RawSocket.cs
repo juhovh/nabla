@@ -21,7 +21,7 @@ using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Collections;
 
-namespace Nabla.RawSocket {
+namespace Nabla.Sockets {
 	public abstract class RawSocket {
 		public static RawSocket GetRawSocket(string ifname, AddressFamily addressFamily, int protocol, int waitms) {
 			try {
