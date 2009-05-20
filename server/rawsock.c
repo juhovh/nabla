@@ -45,6 +45,7 @@
 #  include <linux/if_ether.h>
 #  include <linux/if_packet.h>
 #elif defined(__sun__)
+#  include "dlpi.h"
 #else
 #  include <net/if_dl.h>
 #  include <ifaddrs.h>
@@ -408,6 +409,28 @@ rawsock_get_hardware_address(const char *ifname, char *address, int *addrlen, in
 		return 0;
 	}
 #elif defined(__sun__)
+	{
+		int fd;
+		char strbuf[128];
+		int ret;
+
+		strbuf[sizeof(strbuf)-1] = '\0';
+		snprintf(strbuf, sizeof(strbuf)-1, "/dev/%s", ifname);
+		fd = open(strbuf, O_RDWR);
+		if (fd < 0) {
+			*err = errno;
+			return -1;
+		}
+
+		ret = dlpi_get_physaddr(fd, address, addrlen);
+		if (ret == -1) {
+			*err = errno;
+			return -1;
+		}
+		close(fd);
+
+		return 0;
+	}
 #else
 	{
 		struct ifaddrs *ifa, *curr;
