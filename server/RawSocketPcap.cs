@@ -95,7 +95,10 @@ namespace Nabla.RawSocket {
 		internal extern static void pcap_freealldevs(IntPtr alldevs);
 
 
-		private AddressFamily pointerToAddressFamily(IntPtr ptr) {
+		private IPAddress pointerToIPAddress(IntPtr ptr) {
+			if (ptr == IntPtr.Zero)
+				return null;
+
 			byte byte1 = Marshal.ReadByte(ptr, 0);
 			byte byte2 = Marshal.ReadByte(ptr, 1);
 
@@ -125,7 +128,24 @@ namespace Nabla.RawSocket {
 				family = AddressFamily.Unknown;
 			}
 
-			return family;
+			IPAddress address = null;
+			if (family == AddressFamily.InterNetwork) {
+				SocketAddress socketAddress = new SocketAddress(family, 16);
+				for (int i=2; i<socketAddress.Size; i++)
+					socketAddress[i] = Marshal.ReadByte(ptr, i);
+				IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
+				endPoint = (IPEndPoint) endPoint.Create(socketAddress);
+				address = endPoint.Address;
+			} else if (family == AddressFamily.InterNetworkV6) {
+				SocketAddress socketAddress = new SocketAddress(family, 28);
+				for (int i=2; i<socketAddress.Size; i++)
+					socketAddress[i] = Marshal.ReadByte(ptr, i);
+				IPEndPoint endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
+				endPoint = (IPEndPoint) endPoint.Create(socketAddress);
+				address = endPoint.Address;
+			}
+
+			return address;
 		}
 
 		private void getAddresses(string ifname) {
@@ -161,22 +181,11 @@ namespace Nabla.RawSocket {
 						pcap_addr addr = (pcap_addr) Marshal.PtrToStructure(curr_addr, typeof(pcap_addr));
 						curr_addr = addr.next;
 
-						AddressFamily family = pointerToAddressFamily(addr.addr);
-						if (family == AddressFamily.InterNetwork) {
-							SocketAddress socketAddress = new SocketAddress(family, 16);
-							for (int i=2; i<socketAddress.Size; i++)
-								socketAddress[i] = Marshal.ReadByte(addr.addr, i);
-							IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
-							endPoint = (IPEndPoint) endPoint.Create(socketAddress);
-							addresses.Add(endPoint.Address);
-						} else if (family == AddressFamily.InterNetworkV6) {
-							SocketAddress socketAddress = new SocketAddress(family, 28);
-							for (int i=2; i<socketAddress.Size; i++)
-								socketAddress[i] = Marshal.ReadByte(addr.addr, i);
-							IPEndPoint endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
-							endPoint = (IPEndPoint) endPoint.Create(socketAddress);
-							addresses.Add(endPoint.Address);
-						}
+						IPAddress address = pointerToIPAddress(addr.addr);
+						IPAddress netmask = pointerToIPAddress(addr.netmask);
+						IPAddress broadaddr = pointerToIPAddress(addr.broadaddr);
+
+						Console.WriteLine("Address: {0} Netmask: {1} Broadcast {2}", address, netmask, broadaddr);
 					}
 				}
 			}
