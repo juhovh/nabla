@@ -1,6 +1,6 @@
 
 all:
-	gmcs -out:RawSocketTest.exe RawSocket.cs RawSocketNative.cs RawSocketPcap.cs RawSocketTest.cs
+	gmcs -out:RawSocketTest.exe RawSocket/RawSocket.cs RawSocket/RawSocketNative.cs RawSocket/RawSocketPcap.cs RawSocketTest.cs
 
 lib:
 	gcc -Wall -Werror -fPIC -o librawsock.so -shared rawsock.c
