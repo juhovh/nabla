@@ -31,7 +31,6 @@
 int requiretls = 0;
 int verbose = 1;
 
-
 /* getline vars */
 char		tic_buf[2048];
 unsigned int	tic_filled;
@@ -73,7 +72,7 @@ int tic_checktime(time_t epochtime)
 	return 0;
 }
 
-int tic_Login(struct TIC_conf *tic, const char *username, const char *password, const char *server)
+bool tic_Login(struct TIC_conf *tic, const char *username, const char *password, const char *server)
 {
 	char		buf[1024], sSignature[33], sChallenge[1024];
 	int		i;
@@ -93,18 +92,18 @@ int tic_Login(struct TIC_conf *tic, const char *username, const char *password, 
 	if (!tic->sock)
 	{
 		dolog(LOG_ERR, "Couldn't connect to the TIC server %s\n", server);
-		return 0;
+		return false;
 	}
 
 	/* Fetch the welcome */
 	if (sock_getline(tic->sock, tic_buf, sizeof(tic_buf), &tic_filled, buf, sizeof(buf)) == -1)
 	{
-		return 0;
+		return false;
 	}
 	if (buf[0] != '2')
 	{
 		dolog(LOG_ERR, "TIC Server is currently not available\n");
-		return 0;
+		return false;
 	}
 
 	/* Send our client identification */
@@ -135,18 +134,18 @@ int tic_Login(struct TIC_conf *tic, const char *username, const char *password, 
 			!GetVersionEx((OSVERSIONINFO *)&osvEx) ||
 			osvEx.wServicePackMajor <= 0)
 		{
-			snprintf(version, sizeof(version), "%lu.%lu.%lu",
+			snprintf(version, sizeof(version), "%d.%d.%d",
 				osv.dwMajorVersion, osv.dwMinorVersion, osv.dwBuildNumber);
 		}
 		else if (osvEx.wServicePackMinor <= 0)
 		{
-			snprintf(version, sizeof(version), "%lu.%lu.%lu-SP%d",
+			snprintf(version, sizeof(version), "%d.%d.%d-SP%d",
 				osv.dwMajorVersion, osv.dwMinorVersion, osv.dwBuildNumber,
 				osvEx.wServicePackMajor);
 		}
 		else
 		{
-			snprintf(version, sizeof(version), "%lu.%lu.%lu-SP%d.%d",
+			snprintf(version, sizeof(version), "%d.%d.%d-SP%d.%d",
 				osv.dwMajorVersion, osv.dwMinorVersion, osv.dwBuildNumber,
 				osvEx.wServicePackMajor, osvEx.wServicePackMinor);
 		}
@@ -160,12 +159,12 @@ int tic_Login(struct TIC_conf *tic, const char *username, const char *password, 
 	/* Fetch the answer */
 	if (sock_getline(tic->sock, tic_buf, sizeof(tic_buf), &tic_filled, buf, sizeof(buf)) == -1)
 	{
-		return 0;
+		return false;
 	}
 	if (buf[0] != '2')
 	{
 		dolog(LOG_ERR, "Couldn't pass client information: %s.\n", &buf[4]);
-		return 0;
+		return false;
 	}
 
 	/* Request current time */
@@ -174,12 +173,12 @@ int tic_Login(struct TIC_conf *tic, const char *username, const char *password, 
 	/* Fetch the answer */
 	if (sock_getline(tic->sock, tic_buf, sizeof(tic_buf), &tic_filled, buf, sizeof(buf)) == -1)
 	{
-		return 0;
+		return false;
 	}
 	if (buf[0] != '2')
 	{
 		dolog(LOG_ERR, "Time not available? %s\n", &buf[4]);
-		return 0;
+		return false;
 	}
 
 	/* Check if the time is correct */
@@ -190,7 +189,7 @@ int tic_Login(struct TIC_conf *tic, const char *username, const char *password, 
 		dolog(LOG_ERR, "The clock is off by %d seconds, use NTP to sync it!\n", i);
 		snprintf(quitmsg, sizeof(quitmsg), "Aborting: Clock is off by %d seconds\n", i);
 		tic_Logout(tic, quitmsg);
-		return 0;
+		return false;
 	}
 
 #ifdef AICCU_GNUTLS
@@ -200,19 +199,19 @@ int tic_Login(struct TIC_conf *tic, const char *username, const char *password, 
 	/* Fetch the welcome */
 	if (sock_getline(tic->sock, tic_buf, sizeof(tic_buf), &tic_filled, buf, sizeof(buf)) == -1)
 	{
-		return 0;
+		return false;
 	}
 	if (buf[0] == '2')
 	{
 		/* Go to TLS mode */
-		if (!sock_gotls(tic->sock)) return 0;
+		if (!sock_gotls(tic->sock)) return false;
 	}
 	else
 	{
 		if (requiretls)
 		{
 			dolog(LOG_ERR, "TIC Server does not support TLS and TLS is required\n");
-			return 0;
+			return false;
 		}
 		if (verbose) dolog(LOG_WARNING, "TIC Server does not support TLS but TLS is not required, continuing\n");
 	}
@@ -225,12 +224,12 @@ int tic_Login(struct TIC_conf *tic, const char *username, const char *password, 
 	/* Fetch the answer */
 	if (sock_getline(tic->sock, tic_buf, sizeof(tic_buf), &tic_filled, buf, sizeof(buf)) == -1)
 	{
-		return 0;
+		return false;
 	}
 	if (buf[0] != '2')
 	{
 		dolog(LOG_ERR, "Username not accepted: %s.\n", &buf[4]);
-		return 0;
+		return false;
 	}
 	
 	/* Pick a challenge */
@@ -239,12 +238,12 @@ int tic_Login(struct TIC_conf *tic, const char *username, const char *password, 
 	/* Fetch the answer */
 	if (sock_getline(tic->sock, tic_buf, sizeof(tic_buf), &tic_filled, buf, sizeof(buf)) == -1)
 	{
-		return 0;
+		return false;
 	}
 	if (buf[0] != '2')
 	{
 		dolog(LOG_ERR, "Challenge not correct: %s.\n", &buf[4]);
-		return 0;
+		return false;
 	}
 
 	/* Send the response */
@@ -259,17 +258,17 @@ int tic_Login(struct TIC_conf *tic, const char *username, const char *password, 
 	if (sock_getline(tic->sock, tic_buf, sizeof(tic_buf), &tic_filled, buf, sizeof(buf)) == -1)
 	{
 		tic_Logout(tic, NULL);
-		return 0;
+		return false;
 	}
 	if (buf[0] != '2')
 	{
 		tic_Logout(tic, NULL);
 		dolog(LOG_ERR, "Response not accepted: %s.\n", &buf[4]);
-		return 0;
+		return false;
 	}
 
 	/* Connect OK */
-	return 1;
+	return true;
 }
 
 void tic_Logout(struct TIC_conf *tic, const char *quitmsg)
@@ -721,7 +720,6 @@ void tic_Free_Tunnel(struct TIC_Tunnel *tun)
 	if (tun->sIPv4_POP)	{ free(tun->sIPv4_POP);		tun->sIPv4_POP		= NULL; }
 	if (tun->sIPv6_Local)	{ free(tun->sIPv6_Local);	tun->sIPv6_Local	= NULL; }
 	if (tun->sIPv6_POP)	{ free(tun->sIPv6_POP);		tun->sIPv6_POP		= NULL;	}
-	if (tun->sIPv6_LinkLocal) { free(tun->sIPv6_LinkLocal); tun->sIPv6_LinkLocal    = NULL; }
 	free(tun);
 	tun = NULL;
 }
