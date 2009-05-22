@@ -5,7 +5,7 @@ Nabla - Automatic IPv6 Tunneling and Connecticity
 The name of this file is somewhat misleading, because most people have no use
 reading this. However for compiling the following might be useful:
 
-make OSTYPE=unix/win/solaris
+make OSTYPE=unix/win/osx/sunos
 
 Binaries will be compiled into the bin-directory.
 
