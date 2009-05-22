@@ -95,7 +95,15 @@ main(int argc, char *argv[])
 	}
 
 	tunnel = tunnel_init(&endpoint);
-	tunnel_start(tunnel);
+	if (!tunnel) {
+		printf("Error initializing the tunnel, check permissions\n");
+		return -1;
+	}
+
+	if (tunnel_start(tunnel) == -1) {
+		printf("Error starting the tunnel\n");
+		return -1;
+	}
 
 	running = 1;
 	while (running && tunnel_running(tunnel)) {
