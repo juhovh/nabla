@@ -246,22 +246,34 @@ namespace Nabla {
 
 		public byte[] Bytes {
 			get {
+				int checksum;
+
 				/* Set the IP level protocol checksum */
-				_ipchecksum = ~_ipchecksum;
-				_bytes[10] = (byte) (_ipchecksum >> 8);
-				_bytes[11] = (byte) (_ipchecksum);
+				checksum = _ipchecksum;
+				if (checksum > 0xffff) {
+					checksum = (checksum & 0xffff) +
+					           (checksum >> 16);
+				}
+				checksum = ~checksum;
+				_bytes[10] = (byte) (checksum >> 8);
+				_bytes[11] = (byte) (checksum);
 
 				/* Set the transport level protocol checksum */
-				_checksum = ~_checksum;
+				checksum = _checksum;
+				if (checksum > 0xffff) {
+					checksum = (checksum & 0xffff) +
+					           (checksum >> 16);
+				}
+				checksum = ~checksum;
 				if (ProtocolType == ProtocolType.Tcp) {
-					_bytes[_hlen+16] = (byte) (_checksum >> 8);
-					_bytes[_hlen+17] = (byte) (_checksum);
+					_bytes[_hlen+16] = (byte) (checksum >> 8);
+					_bytes[_hlen+17] = (byte) (checksum);
 				} else if (ProtocolType == ProtocolType.Udp) {
-					_bytes[_hlen+6] = (byte) (_checksum >> 8);
-					_bytes[_hlen+7] = (byte) (_checksum);
+					_bytes[_hlen+6] = (byte) (checksum >> 8);
+					_bytes[_hlen+7] = (byte) (checksum);
 				} else if (ProtocolType == ProtocolType.Icmp) {
-					_bytes[_hlen+2] = (byte) (_checksum >> 8);
-					_bytes[_hlen+3] = (byte) (_checksum);
+					_bytes[_hlen+2] = (byte) (checksum >> 8);
+					_bytes[_hlen+3] = (byte) (checksum);
 				}
 
 				return _bytes;
