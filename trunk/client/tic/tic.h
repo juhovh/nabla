@@ -28,6 +28,9 @@
 /* TIC version (which document this should conform to) */
 #define TIC_VERSION	"draft-00"
 
+#define TIC_CLIENT_NAME "AICCU"
+#define TIC_CLIENT_VERSION "2007.01.15"
+
 struct TIC_sTunnel
 {
 	struct TIC_sTunnel	*next;			/* Next in list */
