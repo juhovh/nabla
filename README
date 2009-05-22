@@ -10,6 +10,16 @@ make OSTYPE=unix/win/solaris
 Binaries will be compiled into the bin-directory.
 
 
+License
+-------
+
+The main code is all licensed under GPLv3 with following exceptions:
+
+client/hash_*    - Hash functions 100% under public domain
+client/tic/*     - Files copied from AICCU under 3-clause BSD
+libtapcfg/*      - The libtapcfg library released under LGPLv2.1
+server/Sockets/* - Nabla.Sockets library released under LGPLv2.1
+
 
 Information for developers
 --------------------------
