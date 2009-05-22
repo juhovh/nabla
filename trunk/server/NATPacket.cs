@@ -23,7 +23,9 @@ namespace Nabla {
 	public class NATPacket {
 		private byte[] _bytes;
 		private Byte _hlen;
-		private UInt16 _datalen;
+		private int _ipchecksum;
+		private int _checksum;
+
 		public readonly ProtocolType ProtocolType;
 
 		public NATPacket(byte[] data) : this(data, 0, data.Length) {
@@ -37,35 +39,85 @@ namespace Nabla {
 			Array.Copy(data, index, _bytes, 0, length);
 
 			_hlen = (byte) ((_bytes[0] & 0x0f) * 4);
-			_datalen = (UInt16) ((_bytes[2] << 8 | _bytes[3]) - _hlen);
 			ProtocolType = (ProtocolType) _bytes[9];
+
+			_ipchecksum = 0xffff & ~(_bytes[10]*256 + _bytes[11]);
+			if (ProtocolType == ProtocolType.Tcp) {
+				_checksum = 0xffff & ~(_bytes[_hlen+16]*256 + _bytes[_hlen+17]);
+			} else if (ProtocolType == ProtocolType.Udp) {
+				_checksum = 0xffff & ~(_bytes[_hlen+6]*256 + _bytes[_hlen+7]);
+			} else if (ProtocolType == ProtocolType.Icmp) {
+				_checksum = 0xffff & ~(_bytes[_hlen+2]*256 + _bytes[_hlen+3]);
+			} else {
+				throw new Exception("Unsupported protocol type");
+			}
 		}
 
 		public IPAddress SourceAddress {
 			get {
-				/* XXX: Check that it's an IPv4 address */
 				byte[] addr = new byte[4];
 				Array.Copy(_bytes, 12, addr, 0, 4);
 				return new IPAddress(addr);
 			}
 			set {
-				/* XXX: Check that it's an IPv4 address */
-				Array.Copy(value.GetAddressBytes(), 0,
-					   _bytes, 12, 4);
+				if (value.AddressFamily != AddressFamily.InterNetwork)
+					throw new Exception("IPv4 address family required");
+
+				int csmod = 0;
+				byte[] addr = value.GetAddressBytes();
+				csmod -= (_bytes[12]+_bytes[14])*256;
+				csmod -= (_bytes[13]+_bytes[15]);
+				csmod += (addr[0]+addr[2])*256;
+				csmod += (addr[1]+addr[3]);
+				if (csmod <= 0) {
+					/* This can never be less than -0x1fffe */
+					csmod = (csmod - 1) & 0xffff;
+				}
+
+				/* Modify the IPv4 header checksum */
+				_ipchecksum += csmod;
+
+				if (ProtocolType != ProtocolType.Icmp) {
+					/* Modify the transport protocol checksum */
+					_checksum += csmod;
+				}
+
+				/* Copy new address data in place of the old one */
+				Array.Copy(value.GetAddressBytes(), 0, _bytes, 12, 4);
 			}
 		}
 
 		public IPAddress DestinationAddress {
 			get {
-				/* XXX: Check that it's an IPv4 address */
 				byte[] addr = new byte[4];
 				Array.Copy(_bytes, 16, addr, 0, 4);
 				return new IPAddress(addr);
 			}
 			set {
-				/* XXX: Check that it's an IPv4 address */
-				Array.Copy(value.GetAddressBytes(), 0,
-					   _bytes, 16, 4);
+				if (value.AddressFamily != AddressFamily.InterNetwork)
+					throw new Exception("IPv4 address family required");
+
+				int csmod = 0;
+				byte[] addr = value.GetAddressBytes();
+				csmod -= (_bytes[16]+_bytes[18])*256;
+				csmod -= (_bytes[17]+_bytes[19]);
+				csmod += (addr[0]+addr[2])*256;
+				csmod += (addr[1]+addr[3]);
+				if (csmod <= 0) {
+					/* This can never be less than -0x1fffe */
+					csmod = (csmod - 1) & 0xffff;
+				}
+
+				/* Modify the IPv4 header checksum */
+				_ipchecksum += csmod;
+
+				if (ProtocolType != ProtocolType.Icmp) {
+					/* Modify the transport protocol checksum */
+					_checksum += csmod;
+				}
+
+				/* Copy new address data in place of the old one */
+				Array.Copy(value.GetAddressBytes(), 0, _bytes, 16, 4);
 			}
 		}
 
@@ -81,6 +133,13 @@ namespace Nabla {
 				if (ProtocolType != ProtocolType.Tcp &&
 				    ProtocolType != ProtocolType.Udp)
 					throw new Exception("Source port not available");
+
+				/* Modify the transport protocol checksum */
+				_checksum -= _bytes[_hlen]*256 + _bytes[_hlen+1];
+				_checksum += value;
+				if (_checksum <= 0) {
+					_checksum = (_checksum - 1) & 0xffff;
+				}
 
 				_bytes[_hlen]   = (byte) (value >> 8);
 				_bytes[_hlen+1] = (byte) value;
@@ -100,6 +159,13 @@ namespace Nabla {
 				    ProtocolType != ProtocolType.Udp)
 					throw new Exception("Destination port not available");
 
+				/* Modify the transport protocol checksum */
+				_checksum -= _bytes[_hlen+2]*256 + _bytes[_hlen+3];
+				_checksum += value;
+				if (_checksum <= 0) {
+					_checksum = (_checksum - 1) & 0xffff;
+				}
+
 				_bytes[_hlen+2] = (byte) (value >> 8);
 				_bytes[_hlen+3] = (byte) value;
 			}
@@ -116,6 +182,13 @@ namespace Nabla {
 				if (ProtocolType != ProtocolType.Icmp)
 					throw new Exception("ICMP type not available");
 
+				/* Modify the ICMP checksum */
+				_checksum -= _bytes[_hlen]*256;
+				_checksum += value*256;
+				if (_checksum <= 0) {
+					_checksum = (_checksum - 1) & 0xffff;
+				}
+
 				_bytes[_hlen] = value;
 			}
 		}
@@ -130,6 +203,13 @@ namespace Nabla {
 			set {
 				if (ProtocolType != ProtocolType.Icmp)
 					throw new Exception("ICMP identifier not available");
+
+				/* Modify the ICMP checksum */
+				_checksum -= _bytes[_hlen+4]*256 + _bytes[_hlen+5];
+				_checksum += value;
+				if (_checksum <= 0) {
+					_checksum = (_checksum - 1) & 0xffff;
+				}
 
 				_bytes[_hlen+4] = (byte) (value >> 8);
 				_bytes[_hlen+5] = (byte) value;
@@ -166,78 +246,26 @@ namespace Nabla {
 
 		public byte[] Bytes {
 			get {
-				recalculateChecksums();
+				/* Set the IP level protocol checksum */
+				_ipchecksum = ~_ipchecksum;
+				_bytes[10] = (byte) (_ipchecksum >> 8);
+				_bytes[11] = (byte) (_ipchecksum);
+
+				/* Set the transport level protocol checksum */
+				_checksum = ~_checksum;
+				if (ProtocolType == ProtocolType.Tcp) {
+					_bytes[_hlen+16] = (byte) (_checksum >> 8);
+					_bytes[_hlen+17] = (byte) (_checksum);
+				} else if (ProtocolType == ProtocolType.Udp) {
+					_bytes[_hlen+6] = (byte) (_checksum >> 8);
+					_bytes[_hlen+7] = (byte) (_checksum);
+				} else if (ProtocolType == ProtocolType.Icmp) {
+					_bytes[_hlen+2] = (byte) (_checksum >> 8);
+					_bytes[_hlen+3] = (byte) (_checksum);
+				}
+
 				return _bytes;
 			}
-		}
-
-		public bool Supported {
-			get {
-				if (ProtocolType == ProtocolType.Tcp ||
-				    ProtocolType == ProtocolType.Udp ||
-				    ProtocolType == ProtocolType.Icmp) {
-					return true;
-				} else {
-					return false;
-				}
-			}
-		}
-
-		private void recalculateChecksums() {
-			_bytes[10] = _bytes[11] = 0;
-
-			int checksum = 0;
-			for (int i=0; i<_hlen; i++)
-				checksum += _bytes[i] << ((i%2 == 0)?8:0);
-			if (checksum > 0xffff)
-				checksum = (checksum & 0xffff) + (checksum >> 16);
-			checksum = ~checksum;
-
-			_bytes[10] = (byte) (checksum >> 8);
-			_bytes[11] = (byte) (checksum);
-
-			if (ProtocolType == ProtocolType.Tcp) {
-				_bytes[_hlen+16] = _bytes[_hlen+17] = 0;
-				checksum = pseudoHeaderChecksum();
-			} else if (ProtocolType == ProtocolType.Udp) {
-				_bytes[_hlen+6] = _bytes[_hlen+7] = 0;
-				checksum = pseudoHeaderChecksum();
-			} else if (ProtocolType == ProtocolType.Icmp) {
-				_bytes[_hlen+2] = _bytes[_hlen+3] = 0;
-				checksum = 0;
-			} else {
-				throw new Exception("Unsupported protocol type");
-			}
-
-			for (int i=0; i<_datalen; i++) {
-				checksum += _bytes[_hlen+i] << ((i%2 == 0)?8:0);
-			}
-			if (checksum > 0xffff)
-				checksum = (checksum & 0xffff) + (checksum >> 16);
-			checksum = ~checksum;
-
-			if (ProtocolType == ProtocolType.Tcp) {
-				_bytes[_hlen+16] = (byte) (checksum >> 8);
-				_bytes[_hlen+17] = (byte) (checksum);
-			} else if (ProtocolType == ProtocolType.Udp) {
-				_bytes[_hlen+6] = (byte) (checksum >> 8);
-				_bytes[_hlen+7] = (byte) (checksum);
-			} else if (ProtocolType == ProtocolType.Icmp) {
-				_bytes[_hlen+2] = (byte) (checksum >> 8);
-				_bytes[_hlen+3] = (byte) (checksum);
-			}
-		}
-
-		private int pseudoHeaderChecksum() {
-			int checksum = 0;
-
-			/* Source and destination address */
-			for (int i=0; i<8; i++)
-				checksum += _bytes[12+i] << ((i%2 == 0)?8:0);
-			checksum += (Byte) ProtocolType;
-			checksum += _datalen;
-
-			return checksum;
 		}
 	}
 }

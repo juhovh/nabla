@@ -77,9 +77,13 @@ namespace Nabla {
 				int datalen = _intSocket.ReceiveFrom(data, ref endPoint);
 				Console.WriteLine("Received a packet from {0}", endPoint);
 
-				NATPacket packet = new NATPacket(data, datalen);
-				if (!packet.Supported)
+				NATPacket packet;
+				try {
+					packet = new NATPacket(data, datalen);
+				} catch (Exception) {
+					/* Packet not supported by NATPacket */
 					continue;
+				}
 
 				Console.WriteLine("Protocol type {0}, NAT identifier {0}",
 				                  packet.ProtocolType, packet.GetNatID(false));
@@ -130,9 +134,13 @@ namespace Nabla {
 				Array.Copy(data, 6, gateway, 0, 6);
 
 				/* This assumes that it's an IPv4 packet in Ethernet frame */
-				NATPacket packet = new NATPacket(data, 14, datalen-14);
-				if (!packet.Supported)
-					return;
+				NATPacket packet;
+				try {
+					packet = new NATPacket(data, 14, datalen-14);
+				} catch (Exception) {
+					/* Packet not supported by NATPacket */
+					continue;
+				}
 
 				Console.WriteLine("Protocol type {0}, NAT identifier {0}",
 				packet.ProtocolType, packet.GetNatID(true));
