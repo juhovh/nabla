@@ -16,6 +16,21 @@ typedef int bool;
 #define true 1
 #define false 0
 
+const static int requiretls = 0;
+const static int verbose = 1;
+
+#ifdef _WIN32
+#define SHUT_RDWR       SD_BOTH
+#endif
+
+struct tlssocket {
+	int			socket;
+#ifdef AICCU_GNUTLS
+	int			tls_active;	/* TLS active? */
+	gnutls_session		session;	/* The GnuTLS sesision */
+#endif /* AICCU_GNUTLS*/
+};
+
 
 /* parseline() rules */
 enum pl_ruletype
@@ -40,7 +55,6 @@ typedef struct tlssocket * TLSSOCKET;
 
 
 /* Common Functions */
-void dologA(int level, const char *fmt, va_list ap);
 void dolog(int level, const char *fmt, ...);
 
 /* Networking functions */

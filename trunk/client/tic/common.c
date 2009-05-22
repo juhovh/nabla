@@ -10,7 +10,6 @@
  $Date: 2006-12-21 14:08:50 $
 **********************************************************/
 
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -19,20 +18,11 @@
 #include "../hash_md5.h"
 #include "common.h"
 
-
 #ifdef AICCU_GNUTLS
-#include <gnutls/gnutls.h>
+#  include <gnutls/gnutls.h>
 #endif
-
 
 #define LISTEN_QUEUE    128
-
-#ifdef __WIN32__
-#define SHUT_RDWR	SD_BOTH
-#else
-#define closesocket close
-#endif
-
 
 /* getline debugging? */
 /*
@@ -40,21 +30,13 @@
  */
 #define E(x) {}
 
-struct tlssocket
-{
-	int			socket;
-#ifdef AICCU_GNUTLS
-	int			tls_active;	/* TLS active? */
-	gnutls_session		session;	/* The GnuTLS sesision */
-#endif
-};
 
-
-void dologA(int level, const char *fmt, va_list ap)
+static void dologA(int level, const char *fmt, va_list ap)
 {
 	char buf[1024];
 
-	vsnprintf(buf, sizeof(buf), fmt, ap);
+	buf[sizeof(buf)-1] = '\0';
+	vsnprintf(buf, sizeof(buf)-1, fmt, ap);
 	fprintf(stderr, "%s", buf);
 }
 
@@ -66,16 +48,14 @@ void dolog(int level, const char *fmt, ...)
 	va_end(ap);
 }
 
-int print_verbose = 1;
-
 /* 
  * Check if an address is RFC1918 based
  * This allows us to warn the user that they are behind a NAT
  */
-int is_rfc1918(char *ipv4)
+bool is_rfc1918(char *ipv4)
 {
 	unsigned int	addr = inet_addr(ipv4);
-	int		ret = 0;
+	bool		ret = false;
 
 
 
@@ -84,7 +64,7 @@ int is_rfc1918(char *ipv4)
 		/* 172.16.0.0/12 */
 		((addr & htonl(0xfff00000)) == htonl(0xac100000)) ||
 		/* 192.168.0.0/16 */
-		((addr & htonl(0xffff0000)) == htonl(0xc0a80000))) ? 1 : 0;
+		((addr & htonl(0xffff0000)) == htonl(0xc0a80000))) ? true : false;
 
 	dolog(LOG_DEBUG, "is_rfc1918(%s) = %s\n", ipv4, ret ? "yes" : "false");
 
@@ -121,7 +101,7 @@ void sock_printf(TLSSOCKET sock, const char *fmt, ...)
 		}
 
 		/* Show this as debug output */
-		if (print_verbose)
+		if (verbose)
 		{
 			/* Strip the last \n */
 			len = (int)strlen(buf);
@@ -204,7 +184,7 @@ int sock_getline(TLSSOCKET sock, char *rbuf, unsigned int rbuflen, unsigned int 
 				else *filled = 0;
 
 				/* Show this as debug output */
-				if (print_verbose) dolog(LOG_DEBUG, "sock_getline() : \"%s\"\n", ubuf);
+				if (verbose) dolog(LOG_DEBUG, "sock_getline() : \"%s\"\n", ubuf);
 
 				/* We got ourselves a line in 'buf' thus return to the caller */
 				return i;
@@ -261,7 +241,7 @@ TLSSOCKET sock_alloc(void)
 
 #ifdef AICCU_GNUTLS
 	/* TLS is not active yet (use sock_gotls() for that) */
-	sock->tls_active = 0;
+	sock->tls_active = false;
 
 	/* Initialize TLS session */
 	ret = gnutls_init(&sock->session, GNUTLS_CLIENT);
@@ -280,8 +260,8 @@ TLSSOCKET sock_alloc(void)
 	/* XXX: Return value is not documented in GNUTLS documentation! */
 
 	/* Configure the x509 credentials for the current session */
-	/*gnutls_credentials_set(sock->session, GNUTLS_CRD_CERTIFICATE, g_aiccu->tls_cred);
-	 XXX: Return value is not documented in GNUTLS documentation! */
+	// gnutls_credentials_set(sock->session, GNUTLS_CRD_CERTIFICATE, g_aiccu->tls_cred);
+	/* XXX: Return value is not documented in GNUTLS documentation! */
 
 #endif /* AICCU_GNUTLS*/
 
@@ -295,7 +275,7 @@ void sock_free(TLSSOCKET sock)
 #ifdef AICCU_GNUTLS
 	if (sock->tls_active)
 	{
-		sock->tls_active = 0;
+		sock->tls_active = false;
 		gnutls_bye(sock->session, GNUTLS_SHUT_RDWR);
 	}
 #endif /* AICCU_GNUTLS*/
@@ -437,16 +417,16 @@ TLSSOCKET listen_server(const char *description, const char *hostname, const cha
  * Put a socket into TLS mode
  */
 #ifdef AICCU_GNUTLS
-int sock_gotls(TLSSOCKET sock)
+bool sock_gotls(TLSSOCKET sock)
 {
 	int ret = 0;
 	
-	if (!sock) return 0;
+	if (!sock) return false;
 	
 	if (sock->tls_active)
 	{
 		dolog(LOG_ERR, "Can't go into TLS mode twice!?\n");
-		return 0;
+		return false;
 	}
 
 	/* Set the transport */
@@ -457,13 +437,13 @@ int sock_gotls(TLSSOCKET sock)
 	if (ret < 0)
 	{
 		dolog(LOG_ERR, "TLS Handshake failed: %s (%d)\n", gnutls_strerror(ret), ret);
-		return 0;
+		return false;
 	}
 
 	dolog(LOG_DEBUG, "TLS Handshake completed succesfully\n");
 
-	sock->tls_active = 1;
-	return 1;
+	sock->tls_active = true;
+	return true;
 }
 #endif
 
@@ -480,7 +460,7 @@ unsigned int countfields(char *s)
  * Copy field <n> of string <s> into <buf> with a maximum of buflen
  * First field is 1
  */
-int copyfield(char *s, unsigned int n, char *buf, unsigned int buflen)
+bool copyfield(char *s, unsigned int n, char *buf, unsigned int buflen)
 {
 	unsigned int begin = 0, i=0;
 
@@ -500,16 +480,16 @@ int copyfield(char *s, unsigned int n, char *buf, unsigned int buflen)
 			i-=begin;
 			strncpy(buf, s+begin, i > buflen ? buflen : i);
 			/* dolog(LOG_DEBUG, "copyfield() : '%s', begin = %d, len = %d\n", buf, begin, i); */
-			return 1;
+			return true;
 		}
 		
 		i++;
 	}
 	dolog(LOG_WARNING, "copyfield() - Field %u didn't exist in '%s'\n", n, s);
-	return 0;
+	return false;
 }
 
-int parseline(char *line, const char *split, struct pl_rule *rules, void *data)
+bool parseline(char *line, const char *split, struct pl_rule *rules, void *data)
 {
 	unsigned int	r, len;
 	char		*end = NULL, *val = NULL, *p = NULL;
@@ -529,7 +509,7 @@ int parseline(char *line, const char *split, struct pl_rule *rules, void *data)
 		line[0] == ';' ||
 		(line[0] == '/' && line[1] == '/'))
 	{
-		return 1;
+		return true;
 	}
 
 	/* Get the end of the first argument */
@@ -588,12 +568,12 @@ int parseline(char *line, const char *split, struct pl_rule *rules, void *data)
 			if (	strcmp(val, "yes") == 0 ||
 				strcmp(val, "true") == 0)
 			{
-				*((int *)store) = 1;
+				*((bool *)store) = true;
 			}
 			else if (strcmp(val, "no") == 0 ||
 				strcmp(val, "false") == 0)
 			{
-				*((int *)store) = 0;
+				*((bool *)store) = false;
 			}
 			else
 			{
@@ -610,11 +590,11 @@ int parseline(char *line, const char *split, struct pl_rule *rules, void *data)
 			break;
 
 		case PLRT_END:
-			return 0;
+			return false;
 		}
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 /* 
