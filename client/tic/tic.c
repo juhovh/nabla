@@ -28,9 +28,6 @@
 #define TIC_CLIENT_NAME "AICCU"
 #define TIC_CLIENT_VERSION "2007.01.15"
 
-int requiretls = 0;
-int verbose = 1;
-
 /* getline vars */
 char		tic_buf[2048];
 unsigned int	tic_filled;
