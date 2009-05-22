@@ -63,7 +63,7 @@ logger_log(logger_t *logger, int level, const char *fmt, ...)
 	if (logger->callback) {
 		logger->callback(buffer);
 	} else {
-		fprintf(stderr, buffer);
+		fprintf(stderr, "%s", buffer);
 	}
 }
 
