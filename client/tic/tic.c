@@ -131,18 +131,18 @@ bool tic_Login(struct TIC_conf *tic, const char *username, const char *password,
 			!GetVersionEx((OSVERSIONINFO *)&osvEx) ||
 			osvEx.wServicePackMajor <= 0)
 		{
-			snprintf(version, sizeof(version), "%d.%d.%d",
+			snprintf(version, sizeof(version), "%ld.%ld.%ld",
 				osv.dwMajorVersion, osv.dwMinorVersion, osv.dwBuildNumber);
 		}
 		else if (osvEx.wServicePackMinor <= 0)
 		{
-			snprintf(version, sizeof(version), "%d.%d.%d-SP%d",
+			snprintf(version, sizeof(version), "%ld.%ld.%ld-SP%d",
 				osv.dwMajorVersion, osv.dwMinorVersion, osv.dwBuildNumber,
 				osvEx.wServicePackMajor);
 		}
 		else
 		{
-			snprintf(version, sizeof(version), "%d.%d.%d-SP%d.%d",
+			snprintf(version, sizeof(version), "%ld.%ld.%ld-SP%d.%d",
 				osv.dwMajorVersion, osv.dwMinorVersion, osv.dwBuildNumber,
 				osvEx.wServicePackMajor, osvEx.wServicePackMinor);
 		}
