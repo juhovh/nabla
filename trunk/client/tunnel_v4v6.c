@@ -24,7 +24,6 @@
  */
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
@@ -59,7 +58,7 @@ reader_thread(void *arg)
 	buf[12] = 0x08;
 	buf[13] = 0x00;
 
-	printf("Starting reader thread\n");
+	logger_log(tunnel->logger, LOG_INFO, "Starting reader thread\n");
 
 	do {
 		fd_set rfds;
@@ -75,8 +74,9 @@ reader_thread(void *arg)
 		tv.tv_usec = (tunnel->waitms % 1000) * 1000;
 		ret = select(data->fd+1, &rfds, NULL, NULL, &tv);
 		if (ret == -1) {
-			printf("Error when selecting for fd: %s (%d)\n",
-			       strerror(GetLastError()), GetLastError());
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Error when selecting for fd: %s (%d)\n",
+			           strerror(GetLastError()), GetLastError());
 			break;
 		}
 
@@ -91,29 +91,32 @@ reader_thread(void *arg)
 		ret = recvfrom(data->fd, (char *) (buf+14), sizeof(buf)-14, 0,
 			       (struct sockaddr *) &saddr, &socklen);
 		if (ret == -1) {
-			printf("Error reading packet: %s (%d)\n",
-			       strerror(GetLastError()), GetLastError());
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Error reading packet: %s (%d)\n",
+			           strerror(GetLastError()), GetLastError());
 			break;
 		} else if (ret == 0) {
-			printf("Disconnected from the server\n");
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Disconnected from the server\n");
 			break;
-		} else {
-#ifdef DEBUG
-			printf("Read packet of size %d from %d.%d.%d.%d\n",
-			       ret, buf[26], buf[27], buf[28], buf[29]);
-#endif
 		}
+
+		logger_log(tunnel->logger, LOG_DEBUG,
+			   "Read packet of size %d from %d.%d.%d.%d\n",
+			   ret, buf[26], buf[27], buf[28], buf[29]);
 
 		if (memcmp(&saddr.sin6_addr,
 		           &tunnel->endpoint.remote_ipv6,
 		           sizeof(saddr.sin6_addr))) {
-			printf("Discarding packet from incorrect host\n");
+			logger_log(tunnel->logger, LOG_NOTICE,
+			           "Discarding packet from incorrect host\n");
 			goto read_loop;
 		}
 
 		ret = tapcfg_write(data->tapcfg, buf, ret+14);
 		if (ret == -1) {
-			printf("Error writing packet\n");
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Error writing packet\n");
 			break;
 		}
 
@@ -127,7 +130,8 @@ read_loop:
 	tunnel->running = 0;
 	MUTEX_UNLOCK(tunnel->run_mutex);
 
-	printf("Finished reader thread\n");
+	logger_log(tunnel->logger, LOG_INFO,
+	           "Finished reader thread\n");
 
 	return 0;
 }
@@ -148,7 +152,7 @@ writer_thread(void *arg)
 	localhw = tapcfg_iface_get_hwaddr(data->tapcfg, NULL);
 	assert(localhw);
 
-	printf("Starting writer thread\n");
+	logger_log(tunnel->logger, LOG_INFO, "Starting writer thread\n");
 
 	do {
 		int buflen, type;
@@ -168,12 +172,14 @@ writer_thread(void *arg)
 			buf[18] != 0x06 || buf[19] != 0x04 || // Hw size: 6, Proto size: 4
 			buf[20] != 0x00 || buf[21] != 0x01) { // Opcode: request
 				/* Ignore invalid ARP packet */
-				printf("ARP request packet invalid\n");
+				logger_log(tunnel->logger, LOG_WARNING,
+				           "ARP request packet invalid\n");
 				goto write_loop;
 			}
 
 			if (memcmp(buf+6, localhw, 6)) {
-				printf("ARP coming from unknown device\n");
+				logger_log(tunnel->logger, LOG_NOTICE,
+				           "ARP coming from unknown device\n");
 				goto write_loop;
 			}
 
@@ -187,7 +193,8 @@ writer_thread(void *arg)
 				goto write_loop;
 			}
 			if ((ipaddr.s_addr ^ localip.s_addr) & data->netmask) {
-				printf("Target IP of ARP not available\n");
+				logger_log(tunnel->logger, LOG_WARNING,
+				           "Target IP of ARP not available\n");
 				goto write_loop;
 			}
 
@@ -198,7 +205,8 @@ writer_thread(void *arg)
 			/* Change opcode type into reply */
 			buf[21] = 0x02;
 
-			printf("Replied to an ARP request\n");
+			logger_log(tunnel->logger, LOG_INFO,
+			           "Replied to an ARP request\n");
 			tapcfg_write(data->tapcfg, buf, buflen);
 		} else if (type == 0x800) {
 			const char broadcasthw[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -217,8 +225,9 @@ writer_thread(void *arg)
 				FD_SET(data->fd, &wfds);
 				ret = select(data->fd+1, NULL, &wfds, NULL, NULL);
 				if (ret == -1) {
-					printf("Error when selecting for fd: %s (%d)\n",
-					       strerror(GetLastError()), GetLastError());
+					logger_log(tunnel->logger, LOG_ERR,
+					           "Error when selecting for fd: %s (%d)\n",
+					           strerror(GetLastError()), GetLastError());
 					break;
 				}
 
@@ -226,22 +235,22 @@ writer_thread(void *arg)
 				             (struct sockaddr *) &saddr,
 				             sizeof(saddr));
 				if (ret <= 0) {
-					printf("Error writing to socket: %s (%d)\n",
-					       strerror(GetLastError()), GetLastError());
+					logger_log(tunnel->logger, LOG_ERR,
+					           "Error writing to socket: %s (%d)\n",
+					           strerror(GetLastError()), GetLastError());
 					break;
 				}
 
-#ifdef DEBUG
-				printf("Wrote %d bytes to the server\n", ret);
-#endif
-			} else {
-#ifdef DEBUG
-				printf("Found an IPv4 packet to other host %d.%d.%d.%d\n",
-				       buf[30], buf[31], buf[32], buf[33]);
-#endif
+				logger_log(tunnel->logger, LOG_DEBUG,
+				           "Wrote %d bytes to the server\n", ret);
 			}
+
+			logger_log(tunnel->logger, LOG_NOTICE,
+			           "Found an IPv4 packet to other host %d.%d.%d.%d\n",
+			           buf[30], buf[31], buf[32], buf[33]);
 		} else {
-			printf("Packet of unhandled protocol type 0x%04x\n", type);
+			logger_log(tunnel->logger, LOG_NOTICE,
+			           "Packet of unhandled protocol type 0x%04x\n", type);
 		}
 
 write_loop:
@@ -254,7 +263,7 @@ write_loop:
 	tunnel->running = 0;
 	MUTEX_UNLOCK(tunnel->run_mutex);
 
-	printf("Finished writer thread\n");
+	logger_log(tunnel->logger, LOG_INFO, "Finished writer thread\n");
 
 	return 0;
 }

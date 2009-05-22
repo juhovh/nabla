@@ -67,7 +67,7 @@ reader_thread(void *arg)
 	buf[12] = 0x86;
 	buf[13] = 0xdd;
 
-	printf("Starting reader thread\n");
+	logger_log(tunnel->logger, LOG_INFO, "Starting reader thread\n");
 
 	do {
 		fd_set rfds;
@@ -83,8 +83,9 @@ reader_thread(void *arg)
 		tv.tv_usec = (tunnel->waitms % 1000) * 1000;
 		ret = select(data->fd+1, &rfds, NULL, NULL, &tv);
 		if (ret == -1) {
-			printf("Error when selecting for fd: %s (%d)\n",
-			       strerror(GetLastError()), GetLastError());
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Error when selecting for fd: %s (%d)\n",
+			           strerror(GetLastError()), GetLastError());
 			break;
 		}
 
@@ -95,34 +96,36 @@ reader_thread(void *arg)
 		saddr.sin_family = AF_INET;
 		saddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-#ifdef DEBUG
-		printf("Trying to read data from server\n");
-#endif
+		logger_log(tunnel->logger, LOG_DEBUG,
+		           "Trying to read data from server\n");
 
 		socklen = sizeof(saddr);
 		ret = recvfrom(data->fd, (char *) (buf+14), sizeof(buf)-14, 0,
 			       (struct sockaddr *) &saddr, &socklen);
 		if (ret == -1) {
-			printf("Error in receiving data: %s (%d)\n",
-			       strerror(GetLastError()), GetLastError());
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Error in receiving data: %s (%d)\n",
+			           strerror(GetLastError()), GetLastError());
 			break;
 		} else if (ret == 0) {
-			printf("Disconnected from the server\n");
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Disconnected from the server\n");
 			break;
 		}
 
 		if (saddr.sin_addr.s_addr != tunnel->endpoint.remote_ipv4.s_addr) {
-			printf("Discarding packet from incorrect host\n");
+			logger_log(tunnel->logger, LOG_NOTICE,
+			           "Discarding packet from incorrect host\n");
 			goto read_loop;
 		}
 
-#ifdef DEBUG
-		printf("Read %d bytes from the server\n", ret);
-#endif
+		logger_log(tunnel->logger, LOG_DEBUG,
+		           "Read %d bytes from the server\n", ret);
 
 		ret = tapcfg_write(data->tapcfg, buf, ret+14);
 		if (ret == -1) {
-			printf("Error writing packet\n");
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Error writing packet\n");
 			break;
 		}
 
@@ -136,7 +139,7 @@ read_loop:
 	tunnel->running = 0;
 	MUTEX_UNLOCK(tunnel->run_mutex);
 
-	printf("Finished reader thread\n");
+	logger_log(tunnel->logger, LOG_INFO, "Finished reader thread\n");
 
 	return 0;
 }
@@ -154,7 +157,7 @@ writer_thread(void *arg)
 	assert(tunnel->privdata);
 	data = tunnel->privdata;
 
-	printf("Starting writer thread\n");
+	logger_log(tunnel->logger, LOG_INFO, "Starting writer thread\n");
 
 	do {
 		fd_set wfds;
@@ -166,13 +169,13 @@ writer_thread(void *arg)
 
 		len = tapcfg_read(data->tapcfg, buf, sizeof(buf));
 		if (len <= 0) {
-			printf("Error in tapcfg reading\n");
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Error in tapcfg reading\n");
 			break;
 		}
 
-#ifdef DEBUG
-		printf("Read %d bytes from the device\n", len);
-#endif
+		logger_log(tunnel->logger, LOG_DEBUG,
+		           "Read %d bytes from the device\n", len);
 
 		if (len < 14) {
 			/* Not enough data for Ethernet header */
@@ -206,9 +209,8 @@ writer_thread(void *arg)
 			/* Ignore unspecified ND's as they are used for DAD */
 			memset(&ipbuf, 0, sizeof(ipbuf));
 			if (!memcmp(buf+14+8, ipbuf, sizeof(ipbuf))) {
-#ifdef DEBUG
-				printf("Found ND DAD request that is ignored\n");
-#endif
+				logger_log(tunnel->logger, LOG_DEBUG,
+				           "Found ND DAD request that is ignored\n");
 				goto write_loop;
 			}
 
@@ -259,12 +261,13 @@ writer_thread(void *arg)
 			buf[14+40+2] = checksum >> 8;
 			buf[14+40+3] = checksum;
 
-#ifdef DEBUG
-			printf("Writing reply to ND request\n");
-#endif
+			logger_log(tunnel->logger, LOG_INFO,
+			           "Writing reply to ND request\n");
+
 			ret = tapcfg_write(data->tapcfg, buf, 14+40+length);
 			if (ret == -1) {
-				printf("Error writing packet\n");
+				logger_log(tunnel->logger, LOG_ERR,
+				           "Error writing packet\n");
 				break;
 			}
 			goto write_loop;
@@ -278,8 +281,9 @@ writer_thread(void *arg)
 		FD_SET(data->fd, &wfds);
 		ret = select(data->fd+1, NULL, &wfds, NULL, NULL);
 		if (ret == -1) {
-			printf("Error when selecting for fd: %s (%d)\n",
-			       strerror(GetLastError()), GetLastError());
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Error when selecting for fd: %s (%d)\n",
+			           strerror(GetLastError()), GetLastError());
 			break;
 		}
 
@@ -287,13 +291,14 @@ writer_thread(void *arg)
 		             (struct sockaddr *) &saddr,
 		             sizeof(saddr));
 		if (ret <= 0) {
-			printf("Error in writing to socket: %s (%d)\n",
-			       strerror(GetLastError()), GetLastError());
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Error in writing to socket: %s (%d)\n",
+			           strerror(GetLastError()), GetLastError());
 			break;
 		}
-#ifdef DEBUG
-		printf("Wrote %d bytes to the server\n", len);
-#endif
+
+		logger_log(tunnel->logger, LOG_DEBUG,
+		           "Wrote %d bytes to the server\n", len);
 
 write_loop:
 		MUTEX_LOCK(tunnel->run_mutex);
@@ -305,7 +310,7 @@ write_loop:
 	tunnel->running = 0;
 	MUTEX_UNLOCK(tunnel->run_mutex);
 
-	printf("Finished writer thread\n");
+	logger_log(tunnel->logger, LOG_INFO, "Finished writer thread\n");
 
 	return 0;
 }
@@ -451,16 +456,18 @@ beat(tunnel_t *tunnel)
 		FD_SET(sock, &wfds);
 		ret = select(sock+1, NULL, &wfds, NULL, NULL);
 		if (ret == -1) {
-			printf("Error when selecting for fd: %s (%d)\n",
-			       strerror(GetLastError()), GetLastError());
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Error when selecting for fd: %s (%d)\n",
+			           strerror(GetLastError()), GetLastError());
 			return 0;
 		}
 
 		ret = sendto(sock, buf, strlen(buf), 0,
 			     (struct sockaddr *) &saddr, sizeof(saddr));
 		if (ret < -1) {
-			printf("Error sending heartbeat: %s (%d)\n",
-			       strerror(GetLastError()), GetLastError());
+			logger_log(tunnel->logger, LOG_ERR,
+			           "Error sending heartbeat: %s (%d)\n",
+			           strerror(GetLastError()), GetLastError());
 			return 0;
 		}
 

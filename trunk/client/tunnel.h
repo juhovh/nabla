@@ -21,6 +21,7 @@
 
 #include "compat.h"
 #include "threads.h"
+#include "logger.h"
 
 enum tunnel_type_e {
 	TUNNEL_TYPE_V4V6,
@@ -54,6 +55,7 @@ typedef struct tunnel_data_s tunnel_data_t;
 struct tunnel_s {
 	const tunnel_mod_t *tunmod;
 	int waitms;
+	logger_t *logger;
 
 	int running;
 	int joined;
