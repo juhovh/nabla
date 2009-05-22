@@ -12,6 +12,10 @@
 #define D(x) {}
 #endif
 
+typedef int bool;
+#define true 1
+#define false 0
+
 
 /* parseline() rules */
 enum pl_ruletype
