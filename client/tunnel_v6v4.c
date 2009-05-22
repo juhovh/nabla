@@ -323,15 +323,25 @@ init(tunnel_t *tunnel)
 	int sock;
 	tapcfg_t *tapcfg;
 	tunnel_data_t *data;
+	int ret;
 
 	assert(tunnel);
 	endpoint = &tunnel->endpoint;
 
 	sock = socket(AF_INET, SOCK_RAW, IPPROTO_IPV6);
-	assert(sock >= 0);
+	if (sock < 0) {
+		return -1;
+	}
 
-	assert(tapcfg = tapcfg_init());
-	assert(tapcfg_start(tapcfg, "ipv6tun", 1) >= 0);
+	tapcfg = tapcfg_init();
+	if (!tapcfg) {
+		return -1;
+	}
+
+	ret = tapcfg_start(tapcfg, "ipv6tun", 1);
+	if (ret < 0) {
+		return -1;
+	}
 
 	local_mtu = 1280;
 	if (tapcfg_iface_set_mtu(tapcfg, local_mtu) < 0) {
@@ -339,7 +349,7 @@ init(tunnel_t *tunnel)
 		if (tapcfg_iface_get_mtu(tapcfg) > local_mtu) {
 			closesocket(sock);
 			tapcfg_destroy(tapcfg);
-			return 0;
+			return -1;
 		}
 	}
 
@@ -347,13 +357,13 @@ init(tunnel_t *tunnel)
 	if (!data) {
 		closesocket(sock);
 		tapcfg_destroy(tapcfg);
-		return 0;
+		return -1;
 	}
 	data->fd = sock;
 	data->tapcfg = tapcfg;
 	tunnel->privdata = data;
 
-	return 1;
+	return 0;
 }
 
 static void
@@ -385,7 +395,7 @@ start(tunnel_t *tunnel)
 	THREAD_CREATE(tunnel->reader, reader_thread, tunnel);
 	THREAD_CREATE(tunnel->writer, writer_thread, tunnel);
 
-	return 1;
+	return 0;
 }
 
 static int
@@ -399,7 +409,7 @@ stop(tunnel_t *tunnel)
 	tapcfg = tunnel->privdata->tapcfg;
 	tapcfg_iface_set_status(tapcfg, TAPCFG_STATUS_ALL_DOWN);
 
-	return 1;
+	return 0;
 }
 
 static int
@@ -421,7 +431,7 @@ beat(tunnel_t *tunnel)
 
 		sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 		if (!sock) {
-			return 0;
+			return -1;
 		}
 
 		assert(inet_ntop(AF_INET6, &tunnel->endpoint.local_ipv6,
@@ -459,7 +469,7 @@ beat(tunnel_t *tunnel)
 			logger_log(tunnel->logger, LOG_ERR,
 			           "Error when selecting for fd: %s (%d)\n",
 			           strerror(GetLastError()), GetLastError());
-			return 0;
+			return -1;
 		}
 
 		ret = sendto(sock, buf, strlen(buf), 0,
@@ -468,13 +478,13 @@ beat(tunnel_t *tunnel)
 			logger_log(tunnel->logger, LOG_ERR,
 			           "Error sending heartbeat: %s (%d)\n",
 			           strerror(GetLastError()), GetLastError());
-			return 0;
+			return -1;
 		}
 
 		closesocket(sock);
 	}
 
-	return 1;
+	return 0;
 }
 
 static tunnel_mod_t module =

@@ -238,15 +238,25 @@ init(tunnel_t *tunnel)
 	int sock;
 	tapcfg_t *tapcfg;
 	tunnel_data_t *data;
+	int ret;
 
 	assert(tunnel);
 	endpoint = &tunnel->endpoint;
 
 	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	assert(sock >= 0);
+	if (sock < 0) {
+		return -1;
+	}
 
-	assert(tapcfg = tapcfg_init());
-	assert(tapcfg_start(tapcfg, "ipv6tun", 1) >= 0);
+	tapcfg = tapcfg_init();
+	if (!tapcfg) {
+		return -1;
+	}
+
+	ret = tapcfg_start(tapcfg, "ipv6tun", 1);
+	if (ret < 0) {
+		return -1;
+	}
 
 	data = calloc(1, sizeof(tunnel_data_t));
 	if (!data) {

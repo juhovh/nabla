@@ -278,21 +278,34 @@ init(tunnel_t *tunnel)
 	char address[INET_ADDRSTRLEN];
 	unsigned int netmask;
 	tunnel_data_t *data;
-	int i;
+	int i, ret;
 
 	assert(tunnel);
 	endpoint = &tunnel->endpoint;
 
 	sock = socket(AF_INET6, SOCK_RAW, IPPROTO_IPIP);
-	assert(sock >= 0);
+	if (sock < 0) {
+		return -1;
+	}
 
 	assert(inet_ntop(AF_INET, &endpoint->local_ipv4,
 	                 address, sizeof(address)));
 
 	tapcfg = tapcfg_init();
-	assert(tapcfg_start(tapcfg, "ipv4tun", 1) >= 0);
-	assert(tapcfg_iface_set_ipv4(tapcfg, address,
-	                             endpoint->local_prefix) >= 0);
+	if (!tapcfg) {
+		return -1;
+	}
+
+	ret = tapcfg_start(tapcfg, "ipv4tun", 1);
+	if (ret < 0) {
+		return -1;
+	}
+
+	ret = tapcfg_iface_set_ipv4(tapcfg, address,
+	                            endpoint->local_prefix);
+	if (ret < 0) {
+		return -1;
+	}
 
 	if (endpoint->local_mtu <= 0) {
 		local_mtu = 1460;
@@ -305,7 +318,7 @@ init(tunnel_t *tunnel)
 		if (tapcfg_iface_get_mtu(tapcfg) > local_mtu) {
 			closesocket(sock);
 			tapcfg_destroy(tapcfg);
-			return 0;
+			return -1;
 		}
 	}
 
@@ -320,14 +333,14 @@ init(tunnel_t *tunnel)
 	if (!data) {
 		closesocket(sock);
 		tapcfg_destroy(tapcfg);
-		return 0;
+		return -1;
 	}
 	data->fd = sock;
 	data->tapcfg = tapcfg;
 	data->netmask = htonl(netmask);
 	tunnel->privdata = data;
 
-	return 1;
+	return 0;
 }
 
 static void
@@ -354,7 +367,7 @@ start(tunnel_t *tunnel)
 	THREAD_CREATE(tunnel->reader, reader_thread, tunnel);
 	THREAD_CREATE(tunnel->writer, writer_thread, tunnel);
 
-	return 1;
+	return 0;
 }
 
 static int
@@ -368,7 +381,7 @@ stop(tunnel_t *tunnel)
 	tapcfg = tunnel->privdata->tapcfg;
 	tapcfg_iface_set_status(tapcfg, TAPCFG_STATUS_ALL_DOWN);
 
-	return 1;
+	return 0;
 }
 
 static tunnel_mod_t module =
