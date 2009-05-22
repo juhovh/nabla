@@ -113,8 +113,10 @@ tunnel_init(endpoint_t *endpoint)
 
 	memcpy((endpoint_t *) &tunnel->endpoint, endpoint, sizeof(endpoint_t));
 
-	/* XXX: memory handling on return */
-	assert(tunnel->tunmod->init(tunnel));
+	if (tunnel->tunmod->init(tunnel) == -1) {
+		tunnel_destroy(tunnel);
+		return NULL;
+	}
 
 	return tunnel;
 }
@@ -129,7 +131,7 @@ tunnel_start(tunnel_t *tunnel)
 	if (tunnel->running) {
 		MUTEX_UNLOCK(tunnel->join_mutex);
 		MUTEX_UNLOCK(tunnel->run_mutex);
-		return 0;
+		return -1;
 	}
 	tunnel->running = 1;
 	tunnel->joined = 0;
@@ -137,12 +139,22 @@ tunnel_start(tunnel_t *tunnel)
 	if (tunnel->endpoint.beat_interval > 0) {
 		THREAD_CREATE(tunnel->beater, beater_thread, tunnel);
 	}
-	tunnel->tunmod->start(tunnel);
+
+	if (tunnel->tunmod->start(tunnel) == -1) {
+		if (tunnel->endpoint.beat_interval > 0) {
+			THREAD_JOIN(tunnel->beater);
+		}
+		tunnel->running = 0;
+		tunnel->joined = 1;
+		MUTEX_UNLOCK(tunnel->join_mutex);
+		MUTEX_UNLOCK(tunnel->run_mutex);
+		return -1;
+	}
 
 	MUTEX_UNLOCK(tunnel->join_mutex);
 	MUTEX_UNLOCK(tunnel->run_mutex);
 
-	return 1;
+	return 0;
 }
 
 int
@@ -169,11 +181,15 @@ tunnel_stop(tunnel_t *tunnel)
 	THREAD_JOIN(tunnel->writer);
 	tunnel->joined = 0;
 
-	tunnel->tunmod->stop(tunnel);
+	if (tunnel->tunmod->stop(tunnel) == -1) {
+		/* Nothing to be done really, just report error */
+		MUTEX_UNLOCK(tunnel->join_mutex);
+		return -1;
+	}
 
 	MUTEX_UNLOCK(tunnel->join_mutex);
 
-	return 1;
+	return 0;
 }
 
 int
