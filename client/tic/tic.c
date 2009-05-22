@@ -25,9 +25,6 @@
 #include <sys/utsname.h>
 #endif
 
-#define TIC_CLIENT_NAME "AICCU"
-#define TIC_CLIENT_VERSION "2007.01.15"
-
 /* getline vars */
 char		tic_buf[2048];
 unsigned int	tic_filled;
