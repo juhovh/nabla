@@ -4,10 +4,7 @@
 
 #include <stdarg.h>
 
-#define LOG_DEBUG 1
-#define LOG_ERR 2
-#define LOG_WARNING 3
-#define LOG_INFO 4
+#include "../logger.h"
 
 #ifdef _DEBUG
 #define D(x) x

@@ -17,7 +17,6 @@
  */
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
@@ -37,7 +36,7 @@ beater_thread(void *arg)
 	assert(tunnel->tunmod->beat);
 	assert(tunnel->endpoint.beat_interval > 0);
 
-	printf("Starting beater thread\n");
+	logger_log(tunnel->logger, LOG_INFO, "Starting beater thread\n");
 
 	if (tunnel->endpoint.type == TUNNEL_TYPE_AYIYA) {
 		/* Two extra beats for AYIYA to be bug-compatible with aiccu */
@@ -51,7 +50,8 @@ beater_thread(void *arg)
 	time_left = 0;
 	do {
 		if (time_left <= 0) {
-			printf("Sending beat signal to server\n");
+			logger_log(tunnel->logger, LOG_DEBUG,
+			           "Sending beat signal to server\n");
 			tunnel->tunmod->beat(tunnel);
 			time_left = tunnel->endpoint.beat_interval*1000;
 		}
@@ -68,7 +68,7 @@ beater_thread(void *arg)
 	tunnel->running = 0;
 	MUTEX_UNLOCK(tunnel->run_mutex);
 
-	printf("Finished beater thread\n");
+	logger_log(tunnel->logger, LOG_INFO, "Finished beater thread\n");
 
 	return 0;
 }
@@ -102,6 +102,8 @@ tunnel_init(endpoint_t *endpoint)
 		return NULL;
 	}
 	tunnel->waitms = 100;
+	tunnel->logger = logger_init();
+	assert(tunnel->logger);
 
 	tunnel->running = 0;
 	tunnel->joined = 1;
@@ -193,6 +195,7 @@ tunnel_destroy(tunnel_t *tunnel)
 		tunnel_stop(tunnel);
 
 		tunnel->tunmod->destroy(tunnel);
+		logger_destroy(tunnel->logger);
 
 		MUTEX_DESTROY(tunnel->run_mutex);
 		MUTEX_DESTROY(tunnel->join_mutex);

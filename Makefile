@@ -1,7 +1,7 @@
 
 CFLAGS = -Wall -Werror -Ilibtapcfg
 
-SRCS := client/client.c client/tunnel.c client/tunnel_v4v6.c client/tunnel_ether.c client/tunnel_ayiya.c client/tunnel_v6v4.c client/login_tic.c client/compat.c client/hash_sha1.c client/hash_md5.c client/command.c client/tic/common.c client/tic/tic.c
+SRCS := client/client.c client/tunnel.c client/tunnel_v4v6.c client/tunnel_ether.c client/tunnel_ayiya.c client/tunnel_v6v4.c client/login_tic.c client/compat.c client/hash_sha1.c client/hash_md5.c client/command.c client/tic/common.c client/tic/tic.c client/logger.c
 SRCS_tapcfg := libtapcfg/tapcfg.c libtapcfg/taplog.c libtapcfg/dlpi.c
 TARGET := bin/client
 

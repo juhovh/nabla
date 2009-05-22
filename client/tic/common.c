@@ -643,13 +643,3 @@ void MD5String(const char *sString, char *sSignature, unsigned int siglen)
 	}
 }
 
-#ifdef _AIX
-/* AIX doesn't have vsyslog() thus we implement it here */
-void vsyslog(int priority, const char *format, va_list ap)
-{
-        char buf[1024];
-        vsnprintf(buf, sizeof(buf), format, ap);
-	syslog(priority, buf);
-}
-#endif
-
