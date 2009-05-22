@@ -39,7 +39,7 @@ LIBS := $(LIBS_$(OSTYPE))
 
 LIBFLAGS_win := -shared -Wl,--out-implib,bin/rawsock.lib -Wl,--output-def,bin/rawsock.def
 LIBFLAGS_unix := -shared
-LIBFLAGS_osx := -dynamiclib
+LIBFLAGS_osx := -dynamiclib -install_name $(TARGET_libpre)rawsock$(TARGET_libext)
 LIBFLAGS_sunos := $(LIBFLAGS_unix)
 LIBFLAGS := $(LIBFLAGS_$(OSTYPE))
 
