@@ -249,22 +249,20 @@ namespace Nabla {
 				int checksum;
 
 				/* Set the IP level protocol checksum */
-				checksum = _ipchecksum;
-				if (checksum > 0xffff) {
-					checksum = (checksum & 0xffff) +
-					           (checksum >> 16);
+				while (_ipchecksum > 0xffff) {
+					_ipchecksum = (_ipchecksum & 0xffff) +
+					              (_ipchecksum >> 16);
 				}
-				checksum = ~checksum;
+				checksum = ~_ipchecksum;
 				_bytes[10] = (byte) (checksum >> 8);
 				_bytes[11] = (byte) (checksum);
 
 				/* Set the transport level protocol checksum */
-				checksum = _checksum;
-				if (checksum > 0xffff) {
-					checksum = (checksum & 0xffff) +
-					           (checksum >> 16);
+				while (_checksum > 0xffff) {
+					_checksum = (_checksum & 0xffff) +
+					            (_checksum >> 16);
 				}
-				checksum = ~checksum;
+				checksum = ~_checksum;
 				if (ProtocolType == ProtocolType.Tcp) {
 					_bytes[_hlen+16] = (byte) (checksum >> 8);
 					_bytes[_hlen+17] = (byte) (checksum);
