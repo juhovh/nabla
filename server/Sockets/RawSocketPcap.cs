@@ -34,7 +34,6 @@ namespace Nabla.Sockets {
 
 		IntPtr _handle;
 		int _protocol;
-		AddressFamily _family;
 
 		[StructLayout(LayoutKind.Sequential)]
 		private struct timeval {
@@ -302,9 +301,7 @@ namespace Nabla.Sockets {
 				throw new Exception("Interface name required for pcap capture");
 			}
 
-			if (addressFamily != AddressFamily.DataLink &&
-			    addressFamily != AddressFamily.InterNetwork &&
-			    addressFamily != AddressFamily.InterNetworkV6) {
+			if (addressFamily != AddressFamily.DataLink) {
 				throw new Exception("Address family '" + addressFamily + "' not supported");
 			}
 
@@ -322,7 +319,6 @@ namespace Nabla.Sockets {
 			}
 
 			_protocol = protocol;
-			_family = addressFamily;
 		}
 
 		public override bool WaitForWritable() {
@@ -332,25 +328,8 @@ namespace Nabla.Sockets {
 		public override int SendTo(byte[] buffer, int offset, int size, IPEndPoint remoteEP) {
 			int ret;
 
-			byte[] outbuf;
-			if (_family == AddressFamily.InterNetwork) {
-				/* Ethernet + IPv4 header size */
-				outbuf = new byte[14 + 20 + size];
-
-				/* XXX: Construct Ethernet and IPv4 headers */
-
-				Array.Copy(buffer, offset, outbuf, 14+20, size);
-			} else if (_family == AddressFamily.InterNetworkV6) {
-				/* Ethernet + IPv6 header size */
-				outbuf = new byte[14 + 40 + size];
-
-				/* XXX: Construct Ethernet and IPv6 headers */
-
-				Array.Copy(buffer, offset, outbuf, 14+40, size);
-			} else {
-				outbuf = new byte[size];
-				Array.Copy(buffer, offset, outbuf, 0, size);
-			}
+			byte[] outbuf = new byte[size];
+			Array.Copy(buffer, offset, outbuf, 0, size);
 
 			ret = (outbuf[12] << 8) | outbuf[13];
 			if (ret != _protocol) {
@@ -368,12 +347,6 @@ namespace Nabla.Sockets {
 
 			if (_header != IntPtr.Zero && _data != IntPtr.Zero) {
 				return true;
-			}
-
-			if (_family == AddressFamily.InterNetwork) {
-				requiredType = 0x0800;
-			} else if (_family == AddressFamily.InterNetworkV6) {
-				requiredType = 0x86dd;
 			}
 
 			while (true) {
@@ -410,7 +383,6 @@ namespace Nabla.Sockets {
 
 		public override int ReceiveFrom(byte[] buffer, int offset, int size, ref IPEndPoint remoteEP) {
 			bool readable;
-			int packetOffset;
 			int ret;
 
 			while (true) {
@@ -433,30 +405,19 @@ namespace Nabla.Sockets {
 				_header = IntPtr.Zero;
 				_data = IntPtr.Zero;
 
-				if (_family == AddressFamily.InterNetwork) {
-					packetOffset = 14;
-					packetOffset += (_readbuf[14] & 0x0f) * 4;
-
-					/* XXX: Should check for the destination address and protocol type */
-				} else if (_family == AddressFamily.InterNetworkV6) {
-					packetOffset = 40;
-
-					/* XXX: Should check for the destination address and protocol type */
-				} else {
-					packetOffset = 0;
-
+				if (_protocol != 0) {
 					int protocol = (_readbuf[12] << 8) | _readbuf[13];
 					if (protocol != _protocol) {
 						continue;
 					}
 				}
 
-				if (pkt_header.caplen - packetOffset > size) {
+				if (pkt_header.caplen > size) {
 					throw new Exception("Incoming packet didn't fit into given external buffer");
 				}
 
-				Array.Copy(_readbuf, packetOffset, buffer, offset, pkt_header.caplen - packetOffset);
-				ret = (int) pkt_header.caplen - packetOffset;
+				Array.Copy(_readbuf, 0, buffer, offset, pkt_header.caplen);
+				ret = (int) pkt_header.caplen;
 				break;
 			}
 
