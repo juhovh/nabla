@@ -220,14 +220,78 @@ namespace Nabla {
 		}
 
 		private void handleNDSol(byte[] data, int datalen) {
+			if (data[18] !=   0 || data[19] !=  32 || // Length: 24 bytes + 8 byte option
+			    data[20] !=  58 || data[21] != 255 || // ICMPv6, hop=255
+			    data[54] != 135 || data[55] !=   0 || // Type: 135, Code: 0
+			    data[78] !=   2 || data[79] !=   1) { // Option: target lladdr
+				/* XXX: Should invalid NDSol be reported? */
+				return;
+			}
+
+			byte[] ipaddr = new byte[16];
+			Array.Copy(data, 62, ipaddr, 0, 16);
+			IPAddress addr = new IPAddress(ipaddr);
+
+			if (!addressInSubnet(addr)) {
+				return;
+			}
+
+			/* Neighbor advert is ICMPv6 header, IPv6 address and
+			 * 8 bytes of target link-layer address option */
+			int length = 8+16+8;
+
+			/* Set Ethernet src/dst */
+			Array.Copy(data, 6, data, 0, 6);
+			Array.Copy(_hwaddr, 0, data, 6, 6);
+
+			/* Add packet content length */
+			data[14+4] = (byte) (length >> 8);
+			data[14+5] = (byte)  length;
+
+			/* Set IPv6 src/dst */
+			Array.Copy(data, 22, data, 38, 16); /* Destination address (from source) */
+			Array.Copy(data, 62, data, 22, 16); /* Source address (from ICMPv6 packet) */
+
+			/* Set ICMPv6 type and code */
+			data[14+40] = 136;
+			data[14+41] = 0;
+
+			/* Add target link-layer address option */
+			data[14+40+8+16] = 2;
+			data[14+40+8+17] = 1;
+
+			/* Zero checksum */
+			int checksum = 0;
+			data[14+40+2] = 0;
+			data[14+40+3] = 0;
+
+			/* Add pseudo-header into the checksum */
+			checksum += data[14+4] << 8 | data[14+5];
+			checksum += data[14+6];
+			for (int i=0; i<32; i++)
+				checksum += data[14+8+i] << ((i%2 == 0)?8:0);
+
+			/* Checksum the actual data */
+			for (int i=0; i<length; i++)
+				checksum += data[14+40+i] << ((i%2 == 0)?8:0);
+
+			/* Store the final checksum into ICMPv6 packet */
+			if (checksum > 0xffff)
+				checksum = (checksum & 0xffff) + (checksum >> 16);
+			checksum = ~checksum;
+			data[14+40+2] = (byte) (checksum >> 8);
+			data[14+40+3] = (byte)  checksum;
+
+			_socket.Send(data, 14+40+length);
+			Console.WriteLine("Replied to ARP packet with IP {0}", addr);
 		}
 
 		private void handleNDAdv(byte[] data, int datalen) {
-			/* FIXME: Validate the packet header fields */
-			if (data[20] != 58 || data[21] != 255 || // ICMPv6, hop=255
-			    data[18] !=  0 || data[19] != 32  || // Length: 24 bytes + 8 byte option
-			    data[78] !=  2 || data[79] !=  1) {  // Option: target lladdr
-				/* XXX: Should invalid ARP reply be reported? */
+			if (data[18] !=   0 || data[19] !=  32 || // Length: 24 bytes + 8 byte option
+			    data[20] !=  58 || data[21] != 255 || // ICMPv6, hop=255
+			    data[54] != 136 || data[55] !=   0 || // Type: 135, Code: 0
+			    data[78] !=   2 || data[79] !=   1) { // Option: target lladdr
+				/* XXX: Should invalid NDAdv be reported? */
 				return;
 			}
 
@@ -237,16 +301,6 @@ namespace Nabla {
 
 			byte[] hwaddr = new byte[6];
 			Array.Copy(data, 80, hwaddr, 0, 6);
-
-			/* Check if source IP address is zero */
-			for (int i=0; i<16; i++) {
-				if (data[14+8+i] != 0) {
-					break;
-				} else if (i == 15) {
-					/* No non-zero bytes found, it is a DAD packet */
-					return;
-				}
-			}
 
 			/* We don't want local addresses into ARP table */
 			for (int i=0; i<6; i++) {
