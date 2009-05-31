@@ -231,8 +231,8 @@ namespace Nabla {
 				return;
 			}
 
-			byte[] ipaddr = new byte[4];
-			Array.Copy(data, 62, ipaddr, 0, 4);
+			byte[] ipaddr = new byte[16];
+			Array.Copy(data, 62, ipaddr, 0, 16);
 			IPAddress addr = new IPAddress(ipaddr);
 
 			byte[] hwaddr = new byte[6];
