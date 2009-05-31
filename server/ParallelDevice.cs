@@ -32,6 +32,9 @@ namespace Nabla {
 		Dictionary<IPAddress, int> _subnets
 			= new Dictionary<IPAddress, int>();
 
+		Dictionary<IPAddress, byte[]> _arptable
+			= new Dictionary<IPAddress, byte[]>();
+
 		public ParallelDevice(string deviceName) {
 			_hwaddr = RawSocket.GetHardwareAddress(deviceName);
 			_socket = RawSocket.GetRawSocket(deviceName,
@@ -61,8 +64,12 @@ namespace Nabla {
 
 				int etherType = (data[12] << 8) | data[13];
 				if (etherType == 0x0806) {
+					if (datalen < 22) {
+						/* XXX: Should too small ARP packet be reported? */
+						continue;
+					}
+
 					/* XXX: Handle ARP packet */
-					Console.WriteLine("Got ARP packet");
 					int opcode = (data[20] << 8) | data[21];
 					if (opcode == 1) {
 						handleARPRequest(data, datalen);
@@ -75,10 +82,8 @@ namespace Nabla {
 					}
 				} else if (etherType == 0x0800) {
 					/* XXX: Handle IPv4 packet */
-					Console.WriteLine("Got IPv4 packet");
 				} else if (etherType == 0x86dd) {
 					/* XXX: Handle IPv6 packet */
-					Console.WriteLine("Got IPv6 packet");
 				}
 			}
 		}
@@ -129,7 +134,9 @@ namespace Nabla {
 
 			byte[] ipaddr = new byte[4];
 			Array.Copy(data, 38, ipaddr, 0, 4);
-			if (!addressInSubnet(new IPAddress(ipaddr))) {
+			IPAddress addr = new IPAddress(ipaddr);
+
+			if (!addressInSubnet(addr)) {
 				return;
 			}
 
@@ -144,9 +151,46 @@ namespace Nabla {
 			data[21] = 0x02;
 
 			_socket.Send(data, datalen);
+			Console.WriteLine("Replied to ARP packet with IP {0}", addr);
 		}
 
 		private void handleARPReply(byte[] data, int datalen) {
+			if (data[14] != 0x00 || data[15] != 0x01 || // Hardware type: Ethernet
+			    data[16] != 0x08 || data[17] != 0x00 || // Protocol type: IP
+			    data[18] != 0x06 || data[19] != 0x04 || // Hw size: 6, Proto size: 4
+			    data[20] != 0x00 || data[21] != 0x02) { // Opcode: reply
+				/* XXX: Should invalid ARP reply be reported? */
+				return;
+			}
+
+			byte[] hwaddr = new byte[6];
+			Array.Copy(data, 22, hwaddr, 0, 6);
+
+			byte[] ipaddr = new byte[4];
+			Array.Copy(data, 28, ipaddr, 0, 4);
+			IPAddress addr = new IPAddress(ipaddr);
+
+			/* We don't want local addresses into ARP table */
+			bool local = true;
+			for (int i=0; i<6; i++) {
+				if (hwaddr[i] != _hwaddr[i]) {
+					local = false;
+					break;
+				}
+			}
+			if (local) {
+				Console.WriteLine("Local hardware address {0} not added to ARP table",
+					BitConverter.ToString(hwaddr).Replace('-', ':').ToLower());
+				return;
+			}
+			if(_arptable.ContainsKey(addr)) {
+				Console.WriteLine("Hardware address for IP {0} already known", addr);
+				return;
+			}
+
+			_arptable.Add(addr, hwaddr);
+			Console.WriteLine("Added hardware address {0} for IP address {1} into ARP table",
+				BitConverter.ToString(hwaddr).Replace('-', ':').ToLower(), addr);
 		}
 	}
 }
