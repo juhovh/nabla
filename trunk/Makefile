@@ -8,7 +8,7 @@ SRCS_client := client/client.c client/tunnel.c client/tunnel_v4v6.c client/tunne
 
 SRCS_rawsock   := server/Sockets/rawsock.c
 SRCS_RawSocket := server/Sockets/RawSocket.cs server/Sockets/RawSocketNative.cs server/Sockets/RawSocketPcap.cs
-SRCS_server    := server/Server.cs server/NATMapper.cs server/NATPacket.cs
+SRCS_server    := server/Server.cs server/ParallelDevice.cs server/NATMapper.cs server/NATPacket.cs
 
 TARGET_ext :=
 TARGET_libpre := lib

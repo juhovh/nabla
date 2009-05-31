@@ -1,5 +1,5 @@
 /**
- *  NABLA - Automatic IP Tunneling and Connectivity
+ *  Nabla - Automatic IP Tunneling and Connectivity
  *  Copyright (C) 2009  Juho Vähä-Herttua
  *
  *  This program is free software: you can redistribute it and/or modify
