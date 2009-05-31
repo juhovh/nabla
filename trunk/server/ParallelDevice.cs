@@ -93,7 +93,6 @@ namespace Nabla {
 
 				bool found = true;
 				for (int i=0; i <= (prefix-1)/8; i++) {
-					Console.WriteLine("Comparing bytes {0} {1}", b1[i], b2[i]);
 					if (i < prefix/8) {
 						/* Full bytes compared */
 						if (b1[i] != b2[i]) {
