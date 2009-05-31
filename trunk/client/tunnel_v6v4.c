@@ -234,7 +234,7 @@ writer_thread(void *arg)
 			buf[14+40] = 136;
 			buf[14+40+1] = 0;
 
-			/* Add target link-layer address option*/
+			/* Add target link-layer address option */
 			buf[14+40+8+16] = 2;
 			buf[14+40+8+16+1] = 1;
 			memcpy(buf+14+40+8+16+2, routerhw, 6);
