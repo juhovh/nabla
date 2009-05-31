@@ -48,7 +48,7 @@ TARGET_rawsock := bin/$(TARGET_libpre)rawsock$(TARGET_libext)
 TARGET_server  := bin/Server.exe
 
 all:
-ifneq ($(CSC),)
+ifneq ($(CC),)
 	$(CC) $(CFLAGS) -o $(TARGET_client) $(SRCS_client) $(LIBS)
 	$(CC) $(CFLAGS) -o $(TARGET_rawsock) $(SRCS_rawsock) $(LIBFLAGS) $(LIBS)
 endif
