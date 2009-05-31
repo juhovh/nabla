@@ -332,7 +332,7 @@ namespace Nabla.Sockets {
 			Array.Copy(buffer, offset, outbuf, 0, size);
 
 			ret = (outbuf[12] << 8) | outbuf[13];
-			if (ret != _protocol) {
+			if (_protocol != 0 && ret != _protocol) {
 				throw new Exception("Ethernet frame type (" + ret + ") incorrect");
 			}
 
