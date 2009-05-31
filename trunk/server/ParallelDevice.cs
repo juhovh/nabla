@@ -44,11 +44,28 @@ namespace Nabla {
 		}
 
 		public void Start() {
-			_subnets.Add(IPAddress.Parse("192.168.1.16"), 28);
+			AddSubnet(IPAddress.Parse("192.168.1.16"), 28);
+			AddSubnet(IPAddress.Parse("fec0::"), 10);
 			_thread.Start();
 		}
 
 		public void Stop() {
+		}
+
+		public void AddSubnet(IPAddress addr, int prefix) {
+			if (addr.AddressFamily == AddressFamily.InterNetwork) {
+				if (prefix < 0 || prefix > 32) {
+					throw new Exception("Subnet prefix length " + prefix + " invalid for family " + addr.AddressFamily);
+				}
+			} else if (addr.AddressFamily == AddressFamily.InterNetworkV6) {
+				if (prefix < 0 || prefix > 128) {
+					throw new Exception("Subnet prefix length " + prefix + " invalid for family " + addr.AddressFamily);
+				}
+			} else {
+				throw new Exception("Unknown address family " + addr.AddressFamily);
+			}
+
+			_subnets.Add(addr, prefix);
 		}
 
 		private void threadLoop() {
@@ -84,6 +101,17 @@ namespace Nabla {
 					/* XXX: Handle IPv4 packet */
 				} else if (etherType == 0x86dd) {
 					/* XXX: Handle IPv6 packet */
+					
+					if (data[14+6] == 58 && data[14+7] == 255) {
+						/* ICMPv6 packet found */
+						int type = data[14+40];
+
+						if (type == 135) {
+							handleNDSol(data, datalen);
+						} else if (type == 136) {
+							handleNDAdv(data, datalen);
+						}
+					}
 				}
 			}
 		}
@@ -171,19 +199,67 @@ namespace Nabla {
 			IPAddress addr = new IPAddress(ipaddr);
 
 			/* We don't want local addresses into ARP table */
-			bool local = true;
 			for (int i=0; i<6; i++) {
 				if (hwaddr[i] != _hwaddr[i]) {
-					local = false;
 					break;
+				} else if (i == 5) {
+					Console.WriteLine("Local hardware address {0} not added to ARP table",
+						BitConverter.ToString(hwaddr).Replace('-', ':').ToLower());
+					return;
 				}
 			}
-			if (local) {
-				Console.WriteLine("Local hardware address {0} not added to ARP table",
-					BitConverter.ToString(hwaddr).Replace('-', ':').ToLower());
+
+			if (_arptable.ContainsKey(addr)) {
+				Console.WriteLine("Hardware address for IP {0} already known", addr);
 				return;
 			}
-			if(_arptable.ContainsKey(addr)) {
+
+			_arptable.Add(addr, hwaddr);
+			Console.WriteLine("Added hardware address {0} for IP address {1} into ARP table",
+				BitConverter.ToString(hwaddr).Replace('-', ':').ToLower(), addr);
+		}
+
+		private void handleNDSol(byte[] data, int datalen) {
+		}
+
+		private void handleNDAdv(byte[] data, int datalen) {
+			/* FIXME: Validate the packet header fields */
+			if (data[20] != 58 || data[21] != 255 || // ICMPv6, hop=255
+			    data[18] !=  0 || data[19] != 32  || // Length: 24 bytes + 8 byte option
+			    data[78] !=  2 || data[79] !=  1) {  // Option: target lladdr
+				/* XXX: Should invalid ARP reply be reported? */
+				return;
+			}
+
+			byte[] ipaddr = new byte[4];
+			Array.Copy(data, 62, ipaddr, 0, 4);
+			IPAddress addr = new IPAddress(ipaddr);
+
+			byte[] hwaddr = new byte[6];
+			Array.Copy(data, 80, hwaddr, 0, 6);
+
+			/* Check if source IP address is zero */
+			for (int i=0; i<16; i++) {
+				if (data[14+8+i] != 0) {
+					break;
+				} else if (i == 15) {
+					/* No non-zero bytes found, it is a DAD packet */
+					return;
+				}
+			}
+
+			/* We don't want local addresses into ARP table */
+			for (int i=0; i<6; i++) {
+				if (hwaddr[i] != _hwaddr[i]) {
+					break;
+				} else if (i == 5) {
+					Console.WriteLine("Local hardware address {0} not added to ARP table",
+						BitConverter.ToString(hwaddr).Replace('-', ':').ToLower());
+					return;
+				}
+			}
+
+			if (_arptable.ContainsKey(addr)) {
 				Console.WriteLine("Hardware address for IP {0} already known", addr);
 				return;
 			}
