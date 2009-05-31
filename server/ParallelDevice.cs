@@ -220,10 +220,11 @@ namespace Nabla {
 		}
 
 		private void handleNDSol(byte[] data, int datalen) {
+			/* XXX: The 8 byte source lladdr option is not necessary */
 			if (data[18] !=   0 || data[19] !=  32 || // Length: 24 bytes + 8 byte option
 			    data[20] !=  58 || data[21] != 255 || // ICMPv6, hop=255
 			    data[54] != 135 || data[55] !=   0 || // Type: 135, Code: 0
-			    data[78] !=   2 || data[79] !=   1) { // Option: target lladdr
+			    data[78] !=   1 || data[79] !=   1) { // Option: source lladdr
 				/* XXX: Should invalid NDSol be reported? */
 				return;
 			}
@@ -283,7 +284,7 @@ namespace Nabla {
 			data[14+40+3] = (byte)  checksum;
 
 			_socket.Send(data, 14+40+length);
-			Console.WriteLine("Replied to ARP packet with IP {0}", addr);
+			Console.WriteLine("Replied to Neighbor Solicitation with IP {0}", addr);
 		}
 
 		private void handleNDAdv(byte[] data, int datalen) {
