@@ -203,7 +203,11 @@ rawsock_init(const char *ifname, int family, int protocol, int *err)
 			return NULL;
 		}
 		domain = AF_PACKET;
-		protocol = htons(protocol);
+		if (!protocol) {
+			protocol = htons(ETH_P_ALL);
+		} else {
+			protocol = htons(protocol);
+		}
 		break;
 #endif
 	default:

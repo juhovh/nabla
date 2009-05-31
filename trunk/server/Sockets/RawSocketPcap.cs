@@ -337,12 +337,14 @@ namespace Nabla.Sockets {
 			}
 
 			ret = pcap_inject(_handle, outbuf, size);
+			if (ret < 0) {
+				throw new Exception("Error injecting packet: " + geterr(_handle));
+			}
 
 			return ret;
 		}
 
 		public override bool WaitForReadable() {
-			int requiredType = 0;
 			int ret;
 
 			if (_header != IntPtr.Zero && _data != IntPtr.Zero) {
@@ -355,19 +357,17 @@ namespace Nabla.Sockets {
 				ret = pcap_next_ex(_handle, ref _header, ref _data);
 
 				if (ret < 0) {
-					/* XXX: Fix the pcap_geterr */
-					throw new Exception("Error reading packet: " + pcap_geterr(_handle));
+					throw new Exception("Error reading packet: " + geterr(_handle));
 				} else if (ret == 0) {
 					/* Read timed out */
 					return false;
-				} else if (requiredType > 0) {
+				} else if (_protocol > 0) {
 					/* Check that received type match the required one */
 					int type = Marshal.ReadByte(_data, 12) << 8 |
 					           Marshal.ReadByte(_data, 13);
 
-					if (type != requiredType) {
+					if (type != _protocol) {
 						/* XXX: Should return 0 here if timeout elapsed */
-
 						continue;
 					}
 
@@ -438,6 +438,19 @@ namespace Nabla.Sockets {
 				pcap_close(_handle);
 				_disposed = true;
 			}
+		}
+
+		private static string geterr(IntPtr handle) {
+			IntPtr ptr = pcap_geterr(handle);
+
+			int size = 0;
+			while (Marshal.ReadByte(ptr, size) > 0)
+				size++;
+
+			byte[] array = new byte[size];
+			Marshal.Copy(ptr, array, 0, size);
+
+			return Encoding.UTF8.GetString(array);
 		}
 	}
 }
