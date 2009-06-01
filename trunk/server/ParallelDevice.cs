@@ -54,6 +54,7 @@ namespace Nabla {
 		byte[] _hwaddr;
 		RawSocket _socket;
 		Thread _thread;
+		private volatile bool _running;
 
 		Dictionary<IPAddress, IPConfig> _subnets
 			= new Dictionary<IPAddress, IPConfig>();
@@ -73,10 +74,13 @@ namespace Nabla {
 		}
 
 		public void Start() {
+			_running = true;
 			_thread.Start();
 		}
 
 		public void Stop() {
+			_running = false;
+			_thread.Join();
 		}
 
 		public void AddSubnet(IPAddress addr, int prefixlen, IPAddress route) {
@@ -213,7 +217,7 @@ namespace Nabla {
 		private void threadLoop() {
 			byte[] data = new byte[2048];
 
-			while (true) {
+			while (_running) {
 				if (!_socket.WaitForReadable())
 					continue;
 
