@@ -217,7 +217,25 @@ namespace Nabla {
 			}
 		}
 
-		public UInt16 GetNatID(bool external) {
+		public UInt16 IntNatID {
+			get {
+				return GetNatID(false);
+			}
+			set {
+				SetNatID(value, false);
+			}
+		}
+
+		public UInt16 ExtNatID {
+			get {
+				return GetNatID(true);
+			}
+			set {
+				SetNatID(value, true);
+			}
+		}
+
+		private UInt16 GetNatID(bool external) {
 			if (ProtocolType == ProtocolType.Tcp ||
 			    ProtocolType == ProtocolType.Udp) {
 				if (external)
@@ -231,7 +249,7 @@ namespace Nabla {
 			}
 		}
 
-		public void SetNatID(UInt16 value, bool external) {
+		private void SetNatID(UInt16 value, bool external) {
 			if (ProtocolType == ProtocolType.Tcp ||
 			    ProtocolType == ProtocolType.Udp) {
 				if (external)

@@ -82,11 +82,11 @@ namespace Nabla {
 				}
 
 				Console.WriteLine("Protocol type {0}, NAT identifier {0}",
-				                  packet.ProtocolType, packet.GetNatID(false));
+				                  packet.ProtocolType, packet.IntNatID);
 
 				NATMapping m = _mapper.GetIntMapping(packet.ProtocolType,
 				                                     packet.SourceAddress,
-				                                     packet.GetNatID(false));
+				                                     packet.IntNatID);
 
 				if (m == null) {
 					Console.WriteLine("Unmapped connection, add mapping");
@@ -94,25 +94,27 @@ namespace Nabla {
 					m = new NATMapping(packet.ProtocolType,
 					                   endPoint.Address,
 					                   packet.SourceAddress,
-					                   packet.GetNatID(false));
+					                   packet.IntNatID);
 					_mapper.AddMapping(m);
 				}
 
 				Console.WriteLine("Using external IP {0} with ID {1} (0x{1:x})",
 				                  m.ExternalAddress, m.ExternalID);
 
+				/* Convert the source values to the public ones */
 				packet.SourceAddress = m.ExternalAddress;
-				packet.SetNatID(m.ExternalID, false);
+				packet.IntNatID = m.ExternalID;
 
 				_extDevice.SendPacket(packet.Bytes);
 			}
 		}
 
 		private void extReceive(byte[] data) {
-			byte[] gateway = new byte[6];
-			Array.Copy(data, 6, gateway, 0, 6);
+			if ((data[0] >> 4) != 4) {
+				/* Not an IPv4 packet, ignore */
+				return;
+			}
 
-			/* This assumes that it's an IPv4 packet in Ethernet frame */
 			NATPacket packet;
 			try {
 				packet = new NATPacket(data);
@@ -122,10 +124,10 @@ namespace Nabla {
 			}
 
 			Console.WriteLine("Protocol type {0}, NAT identifier {0}",
-			packet.ProtocolType, packet.GetNatID(true));
+			                  packet.ProtocolType, packet.ExtNatID);
 
 			NATMapping m = _mapper.GetExtMapping(packet.ProtocolType,
-							     packet.GetNatID(true));
+							     packet.ExtNatID);
 			if (m == null) {
 				Console.WriteLine("Unmapped connection, drop packet");
 				return;
@@ -134,8 +136,9 @@ namespace Nabla {
 			Console.WriteLine("Using external IP {0} with port {1} (0x{1:x})",
 					  m.ExternalAddress, m.ExternalID);
 
+			/* Convert the destination values to the local ones */
 			packet.DestinationAddress = m.ClientPrivateAddress;
-			packet.SetNatID(m.ClientID, true);
+			packet.ExtNatID = m.ClientID;
 
 			IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("::1"), 0);
 			_intSocket.SendTo(packet.Bytes, endPoint);
