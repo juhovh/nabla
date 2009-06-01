@@ -24,13 +24,37 @@ using System.Collections.Generic;
 using Nabla.Sockets;
 
 namespace Nabla {
+	public class IPConfig {
+		public readonly IPAddress Address;
+		public readonly int PrefixLength;
+		public readonly IPAddress DefaultRoute;
+
+		public IPConfig(IPAddress addr, int prefixlen, IPAddress route) {
+			if (addr.AddressFamily == AddressFamily.InterNetwork) {
+				if (prefixlen < 0 || prefixlen > 32) {
+					throw new Exception("Subnet prefix length " + prefixlen + " invalid for family " + addr.AddressFamily);
+				}
+			} else if (addr.AddressFamily == AddressFamily.InterNetworkV6) {
+				if (prefixlen < 0 || prefixlen > 128) {
+					throw new Exception("Subnet prefix length " + prefixlen + " invalid for family " + addr.AddressFamily);
+				}
+			} else {
+				throw new Exception("Unknown address family " + addr.AddressFamily);
+			}
+
+			Address = addr;
+			PrefixLength = prefixlen;
+			DefaultRoute = route;
+		}
+	}
+
 	public class ParallelDevice {
 		byte[] _hwaddr;
 		RawSocket _socket;
 		Thread _thread;
 
-		Dictionary<IPAddress, int> _subnets
-			= new Dictionary<IPAddress, int>();
+		Dictionary<IPAddress, IPConfig> _subnets
+			= new Dictionary<IPAddress, IPConfig>();
 
 		Dictionary<IPAddress, byte[]> _arptable
 			= new Dictionary<IPAddress, byte[]>();
@@ -52,20 +76,8 @@ namespace Nabla {
 		public void Stop() {
 		}
 
-		public void AddSubnet(IPAddress addr, int prefix) {
-			if (addr.AddressFamily == AddressFamily.InterNetwork) {
-				if (prefix < 0 || prefix > 32) {
-					throw new Exception("Subnet prefix length " + prefix + " invalid for family " + addr.AddressFamily);
-				}
-			} else if (addr.AddressFamily == AddressFamily.InterNetworkV6) {
-				if (prefix < 0 || prefix > 128) {
-					throw new Exception("Subnet prefix length " + prefix + " invalid for family " + addr.AddressFamily);
-				}
-			} else {
-				throw new Exception("Unknown address family " + addr.AddressFamily);
-			}
-
-			_subnets.Add(addr, prefix);
+		public void AddSubnet(IPAddress addr, int prefixlen) {
+			_subnets.Add(addr, new IPConfig(addr, prefixlen, null));
 		}
 
 		public void SendPacket(byte[] data, int offset, int datalen) {
@@ -87,10 +99,6 @@ namespace Nabla {
 				throw new Exception("Invalid IP packet version: " + version);
 			}
 
-			if (!addressInSubnet(dest)) {
-				/* FIXME: Replace dest with router address */
-			}
-
 			byte[] hwaddr;
 			if (multicast) {
 				if (dest.AddressFamily == AddressFamily.InterNetwork) {
@@ -110,10 +118,26 @@ namespace Nabla {
 					Array.Copy(dest.GetAddressBytes(), 12, hwaddr, 2, 4);
 				}
 			} else {
+				if (!addressInSubnet(dest)) {
+					IPAddress route = null;
+
+					foreach (IPConfig conf in _subnets.Values) {
+						if (conf.Address.AddressFamily == dest.AddressFamily &&
+						    conf.DefaultRoute != null) {
+							route = conf.DefaultRoute;
+						}
+					}
+					if (route == null) {
+						throw new Exception("Address " + dest + " not a local address and default route not found");
+					}
+
+					dest = route;
+				}
+
 				if (_arptable.ContainsKey(dest)) {
 					hwaddr = _arptable[dest];
 				} else {
-					/* FIXME: Attempt to make an ARP/ND request */
+					/* FIXME: Attempt to make an ARP/ND request instead */
 					hwaddr = new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 				}
 			}
@@ -226,11 +250,11 @@ namespace Nabla {
 
 				byte[] b1 = addr.GetAddressBytes();
 				byte[] b2 = netaddr.GetAddressBytes();
-				int prefix = _subnets[netaddr];
+				int prefixlen = _subnets[netaddr].PrefixLength;
 
 				bool found = true;
-				for (int i=0; i <= (prefix-1)/8; i++) {
-					if (i < prefix/8) {
+				for (int i=0; i <= (prefixlen-1)/8; i++) {
+					if (i < prefixlen/8) {
 						/* Full bytes compared */
 						if (b1[i] != b2[i]) {
 							found = false;
@@ -238,7 +262,7 @@ namespace Nabla {
 						}
 					} else {
 						/* number of discarded bits */
-						int disc = 8 - (prefix % 8);
+						int disc = 8 - (prefixlen % 8);
 						if ((b1[i] >> disc) != (b2[i] >> disc)) {
 							found = false;
 							break;
