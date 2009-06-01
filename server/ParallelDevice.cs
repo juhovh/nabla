@@ -458,9 +458,9 @@ namespace Nabla {
 			Array.Copy(source.GetAddressBytes(), 0, data, 22, 16);
 			data[38] = 0xff;
 			data[39] = 0x02;
-			data[48] = 0x01;
-			data[49] = 0xff;
-			Array.Copy(ipaddr, 13, data, 50, 3);
+			data[49] = 0x01;
+			data[50] = 0xff;
+			Array.Copy(ipaddr, 13, data, 51, 3);
 
 			/* Construct ICMPv6 packet with source link-layer address option */
 			data[54] = 135;
