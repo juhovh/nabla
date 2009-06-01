@@ -26,6 +26,7 @@ using Nabla.Sockets;
 namespace Nabla {
 	public class Server {
 		private Thread _intThread;
+		private volatile bool _running;
 
 		private RawSocket _intSocket;
 		private ParallelDevice _extDevice;
@@ -34,6 +35,7 @@ namespace Nabla {
 		public Server(RawSocket intSocket, ParallelDevice extDevice) {
 			_intSocket = intSocket;
 			_extDevice = extDevice;
+			_intThread = new Thread(new ThreadStart(this.intLoop));
 
 			extDevice.ReceivePacketCallback = new ReceivePacketCallback(extReceive);
 			extDevice.IPv4Route = new IPConfig(IPAddress.Parse("192.168.1.0"), 24, IPAddress.Parse("192.168.1.1"));
@@ -49,19 +51,21 @@ namespace Nabla {
 		}
 
 		public void Start() {
-			_intThread = new Thread(new ThreadStart(this.intLoop));
+			_running = true;
 			_intThread.Start();
-
 			_extDevice.Start();
 		}
 
 		public void Stop() {
+			_running = false;
+			_extDevice.Stop();
+			_intThread.Join();
 		}
 
 		private void intLoop() {
 			byte[] data = new byte[2048];
 
-			while (true) {
+			while (_running) {
 				if (!_intSocket.WaitForReadable())
 					continue;
 
