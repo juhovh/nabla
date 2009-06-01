@@ -86,7 +86,6 @@ namespace Nabla {
 						continue;
 					}
 
-					/* XXX: Handle ARP packet */
 					int opcode = (data[20] << 8) | data[21];
 					if (opcode == 1) {
 						handleARPRequest(data, datalen);
@@ -98,11 +97,35 @@ namespace Nabla {
 						throw new Exception("Invalid ARP opcode: " + opcode);
 					}
 				} else if (etherType == 0x0800) {
-					/* XXX: Handle IPv4 packet */
+					if (datalen < 14+20) {
+						/* XXX: Should too small IPv4 packet be reported? */
+						continue;
+					}
+
+					/* Get destination address */
+					byte[] ipaddr = new byte[4];
+					Array.Copy(data, 26, ipaddr, 0, 4);
+					IPAddress addr = new IPAddress(ipaddr);
+
+					if (ipaddr[0] != 224 && !addressInSubnet(addr)) {
+						/* Packet not destined to us */
+						continue;
+					}
+
+					Console.WriteLine("IPv4 packet found");
+
 				} else if (etherType == 0x86dd) {
-					/* XXX: Handle IPv6 packet */
+					if (datalen < 14+40) {
+						/* XXX: Should too small IPv6 packet be reported? */
+						continue;
+					}
 					
 					if (data[14+6] == 58 && data[14+7] == 255) {
+						if (datalen < 14+40+8) {
+							/* XXX: Should too small ICMPv6 packet be reported? */
+							continue;
+						}
+
 						/* ICMPv6 packet found */
 						int type = data[14+40];
 
@@ -111,7 +134,21 @@ namespace Nabla {
 						} else if (type == 136) {
 							handleNDAdv(data, datalen);
 						}
+
+						continue;
 					}
+
+					/* Get destination address */
+					byte[] ipaddr = new byte[16];
+					Array.Copy(data, 38, ipaddr, 0, 16);
+					IPAddress addr = new IPAddress(ipaddr);
+
+					if (!addr.IsIPv6Multicast && !addressInSubnet(addr)) {
+						/* Packet not destined to us */
+						continue;
+					}
+
+					Console.WriteLine("IPv6 packet found");
 				}
 			}
 		}
