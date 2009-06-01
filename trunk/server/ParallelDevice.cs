@@ -126,6 +126,7 @@ namespace Nabla {
 			byte[] hwaddr;
 			if (multicast) {
 				if (dest.AddressFamily == AddressFamily.InterNetwork) {
+					/* IPv4 multicast address from last 23 bits */
 					hwaddr = new byte[6];
 					hwaddr[0] = 0x01;
 					hwaddr[1] = 0x00;
@@ -267,7 +268,10 @@ namespace Nabla {
 						/* ICMPv6 packet found */
 						int type = data[14+40];
 
-						if (type == 135) {
+						if (type == 133 || type == 134) {
+							/* XXX: Router solicitation/advertisement */
+							continue;
+						} else if (type == 135) {
 							handleNDSol(data, datalen);
 							continue;
 						} else if (type == 136) {
@@ -328,6 +332,28 @@ namespace Nabla {
 			}
 
 			return false;
+		}
+
+		private int ICMPv6Checksum(byte[] data) {
+			int checksum = 0;
+			int length = (data[18] << 8) | data[19];
+
+			/* Add pseudo-header into the checksum */
+			checksum += length;
+			checksum += data[14+6];
+			for (int i=0; i<32; i++)
+				checksum += data[14+8+i] << ((i%2 == 0)?8:0);
+
+			/* Checksum the actual data */
+			for (int i=0; i<length; i++)
+				checksum += data[14+40+i] << ((i%2 == 0)?8:0);
+
+			/* Finalize the checksum */
+			if (checksum > 0xffff)
+				checksum = (checksum & 0xffff) + (checksum >> 16);
+			checksum = ~checksum;
+
+			return checksum;
 		}
 
 		private void sendARPRequest(IPAddress source, IPAddress dest) {
@@ -471,21 +497,8 @@ namespace Nabla {
 			data[79] = 1;
 			Array.Copy(_hwaddr, 0, data, 80, 6);
 
-			/* Add pseudo-header into the checksum */
-			int checksum = 0;
-			checksum += data[14+4] << 8 | data[14+5];
-			checksum += data[14+6];
-			for (int i=0; i<32; i++)
-				checksum += data[14+8+i] << ((i%2 == 0)?8:0);
-
-			/* Checksum the actual data */
-			for (int i=0; i<length; i++)
-				checksum += data[14+40+i] << ((i%2 == 0)?8:0);
-
-			/* Store the final checksum into ICMPv6 packet */
-			if (checksum > 0xffff)
-				checksum = (checksum & 0xffff) + (checksum >> 16);
-			checksum = ~checksum;
+			/* Store the checksum into ICMPv6 packet */
+			int checksum = ICMPv6Checksum(data);
 			data[14+40+2] = (byte) (checksum >> 8);
 			data[14+40+3] = (byte)  checksum;
 
@@ -536,24 +549,11 @@ namespace Nabla {
 			Array.Copy(_hwaddr, 0, data, 80, 6);
 
 			/* Zero checksum */
-			int checksum = 0;
 			data[14+40+2] = 0;
 			data[14+40+3] = 0;
 
-			/* Add pseudo-header into the checksum */
-			checksum += data[14+4] << 8 | data[14+5];
-			checksum += data[14+6];
-			for (int i=0; i<32; i++)
-				checksum += data[14+8+i] << ((i%2 == 0)?8:0);
-
-			/* Checksum the actual data */
-			for (int i=0; i<length; i++)
-				checksum += data[14+40+i] << ((i%2 == 0)?8:0);
-
-			/* Store the final checksum into ICMPv6 packet */
-			if (checksum > 0xffff)
-				checksum = (checksum & 0xffff) + (checksum >> 16);
-			checksum = ~checksum;
+			/* Store the checksum into ICMPv6 packet */
+			int checksum = ICMPv6Checksum(data);
 			data[14+40+2] = (byte) (checksum >> 8);
 			data[14+40+3] = (byte)  checksum;
 
