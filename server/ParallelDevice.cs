@@ -159,32 +159,34 @@ namespace Nabla {
 				}
 
 				lock (_arplock) {
-					/* Wait one second between requests */
-					TimeSpan span = new TimeSpan(0, 0, 1);
+					if (!_arptable.ContainsKey(dest)) {
+						/* Wait one second between requests */
+						TimeSpan span = new TimeSpan(0, 0, 1);
 
-					for (int i=0; i<3; i++) {
-						DateTime startTime = DateTime.Now;
-
-						while (!_arptable.ContainsKey(dest)) {
+						for (int i=0; i<3; i++) {
+							/* Send ARP/NDSol request to get the hardware address */
 							if (dest.AddressFamily == AddressFamily.InterNetwork) {
 								sendARPRequest(src, dest);
 							} else {
 								sendNDSol(src, dest);
 							}
 
-							TimeSpan wait = (startTime + span) - DateTime.Now;
-							if (wait < TimeSpan.Zero)
-								break;
+							DateTime startTime = DateTime.Now;
+							while (!_arptable.ContainsKey(dest)) {
+								TimeSpan wait = (startTime + span) - DateTime.Now;
+								if (wait < TimeSpan.Zero)
+									break;
 
-							Monitor.Wait(_arplock, wait);
+								Monitor.Wait(_arplock, wait);
+							}
+
+							if (_arptable.ContainsKey(dest))
+								break;
 						}
 
-						if (_arptable.ContainsKey(dest))
-							break;
-					}
-
-					if (!_arptable.ContainsKey(dest)) {
-						throw new Exception("Couldn't find hardware address for " + dest);
+						if (!_arptable.ContainsKey(dest)) {
+							throw new Exception("Couldn't find hardware address for " + dest);
+						}
 					}
 
 					hwaddr = _arptable[dest];
