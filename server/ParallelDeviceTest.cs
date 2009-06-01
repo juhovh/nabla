@@ -18,6 +18,8 @@ public class ParallelDeviceTest {
 
 		device.SendPacket(getPingRequest());
 		device.SendPacket(getPing6Request());
+
+		device.Stop();
 	}
 
         private static byte[] getPingRequest() {
