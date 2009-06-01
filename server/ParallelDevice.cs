@@ -48,6 +48,8 @@ namespace Nabla {
 		}
 	}
 
+	public delegate void ReceivePacketCallback(byte[] data);
+
 	public class ParallelDevice {
 		byte[] _hwaddr;
 		RawSocket _socket;
@@ -60,6 +62,8 @@ namespace Nabla {
 		Dictionary<IPAddress, byte[]> _arptable
 			= new Dictionary<IPAddress, byte[]>();
 
+		public ReceivePacketCallback ReceivePacketCallback = null;
+
 		public ParallelDevice(string deviceName) {
 			_hwaddr = RawSocket.GetHardwareAddress(deviceName);
 			_socket = RawSocket.GetRawSocket(deviceName,
@@ -69,16 +73,14 @@ namespace Nabla {
 		}
 
 		public void Start() {
-			AddSubnet(IPAddress.Parse("192.168.1.0"), 28);
-			AddSubnet(IPAddress.Parse("fec0::"), 10);
 			_thread.Start();
 		}
 
 		public void Stop() {
 		}
 
-		public void AddSubnet(IPAddress addr, int prefixlen) {
-			_subnets.Add(addr, new IPConfig(addr, prefixlen, null));
+		public void AddSubnet(IPAddress addr, int prefixlen, IPAddress route) {
+			_subnets.Add(addr, new IPConfig(addr, prefixlen, route));
 		}
 
 		public void SendPacket(byte[] data) {
@@ -248,9 +250,6 @@ namespace Nabla {
 						/* Packet not destined to us */
 						continue;
 					}
-
-					Console.WriteLine("IPv4 packet found");
-
 				} else if (etherType == 0x86dd) {
 					if (datalen < 14+40) {
 						/* XXX: Should too small IPv6 packet be reported? */
@@ -268,11 +267,11 @@ namespace Nabla {
 
 						if (type == 135) {
 							handleNDSol(data, datalen);
+							continue;
 						} else if (type == 136) {
 							handleNDAdv(data, datalen);
+							continue;
 						}
-
-						continue;
 					}
 
 					/* Get destination address */
@@ -284,8 +283,12 @@ namespace Nabla {
 						/* Packet not destined to us */
 						continue;
 					}
+				}
 
-					Console.WriteLine("IPv6 packet found");
+				if (ReceivePacketCallback != null) {
+					byte[] outbuf = new byte[data.Length - 14];
+					Array.Copy(data, 14, outbuf, 0, outbuf.Length);
+					ReceivePacketCallback(outbuf);
 				}
 			}
 		}
