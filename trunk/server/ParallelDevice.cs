@@ -94,8 +94,14 @@ namespace Nabla {
 			byte[] hwaddr;
 			if (multicast) {
 				if (dest.AddressFamily == AddressFamily.InterNetwork) {
-					/* FIXME: Fix the IPv4 multicast hwaddr */
-					hwaddr = new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+					hwaddr = new byte[6];
+					hwaddr[0] = 0x01;
+					hwaddr[1] = 0x00;
+					hwaddr[2] = 0x5e;
+					Array.Copy(dest.GetAddressBytes(), 1, hwaddr, 3, 3);
+
+					/* The highest bit of address part should be 0 */
+					hwaddr[3] = (byte) (hwaddr[3] & 0x7f);
 				} else {
 					/* IPv6 multicast address from last 32 bits */
 					hwaddr = new byte[6];
