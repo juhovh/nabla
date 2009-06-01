@@ -68,6 +68,66 @@ namespace Nabla {
 			_subnets.Add(addr, prefix);
 		}
 
+		public void SendPacket(byte[] data, int offset, int datalen) {
+			int version = (data[offset] >> 4) & 0x0f;
+
+			IPAddress dest;
+			bool multicast;
+			if (version == 4) {
+				byte[] ipaddr = new byte[4];
+				Array.Copy(data, offset+26, ipaddr, 0, 4);
+				dest = new IPAddress(ipaddr);
+				multicast = (ipaddr[0] < 224 && ipaddr[0] > 239);
+			} else if (version == 6) {
+				byte[] ipaddr = new byte[16];
+				Array.Copy(data, offset+38, ipaddr, 0, 16);
+				dest = new IPAddress(ipaddr);
+				multicast = dest.IsIPv6Multicast;
+			} else {
+				throw new Exception("Invalid IP packet version: " + version);
+			}
+
+			if (!addressInSubnet(dest)) {
+				/* FIXME: Replace dest with router address */
+			}
+
+			byte[] hwaddr;
+			if (multicast) {
+				if (dest.AddressFamily == AddressFamily.InterNetwork) {
+					/* FIXME: Fix the IPv4 multicast hwaddr */
+					hwaddr = new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+				} else {
+					/* IPv6 multicast address from last 32 bits */
+					hwaddr = new byte[6];
+					hwaddr[0] = 0x33;
+					hwaddr[1] = 0x33;
+					Array.Copy(dest.GetAddressBytes(), 12, hwaddr, 2, 4);
+				}
+			} else {
+				if (_arptable.ContainsKey(dest)) {
+					hwaddr = _arptable[dest];
+				} else {
+					/* FIXME: Attempt to make an ARP/ND request */
+					hwaddr = new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+				}
+			}
+
+			byte[] outbuf = new byte[14+datalen];
+			Array.Copy(hwaddr, 0, outbuf, 0, 6);
+			Array.Copy(_hwaddr, 0, outbuf, 0, 6);
+			if (dest.AddressFamily == AddressFamily.InterNetwork) {
+				outbuf[12] = 0x08;
+				outbuf[13] = 0x00;
+			} else {
+				outbuf[12] = 0x86;
+				outbuf[13] = 0xdd;
+			}
+			Array.Copy(data, offset, outbuf, 14, datalen);
+
+			Console.WriteLine("Sending packet to device");
+			_socket.Send(outbuf);
+		}
+
 		private void threadLoop() {
 			byte[] data = new byte[2048];
 
@@ -107,7 +167,7 @@ namespace Nabla {
 					Array.Copy(data, 26, ipaddr, 0, 4);
 					IPAddress addr = new IPAddress(ipaddr);
 
-					if (ipaddr[0] != 224 && !addressInSubnet(addr)) {
+					if ((ipaddr[0] < 224 && ipaddr[0] > 239) && !addressInSubnet(addr)) {
 						/* Packet not destined to us */
 						continue;
 					}
