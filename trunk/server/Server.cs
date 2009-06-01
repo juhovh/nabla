@@ -36,7 +36,9 @@ namespace Nabla {
 			_extDevice = extDevice;
 
 			extDevice.ReceivePacketCallback = new ReceivePacketCallback(extReceive);
-			extDevice.AddSubnet(IPAddress.Parse("192.168.1.16"), 28, IPAddress.Parse("192.168.1.1"));
+			extDevice.IPv4Route = new IPConfig(IPAddress.Parse("192.168.1.0"), 24, IPAddress.Parse("192.168.1.1"));
+			extDevice.AddSubnet(IPAddress.Parse("192.168.1.16"), 28);
+
 			List<IPAddress> addressList = new List<IPAddress>();
 			addressList.Add(IPAddress.Parse("192.168.1.16"));
 

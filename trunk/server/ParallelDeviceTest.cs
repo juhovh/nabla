@@ -12,8 +12,8 @@ public class ParallelDeviceTest {
 		}
 
 		ParallelDevice device = new ParallelDevice(args[0]);
-		device.AddSubnet(IPAddress.Parse("192.168.1.0"), 28, null);
-		device.AddSubnet(IPAddress.Parse("fec0::"), 10, null);
+		device.AddSubnet(IPAddress.Parse("192.168.1.0"), 28);
+		device.AddSubnet(IPAddress.Parse("fec0::"), 10);
 		device.Start();
 
 		device.SendPacket(getPingRequest());
