@@ -81,8 +81,8 @@ main(int argc, char *argv[])
 		endpoint.local_prefix = 30;
 	} else if (!strcmp(argv[1], "v4v6test")) {
 		endpoint.type = TUNNEL_TYPE_V4V6;
-		inet_pton(AF_INET6, "2001:da8:215:1800:224:1dff:fe27:2cc5", &endpoint.remote_ipv6);
-		inet_pton(AF_INET, "192.168.100.1", &endpoint.local_ipv4);
+		inet_pton(AF_INET6, "2001::2", &endpoint.remote_ipv6);
+		inet_pton(AF_INET, "10.0.0.1", &endpoint.local_ipv4);
 		endpoint.local_prefix = 24;
 	} else if (!strcmp(argv[1], "v6v4test")) {
 		endpoint.type = TUNNEL_TYPE_V6V4;
