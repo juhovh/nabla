@@ -58,5 +58,5 @@ ifneq ($(CSC),)
 endif
 
 clean:
-	rm -f bin/client bin/*.exe bin/*.so bin/*.dll bin/*.def bin/*.lib
+	rm -f bin/client bin/*.exe bin/*.so bin/*.dll bin/*.def bin/*.lib bin/*.dylib
 
