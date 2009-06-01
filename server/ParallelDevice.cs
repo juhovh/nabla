@@ -42,6 +42,10 @@ namespace Nabla {
 				throw new Exception("Unknown address family " + addr.AddressFamily);
 			}
 
+			if (addr != null && route != null && addr.AddressFamily != route.AddressFamily) {
+				throw new Exception("Address families of the the address and route don't match");
+			}
+
 			Address = addr;
 			PrefixLength = prefixlen;
 			DefaultRoute = route;
@@ -77,6 +81,9 @@ namespace Nabla {
 			}
 		}
 
+		public IPConfig IPv4Route;
+		public IPConfig IPv6Route;
+
 		public ParallelDevice(string deviceName) {
 			_hwaddr = RawSocket.GetHardwareAddress(deviceName);
 			_socket = RawSocket.GetRawSocket(deviceName,
@@ -95,8 +102,8 @@ namespace Nabla {
 			_thread.Join();
 		}
 
-		public void AddSubnet(IPAddress addr, int prefixlen, IPAddress route) {
-			_subnets.Add(addr, new IPConfig(addr, prefixlen, route));
+		public void AddSubnet(IPAddress addr, int prefixlen) {
+			_subnets.Add(addr, new IPConfig(addr, prefixlen, null));
 		}
 
 		public void SendPacket(byte[] data) {
@@ -135,7 +142,7 @@ namespace Nabla {
 				throw new Exception("Invalid IP packet version: " + version);
 			}
 
-			if (!addressInSubnet(src)) {
+			if (!addressInSubnets(src)) {
 				throw new Exception("Source address " + src + " not in range");
 			}
 
@@ -159,20 +166,20 @@ namespace Nabla {
 					Array.Copy(dest.GetAddressBytes(), 12, hwaddr, 2, 4);
 				}
 			} else {
-				if (!addressInSubnet(dest)) {
-					IPAddress route = null;
-
-					foreach (IPConfig conf in _subnets.Values) {
-						if (conf.Address.AddressFamily == dest.AddressFamily &&
-						    conf.DefaultRoute != null) {
-							route = conf.DefaultRoute;
-						}
+				if (dest.AddressFamily == AddressFamily.InterNetwork) {
+					/* If a route is configured, check if it needs to be applied */
+					if (IPv4Route != null && !addressInSubnet(dest, IPv4Route)) {
+						dest = IPv4Route.DefaultRoute;
 					}
-					if (route == null) {
-						throw new Exception("Address " + dest + " not a local address and default route not found");
+				} else {
+					/* If a route is configured, check if it needs to be applied */
+					if (IPv6Route != null && !addressInSubnet(dest, IPv6Route)) {
+						dest = IPv4Route.DefaultRoute;
 					}
+				}
 
-					dest = route;
+				if (dest == null) {
+					throw new Exception("Address " + dest + " not a local address and default route was not found");
 				}
 
 				lock (_arplock) {
@@ -265,7 +272,7 @@ namespace Nabla {
 					Array.Copy(data, 26, ipaddr, 0, 4);
 					IPAddress addr = new IPAddress(ipaddr);
 
-					if ((ipaddr[0] < 224 && ipaddr[0] > 239) && !addressInSubnet(addr)) {
+					if ((ipaddr[0] < 224 && ipaddr[0] > 239) && !addressInSubnets(addr)) {
 						/* Packet not destined to us */
 						continue;
 					}
@@ -301,7 +308,7 @@ namespace Nabla {
 					Array.Copy(data, 38, ipaddr, 0, 16);
 					IPAddress addr = new IPAddress(ipaddr);
 
-					if (!addr.IsIPv6Multicast && !addressInSubnet(addr)) {
+					if (!addr.IsIPv6Multicast && !addressInSubnets(addr)) {
 						/* Packet not destined to us */
 						continue;
 					}
@@ -318,34 +325,36 @@ namespace Nabla {
 			}
 		}
 
-		private bool addressInSubnet(IPAddress addr) {
-			foreach (IPAddress netaddr in _subnets.Keys) {
-				if (addr.AddressFamily != netaddr.AddressFamily)
-					continue;
+		private bool addressInSubnet(IPAddress addr, IPConfig config) {
+			if (addr.AddressFamily != config.Address.AddressFamily) {
+				return false;
+			}
 
-				byte[] b1 = addr.GetAddressBytes();
-				byte[] b2 = netaddr.GetAddressBytes();
-				int prefixlen = _subnets[netaddr].PrefixLength;
+			byte[] b1 = addr.GetAddressBytes();
+			byte[] b2 = config.Address.GetAddressBytes();
+			int prefixlen = config.PrefixLength;
 
-				bool found = true;
-				for (int i=0; i <= (prefixlen-1)/8; i++) {
-					if (i < prefixlen/8) {
-						/* Full bytes compared */
-						if (b1[i] != b2[i]) {
-							found = false;
-							break;
-						}
-					} else {
-						/* number of discarded bits */
-						int disc = 8 - (prefixlen % 8);
-						if ((b1[i] >> disc) != (b2[i] >> disc)) {
-							found = false;
-							break;
-						}
+			for (int i=0; i <= (prefixlen-1)/8; i++) {
+				if (i < prefixlen/8) {
+					/* Full bytes compared */
+					if (b1[i] != b2[i]) {
+						return false;
+					}
+				} else {
+					/* number of discarded bits */
+					int disc = 8 - (prefixlen % 8);
+					if ((b1[i] >> disc) != (b2[i] >> disc)) {
+						return false;
 					}
 				}
+			}
 
-				if (found) {
+			return true;
+		}
+
+		private bool addressInSubnets(IPAddress addr) {
+			foreach (IPConfig config in _subnets.Values) {
+				if (addressInSubnet(addr, config)) {
 					return true;
 				}
 			}
@@ -419,7 +428,7 @@ namespace Nabla {
 			Array.Copy(data, 38, ipaddr, 0, 4);
 			IPAddress addr = new IPAddress(ipaddr);
 
-			if (!addressInSubnet(addr)) {
+			if (!addressInSubnets(addr)) {
 				return;
 			}
 
@@ -538,7 +547,7 @@ namespace Nabla {
 			Array.Copy(data, 62, ipaddr, 0, 16);
 			IPAddress addr = new IPAddress(ipaddr);
 
-			if (!addressInSubnet(addr)) {
+			if (!addressInSubnets(addr)) {
 				return;
 			}
 
