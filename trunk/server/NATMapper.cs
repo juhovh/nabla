@@ -28,19 +28,19 @@ namespace Nabla {
 
 		public readonly IPAddress ClientPublicAddress;
 		public readonly IPAddress ClientPrivateAddress;
-		public readonly UInt16 ClientPort;
+		public readonly UInt16 ClientID;
 
 		public IPAddress ExternalAddress;
-		public UInt16 ExternalPort;
+		public UInt16 ExternalID;
 
 		public NATMapping(ProtocolType protocol,
 				  IPAddress publicIP,
 				  IPAddress privateIP,
-				  UInt16 port) {
+				  UInt16 id) {
 			Protocol = protocol;
 			ClientPublicAddress = publicIP;
 			ClientPrivateAddress = privateIP;
-			ClientPort = port;
+			ClientID = id;
 		}
 	}
 
@@ -92,28 +92,28 @@ namespace Nabla {
 
 		public void AddMapping(NATMapping m) {
 			/* This shouldn't happen since getIntMapping should be checked first */
-			if (GetIntMapping(m.Protocol, m.ClientPrivateAddress, m.ClientPort) != null)
-				throw new Exception("Client port already mapped");
+			if (GetIntMapping(m.Protocol, m.ClientPrivateAddress, m.ClientID) != null)
+				throw new Exception("Client ID already mapped");
 
-			int externalPort = -1;
+			int externalID = -1;
 			for (int i=0; i<65536; i++) {
-				if (!_extMap[m.Protocol].ContainsKey((UInt16) (m.ClientPort+i))) {
-					externalPort = (m.ClientPort+i)&0xffff;
+				if (!_extMap[m.Protocol].ContainsKey((UInt16) (m.ClientID+i))) {
+					externalID = (m.ClientID+i)&0xffff;
 					break;
 				}
 			}
-			if (externalPort == -1)
+			if (externalID == -1)
 				throw new Exception("Couldn't find external port, ran out of ports?");
 
 			m.ExternalAddress = _externalAddrs[0];
-			m.ExternalPort = (UInt16) externalPort;
+			m.ExternalID = (UInt16) externalID;
 			m.LastActive = DateTime.Now;
 
-			if (!_intMap[m.Protocol].ContainsKey(m.ClientPort))
-				_intMap[m.Protocol].Add(m.ClientPort, new List<NATMapping>());
+			if (!_intMap[m.Protocol].ContainsKey(m.ClientID))
+				_intMap[m.Protocol].Add(m.ClientID, new List<NATMapping>());
 
-			_intMap[m.Protocol][m.ClientPort].Add(m);
-			_extMap[m.Protocol].Add(m.ExternalPort, m);
+			_intMap[m.Protocol][m.ClientID].Add(m);
+			_extMap[m.Protocol].Add(m.ExternalID, m);
 		}
 	}
 }

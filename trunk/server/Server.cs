@@ -45,7 +45,7 @@ namespace Nabla {
 			_mapper = new NATMapper(addressList.ToArray());
 			_mapper.AddProtocol(ProtocolType.Tcp);
 			_mapper.AddProtocol(ProtocolType.Udp);
-			//_mapper.AddProtocol(ProtocolType.Icmp);
+			_mapper.AddProtocol(ProtocolType.Icmp);
 		}
 
 		public void Start() {
@@ -94,11 +94,11 @@ namespace Nabla {
 					_mapper.AddMapping(m);
 				}
 
-				Console.WriteLine("Using external IP {0} with port {1} (0x{1:x})",
-				                  m.ExternalAddress, m.ExternalPort);
+				Console.WriteLine("Using external IP {0} with ID {1} (0x{1:x})",
+				                  m.ExternalAddress, m.ExternalID);
 
 				packet.SourceAddress = m.ExternalAddress;
-				packet.SetNatID(m.ExternalPort, false);
+				packet.SetNatID(m.ExternalID, false);
 
 				_extDevice.SendPacket(packet.Bytes);
 			}
@@ -128,10 +128,10 @@ namespace Nabla {
 			}
 
 			Console.WriteLine("Using external IP {0} with port {1} (0x{1:x})",
-					  m.ExternalAddress, m.ExternalPort);
+					  m.ExternalAddress, m.ExternalID);
 
 			packet.DestinationAddress = m.ClientPrivateAddress;
-			packet.SetNatID(m.ClientPort, true);
+			packet.SetNatID(m.ClientID, true);
 
 			IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("::1"), 0);
 			_intSocket.SendTo(packet.Bytes, endPoint);
