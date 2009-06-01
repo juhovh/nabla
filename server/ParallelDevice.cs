@@ -69,7 +69,7 @@ namespace Nabla {
 		}
 
 		public void Start() {
-			AddSubnet(IPAddress.Parse("192.168.1.16"), 28);
+			AddSubnet(IPAddress.Parse("192.168.1.0"), 28);
 			AddSubnet(IPAddress.Parse("fec0::"), 10);
 			_thread.Start();
 		}
@@ -81,6 +81,14 @@ namespace Nabla {
 			_subnets.Add(addr, new IPConfig(addr, prefixlen, null));
 		}
 
+		public void SendPacket(byte[] data) {
+			SendPacket(data, data.Length);
+		}
+
+		public void SendPacket(byte[] data, int datalen) {
+			SendPacket(data, 0, datalen);
+		}
+
 		public void SendPacket(byte[] data, int offset, int datalen) {
 			int version = (data[offset] >> 4) & 0x0f;
 
@@ -90,23 +98,27 @@ namespace Nabla {
 			if (version == 4) {
 				byte[] ipaddr = new byte[4];
 
-				Array.Copy(data, offset+26, ipaddr, 0, 4);
+				Array.Copy(data, offset+12, ipaddr, 0, 4);
 				src = new IPAddress(ipaddr);
 
-				Array.Copy(data, offset+30, ipaddr, 0, 4);
+				Array.Copy(data, offset+16, ipaddr, 0, 4);
 				dest = new IPAddress(ipaddr);
 				multicast = (ipaddr[0] < 224 && ipaddr[0] > 239);
 			} else if (version == 6) {
 				byte[] ipaddr = new byte[16];
 
-				Array.Copy(data, offset+22, ipaddr, 0, 16);
+				Array.Copy(data, offset+8, ipaddr, 0, 16);
 				src = new IPAddress(ipaddr);
 
-				Array.Copy(data, offset+38, ipaddr, 0, 16);
+				Array.Copy(data, offset+24, ipaddr, 0, 16);
 				dest = new IPAddress(ipaddr);
 				multicast = dest.IsIPv6Multicast;
 			} else {
 				throw new Exception("Invalid IP packet version: " + version);
+			}
+
+			if (!addressInSubnet(src)) {
+				throw new Exception("Source address " + src + " not in range");
 			}
 
 			byte[] hwaddr;
@@ -157,9 +169,8 @@ namespace Nabla {
 							} else {
 								sendNDSol(src, dest);
 							}
-							/* FIXME: Attempt to make an ARP/ND request */
 
-							TimeSpan wait = DateTime.Now - (startTime + span);
+							TimeSpan wait = (startTime + span) - DateTime.Now;
 							if (wait < TimeSpan.Zero)
 								break;
 
@@ -177,7 +188,7 @@ namespace Nabla {
 
 			byte[] outbuf = new byte[14+datalen];
 			Array.Copy(hwaddr, 0, outbuf, 0, 6);
-			Array.Copy(_hwaddr, 0, outbuf, 0, 6);
+			Array.Copy(_hwaddr, 0, outbuf, 6, 6);
 			if (dest.AddressFamily == AddressFamily.InterNetwork) {
 				outbuf[12] = 0x08;
 				outbuf[13] = 0x00;
@@ -187,8 +198,8 @@ namespace Nabla {
 			}
 			Array.Copy(data, offset, outbuf, 14, datalen);
 
-			Console.WriteLine("Sending packet to device");
 			_socket.Send(outbuf);
+			Console.WriteLine("Sent packet to host " + dest);
 		}
 
 		private void threadLoop() {
