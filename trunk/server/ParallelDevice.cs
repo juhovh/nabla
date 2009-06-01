@@ -177,12 +177,15 @@ namespace Nabla {
 							Monitor.Wait(_arplock, wait);
 						}
 
-						if (!_arptable.ContainsKey(dest)) {
-							throw new Exception("Couldn't find hardware address for " + dest);
-						}
-
-						hwaddr = _arptable[dest];
+						if (_arptable.ContainsKey(dest))
+							break;
 					}
+
+					if (!_arptable.ContainsKey(dest)) {
+						throw new Exception("Couldn't find hardware address for " + dest);
+					}
+
+					hwaddr = _arptable[dest];
 				}
 			}
 
