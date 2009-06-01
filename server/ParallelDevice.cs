@@ -51,19 +51,31 @@ namespace Nabla {
 	public delegate void ReceivePacketCallback(byte[] data);
 
 	public class ParallelDevice {
-		byte[] _hwaddr;
-		RawSocket _socket;
-		Thread _thread;
+		private byte[] _hwaddr;
+		private RawSocket _socket;
+		private Thread _thread;
 		private volatile bool _running;
 
-		Dictionary<IPAddress, IPConfig> _subnets
+		private Dictionary<IPAddress, IPConfig> _subnets
 			= new Dictionary<IPAddress, IPConfig>();
 
-		Object _arplock = new Object();
-		Dictionary<IPAddress, byte[]> _arptable
+		private Object _arplock = new Object();
+		private Dictionary<IPAddress, byte[]> _arptable
 			= new Dictionary<IPAddress, byte[]>();
 
-		public ReceivePacketCallback ReceivePacketCallback = null;
+		private Object _cblock = new Object();
+		private volatile ReceivePacketCallback _callback = null;
+
+		public ReceivePacketCallback ReceivePacketCallback {
+			get {
+				return _callback;
+			}
+			set {
+				lock (_cblock) {
+					_callback = value;
+				}
+			}
+		}
 
 		public ParallelDevice(string deviceName) {
 			_hwaddr = RawSocket.GetHardwareAddress(deviceName);
@@ -295,10 +307,13 @@ namespace Nabla {
 					}
 				}
 
-				if (ReceivePacketCallback != null) {
-					byte[] outbuf = new byte[data.Length - 14];
-					Array.Copy(data, 14, outbuf, 0, outbuf.Length);
-					ReceivePacketCallback(outbuf);
+				/* Lock to make sure that callback doesn't get nullified in the middle */
+				lock (_cblock) {
+					if (_callback != null) {
+						byte[] outbuf = new byte[data.Length - 14];
+						Array.Copy(data, 14, outbuf, 0, outbuf.Length);
+						_callback(outbuf);
+					}
 				}
 			}
 		}
