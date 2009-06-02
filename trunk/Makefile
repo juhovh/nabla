@@ -4,7 +4,7 @@ CSC = $(shell which gmcs)
 CFLAGS = -Wall -Werror -fPIC -Ilibtapcfg
 
 SRCS_tapcfg := libtapcfg/tapcfg.c libtapcfg/taplog.c libtapcfg/dlpi.c
-SRCS_client := client/client.c client/tunnel.c client/tunnel_v4v6.c client/tunnel_ether.c client/tunnel_ayiya.c client/tunnel_v6v4.c client/login_tic.c client/conf_aiccu.c client/compat.c client/logger.c client/hash_sha1.c client/hash_md5.c client/command.c client/tic/common.c client/tic/tic.c $(SRCS_tapcfg)
+SRCS_client := client/client.c client/tunnel.c client/tunnel_ipv4.c client/tunnel_ether.c client/tunnel_ayiya.c client/tunnel_ipv6.c client/login_tic.c client/conf_aiccu.c client/compat.c client/logger.c client/hash_sha1.c client/hash_md5.c client/command.c client/tic/common.c client/tic/tic.c $(SRCS_tapcfg)
 
 SRCS_rawsock   := server/Sockets/rawsock.c
 SRCS_RawSocket := server/Sockets/RawSocket.cs server/Sockets/RawSocketNative.cs server/Sockets/RawSocketPcap.cs
