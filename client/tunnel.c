@@ -84,8 +84,9 @@ tunnel_init(endpoint_t *endpoint)
 	}
 
 	switch (endpoint->type) {
+	case TUNNEL_TYPE_V4V4:
 	case TUNNEL_TYPE_V4V6:
-		tunnel->tunmod = v4v6_initmod();
+		tunnel->tunmod = ipv4_initmod();
 		break;
 	case TUNNEL_TYPE_ETHER:
 		tunnel->tunmod = ether_initmod();
@@ -94,8 +95,9 @@ tunnel_init(endpoint_t *endpoint)
 		tunnel->tunmod = ayiya_initmod();
 		break;
 	case TUNNEL_TYPE_V6V4:
+	case TUNNEL_TYPE_V6V6:
 	case TUNNEL_TYPE_HEARTBEAT:
-		tunnel->tunmod = v6v4_initmod();
+		tunnel->tunmod = ipv6_initmod();
 		break;
 	default:
 		free(tunnel);

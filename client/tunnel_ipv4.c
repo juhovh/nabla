@@ -19,7 +19,8 @@
 /* Uses the following variables from endpoint_t struct:
  *   local_ipv4   - Local IPv4 address for the tunnel interface 
  *   local_prefix - The netmask prefix length of the IPv4 address
- *   remote_ipv6  - Remote IPv6 address of the server
+ *   remote_ipv4  - Remote IPv4 address of the server (if type v4v4)
+ *   remote_ipv6  - Remote IPv6 address of the server (if type v4v6)
  *   local_mtu    - (optional) maximum transfer unit
  */
 
@@ -36,6 +37,7 @@ struct tunnel_data_s {
 	int fd;
 	tapcfg_t *tapcfg;
 	unsigned int netmask;
+	int family;
 };
 
 static const char routerhw[] = { 0x00, 0x01, 0x23, 0x45, 0x67, 0x89 };
@@ -64,8 +66,9 @@ reader_thread(void *arg)
 		fd_set rfds;
 		struct timeval tv;
 
-		struct sockaddr_in6 saddr;
+		struct sockaddr_storage saddr;
 		socklen_t socklen;
+		int srcmatch;
 
 		FD_ZERO(&rfds);
 		FD_SET(data->fd, &rfds);
@@ -84,8 +87,14 @@ reader_thread(void *arg)
 			goto read_loop;
 
 		memset(&saddr, 0, sizeof(saddr));
-		saddr.sin6_family = AF_INET6;
-		saddr.sin6_addr = in6addr_any;
+		saddr.ss_family = data->family;
+		if (data->family == AF_INET) {
+			struct sockaddr_in *sin = (struct sockaddr_in *) &saddr;
+			sin->sin_addr.s_addr = htonl(INADDR_ANY);
+		} else if (data->family == AF_INET6) {
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &saddr;
+			sin6->sin6_addr = in6addr_any;
+		}
 
 		socklen = sizeof(saddr);
 		ret = recvfrom(data->fd, (char *) (buf+14), sizeof(buf)-14, 0,
@@ -105,11 +114,25 @@ reader_thread(void *arg)
 			   "Read packet of size %d from %d.%d.%d.%d\n",
 			   ret, buf[26], buf[27], buf[28], buf[29]);
 
-		if (memcmp(&saddr.sin6_addr,
-		           &tunnel->endpoint.remote_ipv6,
-		           sizeof(saddr.sin6_addr))) {
+		if (data->family != saddr.ss_family) {
 			logger_log(tunnel->logger, LOG_NOTICE,
-			           "Discarding packet from incorrect host\n");
+			           "Discarding packet from incorrect family\n");
+			goto read_loop;
+		}
+
+		srcmatch = 0;
+		if (data->family == AF_INET) {
+			struct sockaddr_in *sin = (struct sockaddr_in *) &saddr;
+			srcmatch = (sin->sin_addr.s_addr == tunnel->endpoint.remote_ipv4.s_addr);
+		} else if (data->family == AF_INET6) {
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &saddr;
+			srcmatch = !memcmp(&sin6->sin6_addr,
+			                   &tunnel->endpoint.remote_ipv6,
+			                   sizeof(sin6->sin6_addr));
+		}
+		if (!srcmatch) {
+			logger_log(tunnel->logger, LOG_NOTICE,
+				   "Discarding packet from incorrect host\n");
 			goto read_loop;
 		}
 
@@ -214,12 +237,21 @@ writer_thread(void *arg)
 			if (!memcmp(buf, routerhw, 6) ||
 			    !memcmp(buf, broadcasthw, 6)) {
 				fd_set wfds;
-				struct sockaddr_in6 saddr;
+				struct sockaddr_storage saddr;
+				socklen_t saddrlen;
 				int ret;
 
 				memset(&saddr, 0, sizeof(saddr));
-				saddr.sin6_family = AF_INET6;
-				saddr.sin6_addr = tunnel->endpoint.remote_ipv6;
+				saddr.ss_family = data->family;
+				if (data->family == AF_INET) {
+					struct sockaddr_in *sin = (struct sockaddr_in *) &saddr;
+					sin->sin_addr = tunnel->endpoint.remote_ipv4;
+					saddrlen = sizeof(struct sockaddr_in);
+				} else if (data->family == AF_INET6) {
+					struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &saddr;
+					sin6->sin6_addr = tunnel->endpoint.remote_ipv6;
+					saddrlen = sizeof(struct sockaddr_in6);
+				}
 
 				FD_ZERO(&wfds);
 				FD_SET(data->fd, &wfds);
@@ -232,8 +264,7 @@ writer_thread(void *arg)
 				}
 
 				ret = sendto(data->fd, (char *) (buf+14), buflen-14, 0,
-				             (struct sockaddr *) &saddr,
-				             sizeof(saddr));
+				             (struct sockaddr *) &saddr, saddrlen);
 				if (ret <= 0) {
 					logger_log(tunnel->logger, LOG_ERR,
 					           "Error writing to socket: %s (%d)\n",
@@ -272,6 +303,7 @@ static int
 init(tunnel_t *tunnel)
 {
 	const endpoint_t *endpoint;
+	int family;
 	int local_mtu;
 	int sock;
 	tapcfg_t *tapcfg;
@@ -283,7 +315,18 @@ init(tunnel_t *tunnel)
 	assert(tunnel);
 	endpoint = &tunnel->endpoint;
 
-	sock = socket(AF_INET6, SOCK_RAW, IPPROTO_IPIP);
+	switch (endpoint->type) {
+	case TUNNEL_TYPE_V4V4:
+		family = AF_INET;
+		break;
+	case TUNNEL_TYPE_V4V6:
+		family = AF_INET6;
+		break;
+	default:
+		return -1;
+	}
+
+	sock = socket(family, SOCK_RAW, IPPROTO_IPIP);
 	if (sock < 0) {
 		return -1;
 	}
@@ -338,6 +381,7 @@ init(tunnel_t *tunnel)
 	data->fd = sock;
 	data->tapcfg = tapcfg;
 	data->netmask = htonl(netmask);
+	data->family = family;
 	tunnel->privdata = data;
 
 	return 0;
@@ -394,7 +438,7 @@ static tunnel_mod_t module =
 };
 
 const tunnel_mod_t *
-v4v6_initmod()
+ipv4_initmod()
 {
 	return &module;
 }
