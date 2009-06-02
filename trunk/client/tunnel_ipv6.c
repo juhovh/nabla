@@ -373,7 +373,7 @@ init(tunnel_t *tunnel)
 		return -1;
 	}
 
-	sock = socket(AF_INET, SOCK_RAW, IPPROTO_IPV6);
+	sock = socket(family, SOCK_RAW, IPPROTO_IPV6);
 	if (sock < 0) {
 		return -1;
 	}
