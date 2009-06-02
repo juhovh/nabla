@@ -54,11 +54,7 @@ main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (!strcmp(argv[1], "ether") && argc == 4) {
-		endpoint.type = TUNNEL_TYPE_ETHER;
-		inet_pton(AF_INET, argv[2], &endpoint.remote_ipv4);
-		endpoint.remote_port = atoi(argv[3]);
-	} else if (!strcmp(argv[1], "tic")) {
+	if (!strcmp(argv[1], "tic")) {
 		if (argc == 4) {
 			ticinfo_t *ticinfo = tic_init(argv[2], argv[3],
 			                              "tic.sixxs.net", NULL);

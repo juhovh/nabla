@@ -88,9 +88,6 @@ tunnel_init(endpoint_t *endpoint)
 	case TUNNEL_TYPE_V4V6:
 		tunnel->tunmod = ipv4_initmod();
 		break;
-	case TUNNEL_TYPE_ETHER:
-		tunnel->tunmod = ether_initmod();
-		break;
 	case TUNNEL_TYPE_AYIYA:
 		tunnel->tunmod = ayiya_initmod();
 		break;

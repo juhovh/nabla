@@ -24,7 +24,6 @@
 #include "logger.h"
 
 enum tunnel_type_e {
-	TUNNEL_TYPE_ETHER,
 	TUNNEL_TYPE_V4V4,
 	TUNNEL_TYPE_V4V6,
 	TUNNEL_TYPE_V6V4,
@@ -90,8 +89,7 @@ void tunnel_destroy(tunnel_t *tunnel);
 
 
 const tunnel_mod_t *ipv4_initmod();
-const tunnel_mod_t *ether_initmod();
-const tunnel_mod_t *ayiya_initmod();
 const tunnel_mod_t *ipv6_initmod();
+const tunnel_mod_t *ayiya_initmod();
 
 #endif /* TUNNEL_H */
