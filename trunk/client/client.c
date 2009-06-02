@@ -35,6 +35,18 @@ sigterm(int i)
 	signal(i, SIG_IGN);
 }
 
+static int
+parseint(const char *str, int *target)
+{
+	char *endptr;
+
+	*target = strtol(str, &endptr, 10);
+	if (*endptr) {
+		return -1;
+	}
+
+	return *target;
+}
 
 int
 main(int argc, char *argv[])
@@ -70,11 +82,27 @@ main(int argc, char *argv[])
 			endpoint.local_ipv6.s6_addr[1] = 0x01;
 			endpoint.local_prefix = 64;
 		}
-	} else if (!strcmp(argv[1], "v4v6")) {
+	} else if (!strcmp(argv[1], "v4v4") && argc > 4) {
+		endpoint.type = TUNNEL_TYPE_V4V4;
+		assert(inet_pton(AF_INET, argv[2], &endpoint.local_ipv4) >= 0);
+		assert(parseint(argv[3], &endpoint.local_prefix) >= 0);
+		assert(inet_pton(AF_INET, argv[4], &endpoint.remote_ipv4) >= 0);;
+	} else if (!strcmp(argv[1], "v4v6") && argc > 4) {
 		endpoint.type = TUNNEL_TYPE_V4V6;
-		inet_pton(AF_INET, "10.0.1.2", &endpoint.local_ipv4);
-		endpoint.remote_ipv6 = in6addr_loopback;
-		endpoint.local_prefix = 30;
+		assert(inet_pton(AF_INET, argv[2], &endpoint.local_ipv4) >= 0);
+		assert(parseint(argv[3], &endpoint.local_prefix) >= 0);
+		assert(inet_pton(AF_INET6, argv[4], &endpoint.remote_ipv6) >= 0);;
+	} else if (!strcmp(argv[1], "v6v4") && argc > 4) {
+		endpoint.type = TUNNEL_TYPE_V6V4;
+		assert(inet_pton(AF_INET6, argv[2], &endpoint.local_ipv6) >= 0);
+		assert(parseint(argv[3], &endpoint.local_prefix) >= 0);
+		assert(inet_pton(AF_INET, argv[4], &endpoint.remote_ipv4) >= 0);;
+	} else if (!strcmp(argv[1], "v6v6") && argc > 4) {
+		endpoint.type = TUNNEL_TYPE_V6V6;
+		assert(inet_pton(AF_INET6, argv[2], &endpoint.local_ipv6) >= 0);
+		assert(parseint(argv[3], &endpoint.local_prefix) >= 0);
+		assert(inet_pton(AF_INET6, argv[4], &endpoint.remote_ipv6) >= 0);;
+
 	} else if (!strcmp(argv[1], "v4v6test")) {
 		endpoint.type = TUNNEL_TYPE_V4V6;
 		inet_pton(AF_INET6, "2001::2", &endpoint.remote_ipv6);
