@@ -1,7 +1,9 @@
-
 CC = $(shell which gcc)
 CSC = $(shell which gmcs)
 CFLAGS = -Wall -Werror -fPIC -Ilibtapcfg
+
+PLATFORM      :=$(shell [ -z "$(platform)" ] && uname | tr "[A-Z]" "[a-z]" || echo "$(platform)" )
+SUPPORTED_PLATFORMS=linux netbsd freebsd winnt darwin sunos
 
 SRCS_tapcfg := libtapcfg/tapcfg.c libtapcfg/taplog.c libtapcfg/dlpi.c
 SRCS_client := client/client.c client/tunnel.c client/tunnel_ipv4.c client/tunnel_ipv6.c client/tunnel_ayiya.c client/login_tic.c client/conf_aiccu.c client/compat.c client/logger.c client/hash_sha1.c client/hash_md5.c client/command.c client/tic/common.c client/tic/tic.c $(SRCS_tapcfg)
@@ -14,11 +16,7 @@ TARGET_ext :=
 TARGET_libpre := lib
 TARGET_libext := .so
 
-ifndef OSTYPE
-	OSTYPE := unix
-endif
-
-ifeq ($(OSTYPE), win)
+ifeq ($(PLATFORM), winnt)
 	CC := i586-mingw32msvc-gcc
 	CFLAGS := -DWINVER=0x0501 $(CFLAGS)
 	TARGET_ext := .exe
@@ -26,30 +24,61 @@ ifeq ($(OSTYPE), win)
 	TARGET_libext := .dll
 endif
 
-ifeq ($(OSTYPE), osx)
+ifeq ($(PLATFORM), darwin)
 	TARGET_libext := .dylib
 endif
 
 LIBS_general := 
-LIBS_win := -lws2_32 $(LIBS_general)
-LIBS_unix := -lpthread $(LIBS_general)
-LIBS_osx := $(LIBS_unix)
+LIBS_linux := -lpthread $(LIBS_general)
+LIBS_netbsd := -lpthread $(LIBS_general)
+LIBS_freebsd := -lpthread $(LIBS_general)
+LIBS_winnt := -lws2_32 $(LIBS_general)
+LIBS_darwin := $(LIBS_unix)
 LIBS_sunos := -lsocket -lnsl $(LIBS_unix)
-LIBS := $(LIBS_$(OSTYPE))
+LIBS := $(LIBS_$(PLATFORM))
 
-LIBFLAGS_win := -shared -Wl,--out-implib,bin/rawsock.lib -Wl,--output-def,bin/rawsock.def
-LIBFLAGS_unix := -shared
-LIBFLAGS_osx := -dynamiclib -install_name $(TARGET_libpre)rawsock$(TARGET_libext)
+LIBFLAGS_linux := -shared
+LIBFLAGS_netbsd := -shared
+LIBFLAGS_freebsd := -shared
+LIBFLAGS_winnt := -shared -Wl,--out-implib,bin/rawsock.lib -Wl,--output-def,bin/rawsock.def
+LIBFLAGS_darwin := -dynamiclib -install_name $(TARGET_libpre)rawsock$(TARGET_libext)
 LIBFLAGS_sunos := $(LIBFLAGS_unix)
-LIBFLAGS := $(LIBFLAGS_$(OSTYPE))
+LIBFLAGS := $(LIBFLAGS_$(PLATFORM))
 
 TARGET_client  := bin/client$(TARGET_ext)
 TARGET_rawsock := bin/$(TARGET_libpre)rawsock$(TARGET_libext)
 TARGET_server  := bin/Server.exe
 
-all:
+
+all: platform-check nabla-client nabla-server
+
+# This makefile target will check the platform.
+platform-check:
+	@for plat in ${SUPPORTED_PLATFORMS} ; do \
+	        [ "${PLATFORM}" = "$$plat" ] && platform_ok=xxx || platform_ok=$$platform_ok ; \
+	done && ([ -z "$$platform_ok" ] && { \
+	    echo ; \
+	    echo "Error: Target platform <${PLATFORM}> is invalid!"; \
+	    echo "Syntax: make ostype=<target platform> all"; \
+	    echo ; \
+	    echo "    where <target platform> is one of the following:"; \
+	    echo "        linux        for Linux."          ; \
+	    echo "        winnt        for Windows."          ; \
+	    echo "        freebsd      for FreeBSD."        ; \
+	    echo "        netbsd       for NetBSD."         ; \
+	    echo "        darwin       for Mac OS X darwin."; \
+	    echo "        sunos        for Sun/Solaris."    ; \
+	    echo ; \
+	    exit 1;\
+	} || echo "Building Nabla for platform ${PLATFORM} ..." ; )
+
+nabla-client:
 ifneq ($(CC),)
 	$(CC) $(CFLAGS) -o $(TARGET_client) $(SRCS_client) $(LIBS)
+endif
+
+nabla-server:
+ifneq ($(CC),)
 	$(CC) $(CFLAGS) -o $(TARGET_rawsock) $(SRCS_rawsock) $(LIBFLAGS) $(LIBS)
 endif
 ifneq ($(CSC),)

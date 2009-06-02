@@ -3,11 +3,9 @@ Nabla - Automatic IPv6 Tunneling and Connecticity
 -------------------------------------------------
 
 The name of this file is somewhat misleading, because most people have no use
-reading this. However for compiling the following might be useful:
-
-make OSTYPE=unix/win/osx/sunos
-
-Binaries will be compiled into the bin-directory.
+reading this. Compiling should work by simply writing "make" on command line,
+for convenience GNU Make is required, so it might be installed with name gmake
+on some platforms instead. Binaries will be compiled into the bin-directory.
 
 
 License
