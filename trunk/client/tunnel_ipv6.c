@@ -184,9 +184,6 @@ writer_thread(void *arg)
 	logger_log(tunnel->logger, LOG_INFO, "Starting writer thread\n");
 
 	do {
-		fd_set wfds;
-		struct sockaddr_storage saddr;
-		socklen_t saddrlen;
 		int len, etherType;
 
 		if (!tapcfg_wait_readable(data->tapcfg, tunnel->waitms))
@@ -295,42 +292,56 @@ writer_thread(void *arg)
 				           "Error writing packet\n");
 				break;
 			}
-			goto write_loop;
-		}
+		} else { 
+			const char broadcasthw[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+			const char multicasthw[] = { 0x33, 0x33 };
 
-		memset(&saddr, 0, sizeof(saddr));
-		saddr.ss_family = data->family;
-		if (data->family == AF_INET) {
-			struct sockaddr_in *sin = (struct sockaddr_in *) &saddr;
-			sin->sin_addr = tunnel->endpoint.remote_ipv4;
-			saddrlen = sizeof(struct sockaddr_in);
-		} else if (data->family == AF_INET6) {
-			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &saddr;
-			sin6->sin6_addr = tunnel->endpoint.remote_ipv6;
-			saddrlen = sizeof(struct sockaddr_in6);
-		}
+			fd_set wfds;
+			struct sockaddr_storage saddr;
+			socklen_t saddrlen;
 
-		FD_ZERO(&wfds);
-		FD_SET(data->fd, &wfds);
-		ret = select(data->fd+1, NULL, &wfds, NULL, NULL);
-		if (ret == -1) {
-			logger_log(tunnel->logger, LOG_ERR,
-			           "Error when selecting for fd: %s (%d)\n",
-			           strerror(GetLastError()), GetLastError());
-			break;
-		}
+			if (memcmp(buf, routerhw, 6) &&
+			    memcmp(buf, broadcasthw, 6) &&
+			    memcmp(buf, multicasthw, 2)) {
+				logger_log(tunnel->logger, LOG_NOTICE,
+				           "Found an IPv6 packet to other host\n");
+				goto write_loop;
+			}
 
-		ret = sendto(data->fd, (char *) (buf+14), len-14, 0,
-		             (struct sockaddr *) &saddr, saddrlen);
-		if (ret <= 0) {
-			logger_log(tunnel->logger, LOG_ERR,
-			           "Error in writing to socket: %s (%d)\n",
-			           strerror(GetLastError()), GetLastError());
-			break;
-		}
+			memset(&saddr, 0, sizeof(saddr));
+			saddr.ss_family = data->family;
+			if (data->family == AF_INET) {
+				struct sockaddr_in *sin = (struct sockaddr_in *) &saddr;
+				sin->sin_addr = tunnel->endpoint.remote_ipv4;
+				saddrlen = sizeof(struct sockaddr_in);
+			} else if (data->family == AF_INET6) {
+				struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &saddr;
+				sin6->sin6_addr = tunnel->endpoint.remote_ipv6;
+				saddrlen = sizeof(struct sockaddr_in6);
+			}
 
-		logger_log(tunnel->logger, LOG_DEBUG,
-		           "Wrote %d bytes to the server\n", len);
+			FD_ZERO(&wfds);
+			FD_SET(data->fd, &wfds);
+			ret = select(data->fd+1, NULL, &wfds, NULL, NULL);
+			if (ret == -1) {
+				logger_log(tunnel->logger, LOG_ERR,
+					   "Error when selecting for fd: %s (%d)\n",
+					   strerror(GetLastError()), GetLastError());
+				break;
+			}
+
+			ret = sendto(data->fd, (char *) (buf+14), len-14, 0,
+				     (struct sockaddr *) &saddr, saddrlen);
+			if (ret <= 0) {
+				logger_log(tunnel->logger, LOG_ERR,
+					   "Error in writing to socket: %s (%d)\n",
+					   strerror(GetLastError()), GetLastError());
+				break;
+			}
+
+			logger_log(tunnel->logger, LOG_DEBUG,
+				   "Wrote %d bytes to the server\n", len);
+		}
 
 write_loop:
 		MUTEX_LOCK(tunnel->run_mutex);
