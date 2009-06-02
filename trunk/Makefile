@@ -1,6 +1,6 @@
 CC = $(shell which gcc)
 CSC = $(shell which gmcs)
-CFLAGS = -Wall -Werror -fPIC -Ilibtapcfg
+CFLAGS = -Wall -Werror -Ilibtapcfg
 
 PLATFORM      :=$(shell [ -z "$(platform)" ] && uname | tr "[A-Z]" "[a-z]" || echo "$(platform)" )
 SUPPORTED_PLATFORMS=linux netbsd freebsd winnt darwin sunos
@@ -22,6 +22,8 @@ ifeq ($(PLATFORM), winnt)
 	TARGET_ext := .exe
 	TARGET_libpre :=
 	TARGET_libext := .dll
+else
+	CFLAGS := -fPIC $(CFLAGS)
 endif
 
 ifeq ($(PLATFORM), darwin)
