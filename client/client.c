@@ -86,22 +86,37 @@ main(int argc, char *argv[])
 		endpoint.type = TUNNEL_TYPE_V4V4;
 		assert(inet_pton(AF_INET, argv[2], &endpoint.local_ipv4) >= 0);
 		assert(parseint(argv[3], &endpoint.local_prefix) >= 0);
-		assert(inet_pton(AF_INET, argv[4], &endpoint.remote_ipv4) >= 0);;
+		assert(inet_pton(AF_INET, argv[4], &endpoint.remote_ipv4) >= 0);
 	} else if (!strcmp(argv[1], "v4v6") && argc > 4) {
 		endpoint.type = TUNNEL_TYPE_V4V6;
 		assert(inet_pton(AF_INET, argv[2], &endpoint.local_ipv4) >= 0);
 		assert(parseint(argv[3], &endpoint.local_prefix) >= 0);
-		assert(inet_pton(AF_INET6, argv[4], &endpoint.remote_ipv6) >= 0);;
+		assert(inet_pton(AF_INET6, argv[4], &endpoint.remote_ipv6) >= 0);
 	} else if (!strcmp(argv[1], "v6v4") && argc > 4) {
 		endpoint.type = TUNNEL_TYPE_V6V4;
 		assert(inet_pton(AF_INET6, argv[2], &endpoint.local_ipv6) >= 0);
 		assert(parseint(argv[3], &endpoint.local_prefix) >= 0);
-		assert(inet_pton(AF_INET, argv[4], &endpoint.remote_ipv4) >= 0);;
+		assert(inet_pton(AF_INET, argv[4], &endpoint.remote_ipv4) >= 0);
 	} else if (!strcmp(argv[1], "v6v6") && argc > 4) {
 		endpoint.type = TUNNEL_TYPE_V6V6;
 		assert(inet_pton(AF_INET6, argv[2], &endpoint.local_ipv6) >= 0);
 		assert(parseint(argv[3], &endpoint.local_prefix) >= 0);
-		assert(inet_pton(AF_INET6, argv[4], &endpoint.remote_ipv6) >= 0);;
+		assert(inet_pton(AF_INET6, argv[4], &endpoint.remote_ipv6) >= 0);
+	} else if (!strcmp(argv[1], "heartbeat") && argc > 6) {
+		endpoint.type = TUNNEL_TYPE_HEARTBEAT;
+		assert(inet_pton(AF_INET6, argv[2], &endpoint.local_ipv6) >= 0);
+		assert(parseint(argv[3], &endpoint.local_prefix) >= 0);
+		assert(inet_pton(AF_INET, argv[4], &endpoint.remote_ipv4) >= 0);
+		strncpy(endpoint.password, argv[5], sizeof(endpoint.password)-1);
+		assert(parseint(argv[6], &endpoint.beat_interval) >= 0);
+	} else if (!strcmp(argv[1], "ayiya") && argc > 7) {
+		endpoint.type = TUNNEL_TYPE_AYIYA;
+		assert(inet_pton(AF_INET6, argv[2], &endpoint.local_ipv6) >= 0);
+		assert(parseint(argv[3], &endpoint.local_prefix) >= 0);
+		assert(inet_pton(AF_INET6, argv[4], &endpoint.remote_ipv6) >= 0);
+		assert(inet_pton(AF_INET, argv[5], &endpoint.remote_ipv4) >= 0);
+		strncpy(endpoint.password, argv[6], sizeof(endpoint.password)-1);
+		assert(parseint(argv[7], &endpoint.beat_interval) >= 0);
 
 	} else if (!strcmp(argv[1], "v4v6test")) {
 		endpoint.type = TUNNEL_TYPE_V4V6;

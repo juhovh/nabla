@@ -17,6 +17,7 @@
  */
 
 using System;
+using System.Net;
 using System.Threading;
 
 namespace Nabla {
@@ -27,10 +28,16 @@ namespace Nabla {
 				return;
 			}
 
-			SessionManager session = new SessionManager();
-			session.AddIntDevice(args[0], TunnelType.IPv4inIPv6);
-			session.AddExtDevice(args[1]);
-			session.Start();
+			SessionManager sessionManager = new SessionManager();
+			sessionManager.AddIntDevice(args[0], TunnelType.Heartbeat);
+			sessionManager.AddExtDevice(args[1]);
+
+			IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("192.168.1.123"), 1234);
+			TunnelSession session = new TunnelSession(TunnelType.Heartbeat, endPoint);
+			session.Password = "salasana";
+			sessionManager.AddSession(session);
+
+			sessionManager.Start();
 
 			while (true) {
 				Thread.Sleep(1000);
