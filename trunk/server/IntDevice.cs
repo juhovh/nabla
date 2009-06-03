@@ -27,6 +27,8 @@ namespace Nabla {
 	public delegate void IntDeviceCallback(TunnelType type, IPEndPoint source, byte[] data);
 
 	public class IntDevice {
+		private const int waitms = 100;
+
 		private Thread _thread;
 		private volatile bool _running;
 
@@ -94,7 +96,7 @@ namespace Nabla {
 			}
 
 			if (addressFamily != AddressFamily.Unknown) {
-				_rawSocket = RawSocket.GetRawSocket(deviceName, addressFamily, protocol, 100);
+				_rawSocket = RawSocket.GetRawSocket(deviceName, addressFamily, protocol, waitms);
 			}
 
 			_thread = new Thread(new ThreadStart(this.threadLoop));
@@ -122,8 +124,7 @@ namespace Nabla {
 				    TunnelType == TunnelType.AyiyaIPv4inIPv6 ||
 				    TunnelType == TunnelType.AyiyaIPv6inIPv4 ||
 				    TunnelType == TunnelType.AyiyaIPv6inIPv6) {
-					/* XXX: Should poll instead */
-					if (true) {
+					while (_udpSocket.Poll(waitms*1000, SelectMode.SelectRead)) {
 						IPEndPoint endPoint;
 						if (TunnelType == TunnelType.AyiyaIPv4inIPv4 ||
 						    TunnelType == TunnelType.AyiyaIPv6inIPv4) {
@@ -162,8 +163,7 @@ namespace Nabla {
 					IPEndPoint endPoint;
 
 					if (TunnelType == TunnelType.Heartbeat) {
-						/* XXX: Should poll instead */
-						if (true) {
+						while (_udpSocket.Poll(0, SelectMode.SelectRead)) {
 							endPoint = new IPEndPoint(IPAddress.Any, 0);
 							EndPoint sender = (EndPoint) endPoint;
 							_udpSocket.ReceiveFrom(data, 0, data.Length,
