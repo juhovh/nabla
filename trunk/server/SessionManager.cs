@@ -154,8 +154,6 @@ namespace Nabla {
 							session = s;
 						}
 					}
-					if (session == null)
-						return false;
 				}
 			}
 
@@ -172,11 +170,24 @@ namespace Nabla {
 				}
 				string str = Encoding.ASCII.GetString(data, 0, strlen);
 				if (str.IndexOf("HEARTBEAT TUNNEL ") != 0) {
-					Console.WriteLine("Heartbeat ID string not found");
+					Console.WriteLine("Heartbeat string not found");
 					return false;
 				}
 
+				IPAddress identifier = null;
+				UInt32 epochtime = 0;
+				try {
+					string[] words = str.Split(' ');
+					identifier = IPAddress.Parse(words[2]);
+					epochtime = UInt32.Parse(words[3]);
+				} catch (Exception) {
+					return false;
+				}
+
+				Console.WriteLine("Identifier: {0} Epochtime: {1}", identifier, epochtime);
+				Console.WriteLine("Identifier: " + identifier);
 				/* XXX: Check for epoch time */
+				/* XXX: Check if session is invalid */
 
 				MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
 				byte[] passwdHash = md5.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
@@ -185,7 +196,6 @@ namespace Nabla {
 				str = str.Substring(0, str.Length-32);
 				str += BitConverter.ToString(passwdHash).Replace("-", "").ToLower();
 				
-				md5 = new MD5CryptoServiceProvider();
 				byte[] ourHash = md5.ComputeHash(Encoding.ASCII.GetBytes(str));
 				string ourHashStr = BitConverter.ToString(ourHash).Replace("-", "").ToLower();
 
