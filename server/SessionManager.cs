@@ -134,6 +134,8 @@ namespace Nabla {
 					return false;
 				}
 
+				/* XXX: Check for epoch time */
+
 				/* Default size of AYIYA header */
 				int datalen = 52;
 				if (data[3] == 41) {
@@ -141,7 +143,7 @@ namespace Nabla {
 					datalen += 40 + data[datalen+4]*256 + data[datalen+5];
 				}
 
-				SHA1Managed sha1 = new SHA1Managed();
+				SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
 				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
 
 				/* Replace the hash with password hash */
@@ -152,6 +154,39 @@ namespace Nabla {
 				byte[] ourHash = sha1.ComputeHash(data, 0, datalen);
 				if (!BitConverter.ToString(ourHash).Equals(BitConverter.ToString(theirHash))) {
 					Console.WriteLine("Incorrect AYIYA hash");
+					return false;
+				}
+			} else if (type == TunnelType.Heartbeat) {
+				int strlen = data.Length;
+				for (int i=0; i<data.Length; i++) {
+					if (data[i] == 0) {
+						strlen = i;
+						break;
+					} else if (data[i] < 32 || data[i] > 126) {
+						Console.WriteLine("Invalid heartbeat packet");
+						return false;
+					}
+				}
+				string str = Encoding.ASCII.GetString(data, 0, strlen);
+				if (str.IndexOf("HEARTBEAT TUNNEL ") != 0) {
+					Console.WriteLine("Heartbeat ID string not found");
+					return false;
+				}
+
+				/* XXX: Check for epoch time */
+
+				MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
+				byte[] passwdHash = md5.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
+				
+				string theirHashStr = str.Substring(str.Length-16, 16);
+				str = str.Substring(0, str.Length-16);
+				str += BitConverter.ToString(passwdHash).Replace("-", "").ToLower();
+				
+				byte[] ourHash = md5.ComputeHash(Encoding.ASCII.GetBytes(str));
+				string ourHashStr = BitConverter.ToString(ourHash).Replace("-", "").ToLower();
+
+				if (!theirHashStr.Equals(ourHashStr)) {
+					Console.WriteLine("Incorrect Heartbeat hash");
 					return false;
 				}
 			}
