@@ -30,11 +30,14 @@ namespace Nabla {
 		private Thread _thread;
 		private volatile bool _running;
 
+		private SessionManager _sessionManager;
 		private RawSocket _socket;
-		private TunnelType _type;
 		private IntDeviceCallback _callback;
 
-		public IntDevice(string deviceName, TunnelType type, IntDeviceCallback cb) {
+		public readonly TunnelType TunnelType;
+
+		public IntDevice(SessionManager session, string deviceName, TunnelType type, IntDeviceCallback cb) {
+			_sessionManager = session;
 			if (type == TunnelType.Ayiya) {
 				throw new Exception("AYIYA not supported yet");
 			} else {
@@ -59,6 +62,7 @@ namespace Nabla {
 
 				_socket = RawSocket.GetRawSocket(deviceName, addressFamily, protocol, 100);
 			}
+			TunnelType = type;
 			_callback = cb;
 
 			_thread = new Thread(new ThreadStart(this.threadLoop));
@@ -89,9 +93,13 @@ namespace Nabla {
 				int datalen = _socket.ReceiveFrom(data, ref endPoint);
 				Console.WriteLine("Received a packet from {0}", endPoint);
 
+				if (!_sessionManager.SessionAlive(TunnelType, endPoint, data))
+					continue;
+
 				byte[] outdata = new byte[datalen];
 				Array.Copy(data, 0, outdata, 0, datalen);
-				_callback(_type, endPoint, outdata);
+
+				_callback(TunnelType, endPoint, outdata);
 			}
 		}
 	}

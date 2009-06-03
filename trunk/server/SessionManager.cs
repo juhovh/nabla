@@ -18,15 +18,27 @@
 
 using System;
 using System.Net;
+using System.Net.Sockets;
 using System.Collections.Generic;
 
 namespace Nabla {
+	public class TunnelSession {
+		public TunnelType TunnelType;
+		public DateTime LastAlive;
+	}
+
 	public class SessionManager {
 		private Object _runlock;
 		private bool _running;
 
 		private List<IntDevice> _intDevices;
 		private List<ExtDevice> _extDevices;
+
+		private Object _sessionlock;
+		private Dictionary<TunnelType, Dictionary<IPEndPoint, TunnelSession>> _sessions
+			= new Dictionary<TunnelType, Dictionary<IPEndPoint, TunnelSession>>();
+		private Dictionary<AddressFamily, Dictionary<IPEndPoint, TunnelSession>> _rsessions
+			= new Dictionary<AddressFamily, Dictionary<IPEndPoint, TunnelSession>>();
 
 		public SessionManager() {
 		}
@@ -38,7 +50,7 @@ namespace Nabla {
 					throw new Exception("Can't add devices while running, stop the manager first");
 				}
 
-				_intDevices.Add(new IntDevice(deviceName, type, callback));
+				_intDevices.Add(new IntDevice(this, deviceName, type, callback));
 			}
 		}
 
@@ -51,6 +63,22 @@ namespace Nabla {
 
 				_extDevices.Add(new ExtDevice(deviceName, callback));
 			}
+		}
+
+		public bool SessionAlive(TunnelType type, IPEndPoint source, byte[] data) {
+			TunnelSession session;
+			try {
+				session = _sessions[type][source];
+			} catch (Exception) {
+				return false;
+			}
+
+			/* XXX: Check that the session is alive */
+			if (DateTime.Now - session.LastAlive > TimeSpan.Zero) {
+				return true;
+			}
+
+			return false;
 		}
 
 		public void Start() {
@@ -91,10 +119,22 @@ namespace Nabla {
 			}
 		}
 
-		private void extReceive(IPEndPoint destination, byte[] data) {
-			/* FIXME: Should check by the destination where it belongs */
+		private void extReceive(AddressFamily family, IPEndPoint destination, byte[] data) {
+			TunnelSession session;
+
+			lock (_sessionlock) {
+				try {
+					session = _rsessions[family][destination];
+				} catch (Exception) {
+					/* Unknown protocol or destination, drop packet */
+					return;
+				}
+			}
+
 			foreach (IntDevice dev in _intDevices) {
-				dev.SendPacket(destination, data);
+				if (dev.TunnelType == session.TunnelType) {
+					dev.SendPacket(destination, data);
+				}
 			}
 		}
 	}
