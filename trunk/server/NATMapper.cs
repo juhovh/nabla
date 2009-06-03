@@ -26,21 +26,45 @@ namespace Nabla {
 		public readonly ProtocolType Protocol;
 		public DateTime LastActive;
 
-		public readonly IPAddress ClientPublicAddress;
-		public readonly IPAddress ClientPrivateAddress;
-		public readonly UInt16 ClientID;
+		public readonly IPEndPoint ClientEndPoint;
+		public readonly IPAddress InternalAddress;
+		public readonly UInt16 InternalID;
 
 		public IPAddress ExternalAddress;
 		public UInt16 ExternalID;
 
 		public NATMapping(ProtocolType protocol,
-				  IPAddress publicIP,
-				  IPAddress privateIP,
+				  IPEndPoint endPoint,
+				  IPAddress internalIP,
 				  UInt16 id) {
 			Protocol = protocol;
-			ClientPublicAddress = publicIP;
-			ClientPrivateAddress = privateIP;
-			ClientID = id;
+			ClientEndPoint = endPoint;
+			InternalAddress = internalIP;
+			InternalID = id;
+		}
+	}
+
+	public class NATAddressList {
+		private List<IPAddress> _list;
+
+		public NATAddressList() {
+			_list = new List<IPAddress>();
+		}
+
+		private NATAddressList(List<IPAddress> list) {
+			_list = list;
+		}
+
+		public IPAddress this[int index] {
+			get {
+				return _list[index];
+			}
+		}
+
+		public static NATAddressList operator +(NATAddressList list, IPAddress address) {
+			List<IPAddress> tmplist = new List<IPAddress>(list._list);
+			tmplist.Add(address);
+			return new NATAddressList(tmplist);
 		}
 	}
 
@@ -49,21 +73,12 @@ namespace Nabla {
 			= new Dictionary<ProtocolType, Dictionary<UInt16, List<NATMapping>>>();
 		private Dictionary<ProtocolType, Dictionary<UInt16, NATMapping>> _extMap
 			= new Dictionary<ProtocolType, Dictionary<UInt16, NATMapping>>();
-		private IPAddress[] _externalAddrs;
-
-		public NATMapper(IPAddress[] externalAddrs) {
-			if (externalAddrs.Length == 0)
-				throw new Exception("External address list needs at least one entry");
-
-			_externalAddrs = externalAddrs;
-			Console.WriteLine("Using address {0} as source",
-					  _externalAddrs[0]);
-		}
+		public NATAddressList Addresses = new NATAddressList();
 
 		public NATMapping GetIntMapping(ProtocolType type, IPAddress ipAddr, UInt16 port) {
 			try {
 				foreach (NATMapping m in _intMap[type][port]) {
-					if (ipAddr.Equals(m.ClientPrivateAddress)) {
+					if (ipAddr.Equals(m.InternalAddress)) {
 						m.LastActive = DateTime.Now;
 						return m;
 					}
@@ -92,27 +107,27 @@ namespace Nabla {
 
 		public void AddMapping(NATMapping m) {
 			/* This shouldn't happen since getIntMapping should be checked first */
-			if (GetIntMapping(m.Protocol, m.ClientPrivateAddress, m.ClientID) != null)
-				throw new Exception("Client ID already mapped");
+			if (GetIntMapping(m.Protocol, m.InternalAddress, m.InternalID) != null)
+				throw new Exception("Internal ID already mapped");
 
 			int externalID = -1;
 			for (int i=0; i<65536; i++) {
-				if (!_extMap[m.Protocol].ContainsKey((UInt16) (m.ClientID+i))) {
-					externalID = (m.ClientID+i)&0xffff;
+				if (!_extMap[m.Protocol].ContainsKey((UInt16) (m.InternalID+i))) {
+					externalID = (m.InternalID+i)&0xffff;
 					break;
 				}
 			}
 			if (externalID == -1)
 				throw new Exception("Couldn't find external port, ran out of ports?");
 
-			m.ExternalAddress = _externalAddrs[0];
+			m.ExternalAddress = Addresses[0];
 			m.ExternalID = (UInt16) externalID;
 			m.LastActive = DateTime.Now;
 
-			if (!_intMap[m.Protocol].ContainsKey(m.ClientID))
-				_intMap[m.Protocol].Add(m.ClientID, new List<NATMapping>());
+			if (!_intMap[m.Protocol].ContainsKey(m.InternalID))
+				_intMap[m.Protocol].Add(m.InternalID, new List<NATMapping>());
 
-			_intMap[m.Protocol][m.ClientID].Add(m);
+			_intMap[m.Protocol][m.InternalID].Add(m);
 			_extMap[m.Protocol].Add(m.ExternalID, m);
 		}
 	}

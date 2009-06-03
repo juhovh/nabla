@@ -25,123 +25,30 @@ using Nabla.Sockets;
 
 namespace Nabla {
 	public class Server {
-		private Thread _intThread;
-		private volatile bool _running;
+		private IntDevice _intDevice;
+		private ExtDevice _extDevice;
 
-		private RawSocket _intSocket;
-		private ParallelDevice _extDevice;
-		private NATMapper _mapper;
-
-		public Server(RawSocket intSocket, ParallelDevice extDevice) {
-			_intSocket = intSocket;
-			_extDevice = extDevice;
-			_intThread = new Thread(new ThreadStart(this.intLoop));
-
-			extDevice.ReceivePacketCallback = new ReceivePacketCallback(extReceive);
-			extDevice.IPv4Route = new IPConfig(IPAddress.Parse("192.168.1.0"), 24, IPAddress.Parse("192.168.1.1"));
-			extDevice.AddSubnet(IPAddress.Parse("192.168.1.16"), 28);
-
-			List<IPAddress> addressList = new List<IPAddress>();
-			addressList.Add(IPAddress.Parse("192.168.1.16"));
-
-			_mapper = new NATMapper(addressList.ToArray());
-			_mapper.AddProtocol(ProtocolType.Tcp);
-			_mapper.AddProtocol(ProtocolType.Udp);
-			_mapper.AddProtocol(ProtocolType.Icmp);
+		public Server(string intName, string extName, TunnelType type) {
+			_intDevice = new IntDevice(intName, type, new IntDeviceCallback(intReceive));
+			_extDevice = new ExtDevice(extName, new ExtDeviceCallback(extReceive));
 		}
 
 		public void Start() {
-			_running = true;
-			_intThread.Start();
+			_intDevice.Start();
 			_extDevice.Start();
 		}
 
 		public void Stop() {
-			_running = false;
+			_intDevice.Stop();
 			_extDevice.Stop();
-			_intThread.Join();
 		}
 
-		private void intLoop() {
-			byte[] data = new byte[2048];
-
-			while (_running) {
-				if (!_intSocket.WaitForReadable())
-					continue;
-
-				IPEndPoint endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
-				int datalen = _intSocket.ReceiveFrom(data, ref endPoint);
-				Console.WriteLine("Received a packet from {0}", endPoint);
-
-				NATPacket packet;
-				try {
-					packet = new NATPacket(data, datalen);
-				} catch (Exception) {
-					/* Packet not supported by NATPacket */
-					continue;
-				}
-
-				Console.WriteLine("Protocol type {0}, NAT identifier {0}",
-				                  packet.ProtocolType, packet.IntNatID);
-
-				NATMapping m = _mapper.GetIntMapping(packet.ProtocolType,
-				                                     packet.SourceAddress,
-				                                     packet.IntNatID);
-
-				if (m == null) {
-					Console.WriteLine("Unmapped connection, add mapping");
-
-					m = new NATMapping(packet.ProtocolType,
-					                   endPoint.Address,
-					                   packet.SourceAddress,
-					                   packet.IntNatID);
-					_mapper.AddMapping(m);
-				}
-
-				Console.WriteLine("Using external IP {0} with ID {1} (0x{1:x})",
-				                  m.ExternalAddress, m.ExternalID);
-
-				/* Convert the source values to the public ones */
-				packet.SourceAddress = m.ExternalAddress;
-				packet.IntNatID = m.ExternalID;
-
-				_extDevice.SendPacket(packet.Bytes);
-			}
+		private void intReceive(TunnelType type, IPEndPoint source, byte[] data) {
+			_extDevice.SendPacket(source, data);
 		}
 
-		private void extReceive(byte[] data) {
-			if ((data[0] >> 4) != 4) {
-				/* Not an IPv4 packet, ignore */
-				return;
-			}
-
-			NATPacket packet;
-			try {
-				packet = new NATPacket(data);
-			} catch (Exception) {
-				/* Packet not supported by NATPacket */
-				return;
-			}
-
-			Console.WriteLine("Protocol type {0}, NAT identifier {0}",
-			                  packet.ProtocolType, packet.ExtNatID);
-
-			NATMapping m = _mapper.GetExtMapping(packet.ProtocolType,
-							     packet.ExtNatID);
-			if (m == null) {
-				Console.WriteLine("Unmapped connection, drop packet");
-				return;
-			}
-
-			Console.WriteLine("Using external IP {0} with port {1} (0x{1:x})",
-					  m.ExternalAddress, m.ExternalID);
-
-			/* Convert the destination values to the local ones */
-			packet.DestinationAddress = m.ClientPrivateAddress;
-			packet.ExtNatID = m.ClientID;
-
-			IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("::1"), 0);
-			_intSocket.SendTo(packet.Bytes, endPoint);
+		private void extReceive(IPEndPoint destination, byte[] data) {
+			_intDevice.SendPacket(destination, data);
 		}
 
 		private static void Main(string[] args) {
@@ -150,10 +57,7 @@ namespace Nabla {
 				return;
 			}
 
-			RawSocket intSocket = RawSocket.GetRawSocket(args[0], AddressFamily.InterNetworkV6, 4, 100);
-			ParallelDevice extDevice = new ParallelDevice(args[1]);
-
-			Server server = new Server(intSocket, extDevice);
+			Server server = new Server(args[0], args[1], TunnelType.IPv4inIPv6);
 			server.Start();
 
 			while (true) {
