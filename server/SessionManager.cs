@@ -67,10 +67,12 @@ namespace Nabla {
 
 		public bool SessionAlive(TunnelType type, IPEndPoint source, byte[] data) {
 			TunnelSession session;
-			try {
-				session = _sessions[type][source];
-			} catch (Exception) {
-				return false;
+			lock (_sessionlock) {
+				try {
+					session = _sessions[type][source];
+				} catch (Exception) {
+					return false;
+				}
 			}
 
 			/* XXX: Check that the session is alive */
