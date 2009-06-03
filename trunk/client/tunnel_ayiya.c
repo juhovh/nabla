@@ -23,11 +23,11 @@
  */
 
 /* Uses the following variables from endpoint_t struct:
+ *   local_ipv6    - Local IPv6 address of the tunnel
+ *   local_prefix  - Prefix of the local IPv6 address
+ *   remote_ipv6   - Remote IPv6 address of the tunnel
  *   remote_ipv4   - IPv4 address of the AYIYA server
  *   remote_port   - (optional) UDP port of the server
- *   local_ipv6    - Local IPv6 address of the tunnel
- *   remote_ipv6   - Remote IPv6 address of the tunnel
- *   local_prefix  - Prefix of the local IPv6 address
  *   password      - Shared password from the server
  *   beat_interval - (optional) interval of beat (in seconds)
  */

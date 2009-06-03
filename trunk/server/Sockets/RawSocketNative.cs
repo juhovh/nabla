@@ -178,6 +178,7 @@ namespace Nabla.Sockets {
 				throw new Exception("Error reading from raw socket: " + rawsock_strerror(errno) + " (" + errno + ")");
 			}
 
+			/* XX: Should there really be null check here? */
 			if (remoteEP != null) {
 				AddressFamily family = (AddressFamily) rawsock_get_family(buf);
 				SocketAddress socketAddress = new SocketAddress(family, length);
