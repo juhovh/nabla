@@ -28,13 +28,13 @@ namespace Nabla {
 
 	public class ExtDevice {
 		private ParallelDevice _device;
-		private NATMapper _mapper;
+		private NATMapper _mapper = new NATMapper();
+		private Dictionary<IPAddress, IPEndPoint> _ipv6map = new Dictionary<IPAddress, IPEndPoint>();
 		private ExtDeviceCallback _callback;
 
 		public ExtDevice(string deviceName, ExtDeviceCallback cb) {
 			_device = new ParallelDevice(deviceName);
 			_device.ReceivePacketCallback = new ReceivePacketCallback(receivePacket);
-			_mapper = new NATMapper();
 			_mapper.AddProtocol(ProtocolType.Tcp);
 			_mapper.AddProtocol(ProtocolType.Udp);
 			_mapper.AddProtocol(ProtocolType.Icmp);
@@ -90,6 +90,14 @@ namespace Nabla {
 				packet.IntNatID = m.ExternalID;
 
 				/* Override the original data packet */
+				data = packet.Bytes;
+			} else {
+				byte[] ipaddress = new byte[16];
+				Array.Copy(data, 8, ipaddress, 0, 16);
+				IPAddress addr = new IPAddress(ipaddress);
+				if (!_ipv6map.ContainsKey(addr)) {
+					_ipv6map.Add(addr, source);
+				}
 			}
 
 			/* FIXME: Catch exceptions */
@@ -116,7 +124,7 @@ namespace Nabla {
 				                                     packet.ExtNatID);
 
 				if (m == null) {
-					Console.WriteLine("Unmapped connection, drop packet");
+					Console.WriteLine("Unmapped IPv4 connection, drop packet");
 					return;
 				}
 
@@ -131,15 +139,15 @@ namespace Nabla {
 				data = packet.Bytes;
 			} else {
 				byte[] ipaddress = new byte[16];
-				int port = 0;
-
 				Array.Copy(data, 24, ipaddress, 0, 16);
-				ProtocolType type = (ProtocolType) data[6];
-				if (type == ProtocolType.Udp || type == ProtocolType.Tcp) {
-					port = (data[42] << 8) | data[43];
+				IPAddress addr = new IPAddress(ipaddress);
+
+				if (!_ipv6map.ContainsKey(addr)) {
+					Console.WriteLine("Unmapped IPv6 connection, drop packet");
+					return;
 				}
 
-				destination = new IPEndPoint(new IPAddress(ipaddress), port);
+				destination = _ipv6map[addr];
 			}
 
 			_callback(addressFamily, destination, data);
