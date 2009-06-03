@@ -28,6 +28,7 @@ namespace Nabla {
 		public readonly TunnelType TunnelType;
 		public readonly AddressFamily AddressFamily;
 		public IPEndPoint EndPoint;
+		public IPAddress GatewayAddress;
 		public string Password = null;
 		public DateTime LastAlive;
 
@@ -175,19 +176,55 @@ namespace Nabla {
 				}
 
 				IPAddress identifier = null;
+				IPAddress sourceaddr = null;
 				UInt32 epochtime = 0;
+				
+				string[] words = str.Split(' ');
 				try {
-					string[] words = str.Split(' ');
 					identifier = IPAddress.Parse(words[2]);
-					epochtime = UInt32.Parse(words[3]);
+					if (words[3].Equals("sender")) {
+						sourceaddr = source.Address;
+					} else {
+						sourceaddr = IPAddress.Parse(words[3]);
+					}
+					epochtime = UInt32.Parse(words[4]);
 				} catch (Exception) {
 					return false;
 				}
 
-				Console.WriteLine("Identifier: {0} Epochtime: {1}", identifier, epochtime);
-				Console.WriteLine("Identifier: " + identifier);
+				Console.WriteLine("Identifier: {0} Source: {1} Epochtime: {2}", identifier, sourceaddr, epochtime);
+
 				/* XXX: Check for epoch time */
-				/* XXX: Check if session is invalid */
+
+				/* Session not found, check if EndPoint has changed */
+				if (session == null) {
+					lock (_sessionlock) {
+						if (_sessions[type].ContainsKey(source)) {
+							/* Weird, did someone add it? */
+							session = _sessions[type][source];
+						} else {
+							foreach (TunnelSession ts in _sessions[type].Values) {
+								IPAddress gwaddr = ts.GatewayAddress;
+								if (gwaddr != null && gwaddr.Equals(identifier)) {
+									_sessions[ts.TunnelType].Remove(ts.EndPoint);
+									_rsessions[ts.AddressFamily].Remove(ts.EndPoint);
+
+									ts.EndPoint = source;
+									_sessions[ts.TunnelType].Add(source, ts);
+									_rsessions[ts.AddressFamily].Add(source, ts);
+
+									session = ts;
+									break;
+								}
+							}
+						}
+					}
+
+					if (session == null) {
+						/* Simply invalid or timed out session */
+						return false;
+					}
+				}
 
 				MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
 				byte[] passwdHash = md5.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
