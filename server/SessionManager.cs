@@ -17,16 +17,18 @@
  */
 
 using System;
+using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 
 namespace Nabla {
 	public class TunnelSession {
 		public readonly TunnelType TunnelType;
 		public readonly AddressFamily AddressFamily;
 		public IPEndPoint EndPoint;
-		public string password = null;
+		public string Password = null;
 		public DateTime LastAlive;
 
 		public TunnelSession(TunnelType type, IPEndPoint endPoint) {
@@ -117,6 +119,39 @@ namespace Nabla {
 				try {
 					session = _sessions[type][source];
 				} catch (Exception) {
+					return false;
+				}
+			}
+
+			if (type == TunnelType.Ayiya) {
+				if (data[0] != 0x41 || // IDlen = 4, IDtype = integer
+				    data[1] != 0x52 || // siglen = 5, method = SHA1
+				    // auth = sharedsecret, opcode = noop | forward | echo response
+				    (data[2] != 0x10 && data[2] != 0x11 && data[2] != 0x14) ||
+				    // next header = ipv6 | none
+				    (data[3] != 41 && data[3] != 59)) {
+					Console.WriteLine("Received an invalid AYIYA packet");
+					return false;
+				}
+
+				/* Default size of AYIYA header */
+				int datalen = 52;
+				if (data[3] == 41) {
+					/* In case of IPv6, add the header and payload lengths */
+					datalen += 40 + data[datalen+4]*256 + data[datalen+5];
+				}
+
+				SHA1Managed sha1 = new SHA1Managed();
+				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
+
+				/* Replace the hash with password hash */
+				byte[] theirHash = new byte[40];
+				Array.Copy(data, 32, theirHash, 0, 20);
+				Array.Copy(passwdHash, 0, data, 32, 20);
+
+				byte[] ourHash = sha1.ComputeHash(data, 0, datalen);
+				if (!BitConverter.ToString(ourHash).Equals(BitConverter.ToString(theirHash))) {
+					Console.WriteLine("Incorrect AYIYA hash");
 					return false;
 				}
 			}
