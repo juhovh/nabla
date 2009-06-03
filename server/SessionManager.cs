@@ -57,6 +57,8 @@ namespace Nabla {
 	}
 
 	public class SessionManager {
+		private const int CLOCK_OFF = 120;
+
 		private Object _runlock = new Object();
 		private bool _running;
 
@@ -194,7 +196,15 @@ namespace Nabla {
 
 				Console.WriteLine("Identifier: {0} Source: {1} Epochtime: {2}", identifier, sourceaddr, epochtime);
 
-				/* XXX: Check for epoch time */
+				/* Check for epoch time correctness */
+				UInt32 epochnow = (UInt32) (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+				int epochdiff = (int) (epochnow - epochtime);
+				if (epochdiff < 0)
+					epochdiff = -epochdiff;
+				if (epochdiff > CLOCK_OFF) {
+					Console.WriteLine("The clock is too much off ({0} seconds)", epochdiff);
+					return false;
+				}
 
 				/* Session not found, check if EndPoint has changed */
 				if (session == null) {
@@ -276,7 +286,17 @@ namespace Nabla {
 					return false;
 				}
 
-				/* XXX: Check for epoch time */
+				/* Check for epoch time correctness */
+				UInt32 epochtime = (UInt32) ((data[4] << 24) | (data[5] << 16) | (data[6] << 8) | data[7]);
+				UInt32 epochnow = (UInt32) (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+				int epochdiff = (int) (epochnow - epochtime);
+				if (epochdiff < 0)
+					epochdiff = -epochdiff;
+				if (epochdiff > CLOCK_OFF) {
+					Console.WriteLine("The clock is too much off ({0} seconds)", epochdiff);
+					return false;
+				}
+				
 
 				SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
 				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
