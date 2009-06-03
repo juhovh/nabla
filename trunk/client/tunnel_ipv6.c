@@ -429,7 +429,6 @@ init(tunnel_t *tunnel)
 	for (i = 0; i < 16; i++) {
 		sprintf(data->passwd_hash + i*2, "%02x", digest[i]);
 	}
-	printf("Password hash: %s\n", data->passwd_hash);
 	tunnel->privdata = data;
 
 	return 0;
