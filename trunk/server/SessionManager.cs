@@ -23,8 +23,30 @@ using System.Collections.Generic;
 
 namespace Nabla {
 	public class TunnelSession {
-		public TunnelType TunnelType;
+		public readonly TunnelType TunnelType;
+		public readonly AddressFamily AddressFamily;
+		public IPEndPoint EndPoint;
+		public string password = null;
 		public DateTime LastAlive;
+
+		public TunnelSession(TunnelType type, IPEndPoint endPoint) {
+			TunnelType = type;
+			switch (type) {
+			case TunnelType.IPv4inIPv4:
+			case TunnelType.IPv4inIPv6:
+				AddressFamily = AddressFamily.InterNetwork;
+				break;
+			case TunnelType.IPv6inIPv4:
+			case TunnelType.IPv6inIPv6:
+			case TunnelType.Ayiya:
+				AddressFamily = AddressFamily.InterNetworkV6;
+				break;
+			default:
+				throw new Exception("Unknown tunnel type: " + type);
+			}
+			EndPoint = endPoint;
+			LastAlive = DateTime.Now;
+		}
 	}
 
 	public class SessionManager {
@@ -41,6 +63,11 @@ namespace Nabla {
 			= new Dictionary<AddressFamily, Dictionary<IPEndPoint, TunnelSession>>();
 
 		public SessionManager() {
+			/* Only these two protocols are supported, so we can add both */
+			_rsessions.Add(AddressFamily.InterNetwork,
+			               new Dictionary<IPEndPoint, TunnelSession>());
+			_rsessions.Add(AddressFamily.InterNetworkV6,
+			               new Dictionary<IPEndPoint, TunnelSession>());
 		}
 
 		public void AddIntDevice(string deviceName, TunnelType type) {
@@ -62,6 +89,25 @@ namespace Nabla {
 				}
 
 				_extDevices.Add(new ExtDevice(deviceName, callback));
+			}
+		}
+
+		public void AddSession(TunnelSession session) {
+			lock (_sessionlock) {
+				if (!_sessions.ContainsKey(session.TunnelType)) {
+					throw new Exception("Session with unconfigured type: " + session.TunnelType);
+				}
+
+				if (_sessions[session.TunnelType].ContainsKey(session.EndPoint)) {
+					throw new Exception("Session with type " + session.TunnelType + " and EndPoint " + session.EndPoint + " already exists");
+				}
+
+				if (_rsessions[session.AddressFamily].ContainsKey(session.EndPoint)) {
+					throw new Exception("Session with family " + session.AddressFamily + " and EndPoint " + session.EndPoint + " already exists");
+				}
+
+				_sessions[session.TunnelType][session.EndPoint] = session;
+				_rsessions[session.AddressFamily][session.EndPoint] = session;
 			}
 		}
 
