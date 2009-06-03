@@ -17,43 +17,20 @@
  */
 
 using System;
+using System.Threading;
 
 namespace Nabla {
 	public class Server {
-		private IntDevice _intDevice;
-		private ExtDevice _extDevice;
-
-		public Server(string intName, string extName, TunnelType type) {
-			_intDevice = new IntDevice(intName, type, new IntDeviceCallback(intReceive));
-			_extDevice = new ExtDevice(extName, new ExtDeviceCallback(extReceive));
-		}
-
-		public void Start() {
-			_intDevice.Start();
-			_extDevice.Start();
-		}
-
-		public void Stop() {
-			_intDevice.Stop();
-			_extDevice.Stop();
-		}
-
-		private void intReceive(TunnelType type, IPEndPoint source, byte[] data) {
-			_extDevice.SendPacket(source, data);
-		}
-
-		private void extReceive(IPEndPoint destination, byte[] data) {
-			_intDevice.SendPacket(destination, data);
-		}
-
 		private static void Main(string[] args) {
 			if (args.Length != 2) {
 				Console.WriteLine("Invalid number of arguments\n");
 				return;
 			}
 
-			Server server = new Server(args[0], args[1], TunnelType.IPv4inIPv6);
-			server.Start();
+			SessionManager session = new SessionManager();
+			session.AddIntDevice(args[0], TunnelType.IPv4inIPv6);
+			session.AddExtDevice(args[1]);
+			session.Start();
 
 			while (true) {
 				Thread.Sleep(1000);

@@ -79,13 +79,17 @@ ifneq ($(CC),)
 	$(CC) $(CFLAGS) -o $(TARGET_client) $(SRCS_client) $(LIBS)
 endif
 
-nabla-server:
+nabla-server: nabla-rawsock
+ifneq ($(CSC),)
+	$(CSC) -lib:bin/ -out:$(TARGET_server) -r:System,Nabla.Sockets $(SRCS_server)
+endif
+
+nabla-rawsock:
 ifneq ($(CC),)
 	$(CC) $(CFLAGS) -o $(TARGET_rawsock) $(SRCS_rawsock) $(LIBFLAGS) $(LIBS)
 endif
 ifneq ($(CSC),)
 	$(CSC) -t:library -r:System -out:bin/Nabla.Sockets.dll $(SRCS_RawSocket)
-	$(CSC) -lib:bin/ -out:$(TARGET_server) -r:System,Nabla.Sockets $(SRCS_server)
 endif
 
 clean:
