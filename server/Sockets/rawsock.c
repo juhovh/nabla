@@ -20,8 +20,8 @@
 #  include <windows.h>
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
-#  include <errno.h>
 #  define GetLastError WSAGetLastError
+#  define SOCK_EINTR WSAEINTR
 #else
 #  include <sys/time.h>
 #  include <sys/types.h>
@@ -31,6 +31,7 @@
 #  include <errno.h>
 #  define closesocket close
 #  define GetLastError() errno
+#  define SOCK_EINTR EINTR
 #endif
 
 
@@ -261,7 +262,7 @@ rawsock_wait_for_writable(rawsock_t *rawsock, int waitms, int *err)
 
 	ret = select(rawsock->sockfd+1, NULL, &wfds, NULL, &tv);
 	if (ret == -1) {
-		if (GetLastError() == EINTR) {
+		if (GetLastError() == SOCK_EINTR) {
 			/* Handle interrupt as timeout */
 			ret = 0;
 		} else {
@@ -311,7 +312,7 @@ rawsock_wait_for_readable(rawsock_t *rawsock, int waitms, int *err)
 
 	ret = select(rawsock->sockfd+1, &rfds, NULL, NULL, &tv);
 	if (ret == -1) {
-		if (GetLastError() == EINTR) {
+		if (GetLastError() == SOCK_EINTR) {
 			/* Handle interrupt as timeout */
 			ret = 0;
 		} else {
