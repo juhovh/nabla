@@ -28,11 +28,11 @@ namespace Nabla {
 		public readonly TunnelType TunnelType;
 		public readonly AddressFamily AddressFamily;
 		public IPEndPoint EndPoint;
-		public IPAddress GatewayAddress;
+		public IPAddress GatewayAddress = null;
 		public string Password = null;
 		public DateTime LastAlive;
 
-		public TunnelSession(TunnelType type, IPEndPoint endPoint) {
+		private TunnelSession(TunnelType type) {
 			TunnelType = type;
 			switch (type) {
 			case TunnelType.IPv4inIPv4:
@@ -51,8 +51,16 @@ namespace Nabla {
 			default:
 				throw new Exception("Unknown tunnel type: " + type);
 			}
-			EndPoint = endPoint;
 			LastAlive = DateTime.Now;
+		}
+
+		public TunnelSession(TunnelType type, IPEndPoint endPoint) : this(type) {
+			EndPoint = endPoint;
+		}
+
+		public TunnelSession(TunnelType type, IPAddress gateway, string password) : this(type) {
+			GatewayAddress = gateway;
+			Password = password;
 		}
 	}
 
@@ -124,18 +132,50 @@ namespace Nabla {
 					throw new Exception("Session with family " + session.AddressFamily + " and EndPoint " + session.EndPoint + " already exists");
 				}
 
-				/* This should be a list of protocols over UDP/TCP */
-				if (session.TunnelType == TunnelType.AyiyaIPv4inIPv4 ||
+				/* This should be a list of protocols with unknown EndPoint */
+				if (session.TunnelType == TunnelType.Heartbeat ||
+				    session.TunnelType == TunnelType.AyiyaIPv4inIPv4 ||
 				    session.TunnelType == TunnelType.AyiyaIPv4inIPv6 ||
 				    session.TunnelType == TunnelType.AyiyaIPv6inIPv4 ||
 				    session.TunnelType == TunnelType.AyiyaIPv6inIPv6) {
-					/* Remote port not known, wait for first packet */
+					/* EndPoint not known, wait for first packet */
 					_uninitiatedSessions.Add(session);
 				} else {
 					_sessions[session.TunnelType][session.EndPoint] = session;
 					_rsessions[session.AddressFamily][session.EndPoint] = session;
 				}
 			}
+		}
+
+		private TunnelSession findSessionByGateway(TunnelType type, IPAddress gateway) {
+			foreach (TunnelSession ts in _sessions[type].Values) {
+				IPAddress gwaddr = ts.GatewayAddress;
+				if (gwaddr != null && gwaddr.Equals(gateway)) {
+					_sessions[ts.TunnelType].Remove(ts.EndPoint);
+					_rsessions[ts.AddressFamily].Remove(ts.EndPoint);
+					return ts;
+				}
+			}
+
+			foreach (TunnelSession ts in _uninitiatedSessions) {
+				if (type == ts.TunnelType && gateway.Equals(ts.GatewayAddress)) {
+					_uninitiatedSessions.Remove(ts);
+					return ts;
+				}
+			}
+
+			return null;
+		}
+
+		private TunnelSession findUninitiatedSession(TunnelType type, IPAddress addr) {
+			foreach (TunnelSession ts in _uninitiatedSessions) {
+				if (type == ts.TunnelType && addr.Equals(ts.EndPoint.Address)) {
+					_uninitiatedSessions.Remove(ts);
+					return ts;
+				}
+			}
+
+			return null;
 		}
 
 		public bool UpdateSession(TunnelType type, IPEndPoint source, byte[] data) {
@@ -147,15 +187,12 @@ namespace Nabla {
 				try {
 					session = _sessions[type][source];
 				} catch (Exception) {
-					foreach (TunnelSession s in _uninitiatedSessions) {
-						if (type == s.TunnelType && source.Address.Equals(s.EndPoint.Address)) {
-							/* Initiate the session because it was requested */
-//							_uninitiatedSessions.Remove(s);
-							s.EndPoint = source;
-							_sessions[s.TunnelType][s.EndPoint] = s;
-							_rsessions[s.AddressFamily][s.EndPoint] = s;
-							session = s;
-						}
+					session = findUninitiatedSession(type, source.Address);
+					if (session != null) {
+						/* Found an uninited session, take into use */
+						session.EndPoint = source;
+						_sessions[session.TunnelType][session.EndPoint] = session;
+						_rsessions[session.AddressFamily][session.EndPoint] = session;
 					}
 				}
 			}
@@ -213,19 +250,11 @@ namespace Nabla {
 							/* Weird, did someone add it? */
 							session = _sessions[type][source];
 						} else {
-							foreach (TunnelSession ts in _sessions[type].Values) {
-								IPAddress gwaddr = ts.GatewayAddress;
-								if (gwaddr != null && gwaddr.Equals(identifier)) {
-									_sessions[ts.TunnelType].Remove(ts.EndPoint);
-									_rsessions[ts.AddressFamily].Remove(ts.EndPoint);
-
-									ts.EndPoint = source;
-									_sessions[ts.TunnelType].Add(source, ts);
-									_rsessions[ts.AddressFamily].Add(source, ts);
-
-									session = ts;
-									break;
-								}
+							session = findSessionByGateway(type, identifier);
+							if (session != null) {
+								session.EndPoint = source;
+								_sessions[session.TunnelType].Add(source, session);
+								_rsessions[session.AddressFamily].Add(source, session);
 							}
 						}
 					}
@@ -296,7 +325,33 @@ namespace Nabla {
 					Console.WriteLine("The clock is too much off ({0} seconds)", epochdiff);
 					return false;
 				}
-				
+
+				/* Extract the identifier part from AYIYA header */
+				byte[] ipaddr = new byte[((data[0] >> 4) == 1) ? 4 : 16];
+				Array.Copy(data, 8, ipaddr, 0, ipaddr.Length);
+				IPAddress identifier = new IPAddress(ipaddr);
+
+				/* Session not found, check if EndPoint has changed */
+				if (session == null) {
+					lock (_sessionlock) {
+						if (_sessions[type].ContainsKey(source)) {
+							/* Weird, did someone add it? */
+							session = _sessions[type][source];
+						} else {
+							session = findSessionByGateway(type, identifier);
+							if (session != null) {
+								session.EndPoint = source;
+								_sessions[session.TunnelType].Add(source, session);
+								_rsessions[session.AddressFamily].Add(source, session);
+							}
+						}
+					}
+
+					if (session == null) {
+						/* Simply invalid or timed out session */
+						return false;
+					}
+				}
 
 				SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
 				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
