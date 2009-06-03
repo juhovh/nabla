@@ -20,6 +20,7 @@
 #  include <windows.h>
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
+#  include <errno.h>
 #  define GetLastError WSAGetLastError
 #else
 #  include <sys/time.h>
