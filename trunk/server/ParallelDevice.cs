@@ -261,6 +261,8 @@ namespace Nabla {
 					} else {
 						throw new Exception("Invalid ARP opcode: " + opcode);
 					}
+
+					continue;
 				} else if (etherType == 0x0800) {
 					if (datalen < 14+20) {
 						/* XXX: Should too small IPv4 packet be reported? */
@@ -312,6 +314,9 @@ namespace Nabla {
 						/* Packet not destined to us */
 						continue;
 					}
+				} else {
+					/* Unknown protocol, skip packet */
+					continue;
 				}
 
 				/* Lock to make sure that callback doesn't get nullified in the middle */

@@ -260,8 +260,13 @@ rawsock_wait_for_writable(rawsock_t *rawsock, int waitms, int *err)
 
 	ret = select(rawsock->sockfd+1, NULL, &wfds, NULL, &tv);
 	if (ret == -1) {
-		*err = GetLastError();
-		return -1;
+		if (GetLastError() == EINTR) {
+			/* Handle interrupt as timeout */
+			ret = 0;
+		} else {
+			*err = GetLastError();
+			return -1;
+		}
 	}
 
 	if (FD_ISSET(rawsock->sockfd, &wfds)) {
@@ -305,8 +310,13 @@ rawsock_wait_for_readable(rawsock_t *rawsock, int waitms, int *err)
 
 	ret = select(rawsock->sockfd+1, &rfds, NULL, NULL, &tv);
 	if (ret == -1) {
-		*err = GetLastError();
-		return -1;
+		if (GetLastError() == EINTR) {
+			/* Handle interrupt as timeout */
+			ret = 0;
+		} else {
+			*err = GetLastError();
+			return -1;
+		}
 	}
 
 	if (FD_ISSET(rawsock->sockfd, &rfds)) {
