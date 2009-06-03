@@ -31,15 +31,31 @@ namespace Nabla {
 		private volatile bool _running;
 
 		private SessionManager _sessionManager;
-		private RawSocket _socket;
 		private IntDeviceCallback _callback;
+
+		private Socket _udpSocket = null;
+		private RawSocket _rawSocket = null;
 
 		public readonly TunnelType TunnelType;
 
 		public IntDevice(SessionManager session, string deviceName, TunnelType type, IntDeviceCallback cb) {
 			_sessionManager = session;
+			TunnelType = type;
+			_callback = cb;
+
 			if (type == TunnelType.Ayiya) {
-				throw new Exception("AYIYA not supported yet");
+				_udpSocket = new Socket(AddressFamily.InterNetwork,
+				                        SocketType.Dgram,
+				                        ProtocolType.Udp);
+				_udpSocket.Bind(new IPEndPoint(IPAddress.Any, 5072));
+			} else if (type == TunnelType.Heartbeat) {
+				_rawSocket = RawSocket.GetRawSocket(deviceName,
+				                                    AddressFamily.InterNetwork,
+				                                    41, 100);
+				_udpSocket = new Socket(AddressFamily.InterNetwork,
+				                        SocketType.Dgram,
+				                        ProtocolType.Udp);
+				_udpSocket.Bind(new IPEndPoint(IPAddress.Any, 3740));
 			} else {
 				AddressFamily addressFamily;
 				int protocol;
@@ -60,10 +76,8 @@ namespace Nabla {
 					throw new Exception("Unsupported tunnel type: " + type);
 				}
 
-				_socket = RawSocket.GetRawSocket(deviceName, addressFamily, protocol, 100);
+				_rawSocket = RawSocket.GetRawSocket(deviceName, addressFamily, protocol, 100);
 			}
-			TunnelType = type;
-			_callback = cb;
 
 			_thread = new Thread(new ThreadStart(this.threadLoop));
 		}
@@ -79,40 +93,47 @@ namespace Nabla {
 		}
 
 		public void SendPacket(IPEndPoint destination, byte[] data) {
-			_socket.Send(data);
+			_rawSocket.Send(data);
 		}
 
 		private void threadLoop() {
 			byte[] data = new byte[2048];
 
 			while (_running) {
-				if (!_socket.WaitForReadable())
-					continue;
+				if (TunnelType == TunnelType.Ayiya) {
+					/* FIXME: Read AYIYA packet here */
+				} else {
+					if (TunnelType == TunnelType.Heartbeat) {
+						/* FIXME: Check for heartbeat here */
+					}
 
-				IPEndPoint endPoint;
-				switch (TunnelType) {
-				case TunnelType.IPv4inIPv4:
-				case TunnelType.IPv6inIPv4:
-				case TunnelType.Ayiya:
-					endPoint = new IPEndPoint(IPAddress.Any, 0);
-					break;
-				case TunnelType.IPv4inIPv6:
-				case TunnelType.IPv6inIPv6:
-					endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
-					break;
-				default:
-					throw new Exception("Unsupported tunnel type: " + TunnelType);
+					if (!_rawSocket.WaitForReadable())
+						continue;
+
+					IPEndPoint endPoint;
+					switch (TunnelType) {
+					case TunnelType.IPv4inIPv4:
+					case TunnelType.IPv6inIPv4:
+						endPoint = new IPEndPoint(IPAddress.Any, 0);
+						break;
+					case TunnelType.IPv4inIPv6:
+					case TunnelType.IPv6inIPv6:
+						endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
+						break;
+					default:
+						throw new Exception("Unsupported tunnel type: " + TunnelType);
+					}
+					int datalen = _rawSocket.ReceiveFrom(data, ref endPoint);
+					Console.WriteLine("Received a packet from {0}", endPoint);
+
+					if (!_sessionManager.SessionAlive(TunnelType, endPoint, data))
+						continue;
+
+					byte[] outdata = new byte[datalen];
+					Array.Copy(data, 0, outdata, 0, datalen);
+
+					_callback(TunnelType, endPoint, outdata);
 				}
-				int datalen = _socket.ReceiveFrom(data, ref endPoint);
-				Console.WriteLine("Received a packet from {0}", endPoint);
-
-				if (!_sessionManager.SessionAlive(TunnelType, endPoint, data))
-					continue;
-
-				byte[] outdata = new byte[datalen];
-				Array.Copy(data, 0, outdata, 0, datalen);
-
-				_callback(TunnelType, endPoint, outdata);
 			}
 		}
 	}
