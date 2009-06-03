@@ -103,7 +103,7 @@ rawsock_set_family(struct sockaddr *saddr, int family)
 		break;
 	case 13:
 #if defined(_WIN32) || defined(_WIN64)
-		saddr->sa_family = AF_NETBIOS;
+		saddr->sa_family = AF_DLI;
 #elif defined(__linux__)
 		saddr->sa_family = AF_PACKET;
 #else
