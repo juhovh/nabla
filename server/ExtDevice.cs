@@ -24,7 +24,7 @@ using System.Net.Sockets;
 using Nabla.Sockets;
 
 namespace Nabla {
-	public delegate void ExtDeviceCallback(IPEndPoint destination, byte[] data);
+	public delegate void ExtDeviceCallback(AddressFamily family, IPEndPoint destination, byte[] data);
 
 	public class ExtDevice {
 		private ParallelDevice _device;
@@ -142,7 +142,7 @@ namespace Nabla {
 				destination = new IPEndPoint(new IPAddress(ipaddress), port);
 			}
 
-			_callback(destination, data);
+			_callback(addressFamily, destination, data);
 		}
 
 		private AddressFamily getPacketFamily(byte[] data) {
