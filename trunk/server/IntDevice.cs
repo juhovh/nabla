@@ -89,7 +89,20 @@ namespace Nabla {
 				if (!_socket.WaitForReadable())
 					continue;
 
-				IPEndPoint endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
+				IPEndPoint endPoint;
+				switch (TunnelType) {
+				case TunnelType.IPv4inIPv4:
+				case TunnelType.IPv6inIPv4:
+				case TunnelType.Ayiya:
+					endPoint = new IPEndPoint(IPAddress.Any, 0);
+					break;
+				case TunnelType.IPv4inIPv6:
+				case TunnelType.IPv6inIPv6:
+					endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
+					break;
+				default:
+					throw new Exception("Unsupported tunnel type: " + TunnelType);
+				}
 				int datalen = _socket.ReceiveFrom(data, ref endPoint);
 				Console.WriteLine("Received a packet from {0}", endPoint);
 
