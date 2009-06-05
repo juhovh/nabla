@@ -10,7 +10,8 @@ SRCS_client := client/client.c client/tunnel.c client/tunnel_ipv4.c client/tunne
 
 SRCS_rawsock   := server/Sockets/rawsock.c
 SRCS_RawSocket := server/Sockets/RawSocket.cs server/Sockets/RawSocketNative.cs server/Sockets/RawSocketPcap.cs
-SRCS_server    := server/*.cs
+SRCS_server    := server/*.cs server/Database/*.cs
+LIBS_server    := System,System.Data.SQLite,Nabla.Sockets
 
 TARGET_ext :=
 TARGET_libpre := lib
@@ -81,7 +82,7 @@ endif
 
 nabla-server: nabla-rawsock
 ifneq ($(CSC),)
-	$(CSC) -lib:bin/ -out:$(TARGET_server) -r:System,Nabla.Sockets $(SRCS_server)
+	$(CSC) -lib:bin,lib -out:$(TARGET_server) -r:$(LIBS_server) $(SRCS_server)
 endif
 
 nabla-rawsock:

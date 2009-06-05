@@ -291,10 +291,5 @@ namespace Nabla {
 
 			return ret;
 		}
-
-		private static void Main(string[] args) {
-			TICSession session = new TICSession(Console.In, Console.Out);
-			session.Start("SixXS", "noc.sixxs.net", "http://www.sixxs.net");
-		}
 	}
 }
