@@ -55,10 +55,27 @@ namespace Nabla {
 		}
 
 		public TunnelSession(TunnelType type, IPEndPoint endPoint) : this(type) {
+			switch (type) {
+			case TunnelType.Heartbeat:
+			case TunnelType.AyiyaIPv4inIPv4:
+			case TunnelType.AyiyaIPv4inIPv6:
+			case TunnelType.AyiyaIPv6inIPv4:
+			case TunnelType.AyiyaIPv6inIPv6:
+				throw new Exception("A dynamic tunnel type " + type + " can't be configured as static");
+			}
+
 			EndPoint = endPoint;
 		}
 
 		public TunnelSession(TunnelType type, IPAddress gateway, string password) : this(type) {
+			switch (type) {
+			case TunnelType.IPv4inIPv4:
+			case TunnelType.IPv4inIPv6:
+			case TunnelType.IPv6inIPv4:
+			case TunnelType.IPv6inIPv6:
+				throw new Exception("A static tunnel type " + type + " can't be configured as dynamic");
+			}
+
 			GatewayAddress = gateway;
 			Password = password;
 		}
