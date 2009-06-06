@@ -18,6 +18,8 @@
 
 using System;
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Security.Cryptography;
@@ -44,10 +46,12 @@ namespace Nabla {
 			public string Challenge;
 		}
 
-		private TextReader _reader;
-		private TextWriter _writer;
+		private TcpClient _client;
+		private StreamReader _reader;
+		private StreamWriter _writer;
 
 		private string _serviceName;
+		private string _serviceUrl;
 
 		private Object _runlock = new Object();
 		private volatile bool _running = false;
@@ -56,25 +60,19 @@ namespace Nabla {
 
 		private SessionState _state = SessionState.Initial;
 
-		public TICSession(TextReader reader, TextWriter writer) {
-			_reader = reader;
-			_writer = writer;
+		public TICSession(TcpClient client, string serviceName, string serviceUrl) {
+			_client = client;
+			_reader = new StreamReader(client.GetStream());
+			_writer = new StreamWriter(client.GetStream());
+
+			_serviceName = serviceName;
+			_serviceUrl = serviceUrl;
 
 			_thread = new Thread(new ThreadStart(threadLoop));
 		}
 
-		public void Start(string serviceName, string serviceHost, string serviceUrl) {
+		public void Start() {
 			lock (_runlock) {
-				if (_running) {
-					return;
-				}
-
-				/* Write the initial welcome line */
-				_writer.WriteLine("200 " + serviceName + " TIC Service on " + serviceHost + " ready (" + serviceUrl + ")");
-				_writer.Flush();
-
-				_serviceName = serviceName;
-
 				_running = true;
 				_thread.Start();
 			}
@@ -92,6 +90,10 @@ namespace Nabla {
 			TICDatabase db = new TICDatabase("nabla.db");
 			SessionInfo info = new SessionInfo();
 
+			/* Write the initial welcome line */
+			_writer.WriteLine("200 " + _serviceName + " TIC Service on " + Dns.GetHostName() + " ready (" + _serviceUrl + ")");
+			_writer.Flush();
+
 			while (_running) {
 				if (info.PromptEnabled) {
 					_writer.Write("config$ \n");
@@ -103,7 +105,10 @@ namespace Nabla {
 
 				string response = handleCommand(db, info, words);
 				_writer.Write(response + "\n");
+				_writer.Flush();
 			}
+
+			_client.Close();
 		}
 
 		private string handleCommand(TICDatabase db, SessionInfo info, string[] words) {
@@ -193,6 +198,7 @@ namespace Nabla {
 				}
 
 				if (!words[1].Equals(info.ChallengeType)) {
+					_state = SessionState.Challenge;
 					return "400 Challenge authentication type differs";
 				}
 
@@ -207,21 +213,21 @@ namespace Nabla {
 				string passwordHash = userInfo.Password;
 				MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
 				if (words[1].Equals("clear")) {
-					byte[] pwBytes = Encoding.UTF8.GetBytes(words[2]);
+					byte[] pwBytes = _reader.CurrentEncoding.GetBytes(words[2]);
 					byte[] theirHash = md5.ComputeHash(pwBytes);
 					string theirHashStr
 						= BitConverter.ToString(theirHash).Replace("-", "").ToLower();
 
 					passwordMatch = theirHashStr.Equals(passwordHash);
 				} else if (words[1].Equals("md5")) {
-					byte[] ourBytes = Encoding.UTF8.GetBytes(passwordHash + info.Challenge);
+					byte[] ourBytes = Encoding.ASCII.GetBytes(passwordHash + info.Challenge);
 					byte[] ourHash = md5.ComputeHash(ourBytes);
 					string ourHashStr
 						= BitConverter.ToString(ourHash).Replace("-", "").ToLower();
 
-					byte[] pwBytes = Encoding.UTF8.GetBytes(words[2]);
+					byte[] pwBytes = _reader.CurrentEncoding.GetBytes(words[2]);
 					byte[] pwHashBytes = md5.ComputeHash(pwBytes);
-					byte[] challBytes = Encoding.UTF8.GetBytes(info.Challenge);
+					byte[] challBytes = Encoding.ASCII.GetBytes(info.Challenge);
 
 					byte[] theirBytes = new byte[pwHashBytes.Length + challBytes.Length];
 					Array.Copy(theirBytes, 0, pwBytes, 0, pwBytes.Length);
