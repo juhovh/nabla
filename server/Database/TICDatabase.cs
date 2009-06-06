@@ -57,8 +57,8 @@ namespace Nabla.Database {
 				", ipv6prefix varchar(39)" +
 				", ipv6prefixlen integer" +
 				", description varchar(512)" +
-				", created varchar(19)" +
-				", lastmodified varchar(19)" +
+				", created datetime" +
+				", lastmodified datetime" +
 				", userenabled boolean" +
 				", adminenabled boolean)";
 			string popString = "CREATE TABLE tic_pops (" +
@@ -170,16 +170,16 @@ namespace Nabla.Database {
 			string commandString = "INSERT INTO " + tableName +
 				" (ipv6prefix, ipv6prefixlen" +
 				", description" +
-				", crated, lastmodified" +
+				", created, lastmodified" +
 				", userenabled, adminenabled" +
 				") VALUES (" +
 				"'" + routeInfo.IPv6Prefix + "', " +
 				routeInfo.IPv6PrefixLength + ", " +
 
-				"'" + routeInfo.Description + ", " +
+				"'" + routeInfo.Description + "', " +
 
-				"'" + routeInfo.Created.ToString("s") + "', " +
-				"'" + routeInfo.LastModified.ToString("s") + "', " +
+				"datetime('" + routeInfo.Created.ToString("s") + "'), " +
+				"datetime('" + routeInfo.LastModified.ToString("s") + "'), " +
 
 				"'" + (routeInfo.UserEnabled ? "true" : "false") + "', " +
 				"'" + (routeInfo.AdminEnabled ? "true" : "false") + "')";
@@ -345,9 +345,6 @@ namespace Nabla.Database {
 					}
 
 					foreach (DataRow dataRow in dataSet.Tables[tableName].Rows) {
-						System.Globalization.CultureInfo provider
-							= System.Globalization.CultureInfo.InvariantCulture;
-
 						routeInfo = new TICRouteInfo();
 						routeInfo.RouteId = (Int64) dataRow["id"];
 
@@ -355,8 +352,8 @@ namespace Nabla.Database {
 						routeInfo.IPv6PrefixLength = (Int64) dataRow["ipv6prefixlen"];
 
 						routeInfo.Description = (string) dataRow["description"];
-						routeInfo.Created = DateTime.ParseExact((string) dataRow["created"], "s", provider);
-						routeInfo.LastModified = DateTime.ParseExact((string) dataRow["lastmodified"], "s", provider);
+						routeInfo.Created = (DateTime) dataRow["created"];
+						routeInfo.LastModified = (DateTime) dataRow["lastmodified"];
 
 						routeInfo.UserEnabled = (bool) dataRow["userenabled"];
 						routeInfo.AdminEnabled = (bool) dataRow["adminenabled"];
