@@ -22,7 +22,7 @@ using System.Collections.Generic;
 
 
 namespace Nabla.Sockets {
-	public class RawSocketPcap : RawSocket {
+	public class RawSocketPcap : RawSocket, IDisposable {
 		private const int PCAP_ERRBUF_SIZE = 256;
 		private const int DLT_EN10MB = 1;
 		private const int MAX_PACKET_SIZE = 4096;
