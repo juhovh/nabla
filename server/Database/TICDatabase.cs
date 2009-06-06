@@ -58,7 +58,7 @@ namespace Nabla.Database {
 			string connectionString = "Data Source=" + _dbName;
 			string commandString = "SELECT * FROM " + tableName;
 			if (userName != null) {
-				commandString += " WHERE username = " + userName;
+				commandString += " WHERE username = '" + userName + "'";
 			}
 
 			TICUserInfo userInfo = null;

@@ -1,8 +1,10 @@
 
 all:
+	cp ../lib/*.dll .
 	gmcs -t:library -out:Nabla.Sockets.dll Sockets/RawSocket.cs Sockets/RawSocketNative.cs Sockets/RawSocketPcap.cs
 	gmcs -out:RawSocketTest.exe -r:Nabla.Sockets tests/RawSocketTest.cs
 	gmcs -out:ParallelDeviceTest.exe -r:Nabla.Sockets tests/ParallelDeviceTest.cs ParallelDevice.cs
+	gmcs -out:TICServerTest.exe -r:System.Data,System.Data.SQLite tests/TICServerTest.cs TICServer.cs TICSession.cs Database/*.cs
 
 lib:
 	gcc -Wall -Werror -fPIC -o librawsock.so -shared Sockets/rawsock.c
