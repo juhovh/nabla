@@ -24,46 +24,6 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 
 namespace Nabla {
-	public class TunnelSession {
-		public readonly TunnelType TunnelType;
-		public readonly AddressFamily AddressFamily;
-		public IPEndPoint EndPoint;
-		public IPAddress GatewayAddress = null;
-		public string Password = null;
-		public DateTime LastAlive;
-
-		private TunnelSession(TunnelType type) {
-			TunnelType = type;
-			switch (type) {
-			case TunnelType.IPv4inIPv4:
-			case TunnelType.IPv4inIPv6:
-			case TunnelType.AyiyaIPv4inIPv4:
-			case TunnelType.AyiyaIPv4inIPv6:
-				AddressFamily = AddressFamily.InterNetwork;
-				break;
-			case TunnelType.IPv6inIPv4:
-			case TunnelType.IPv6inIPv6:
-			case TunnelType.Heartbeat:
-			case TunnelType.AyiyaIPv6inIPv4:
-			case TunnelType.AyiyaIPv6inIPv6:
-				AddressFamily = AddressFamily.InterNetworkV6;
-				break;
-			default:
-				throw new Exception("Unknown tunnel type: " + type);
-			}
-			LastAlive = DateTime.Now;
-		}
-
-		public TunnelSession(TunnelType type, IPEndPoint endPoint) : this(type) {
-			EndPoint = endPoint;
-		}
-
-		public TunnelSession(TunnelType type, IPAddress gateway, string password) : this(type) {
-			GatewayAddress = gateway;
-			Password = password;
-		}
-	}
-
 	public class SessionManager {
 		private const int CLOCK_OFF = 120;
 
