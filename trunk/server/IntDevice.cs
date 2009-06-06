@@ -161,21 +161,27 @@ namespace Nabla {
 					}
 				} else {
 					IPEndPoint endPoint;
+					int datalen;
 
 					if (TunnelType == TunnelType.Heartbeat) {
 						while (_udpSocket.Poll(0, SelectMode.SelectRead)) {
 							endPoint = new IPEndPoint(IPAddress.Any, 0);
 							EndPoint sender = (EndPoint) endPoint;
-							_udpSocket.ReceiveFrom(data, 0, data.Length,
-							                       SocketFlags.None,
-							                       ref sender);
+							datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,
+							                                 SocketFlags.None,
+							                                 ref sender);
 							Console.WriteLine("Received a heartbeat packet from {0}", sender);
 
 							/* Nullify the port of the end point, otherwise it won't be found */
 							endPoint = new IPEndPoint(((IPEndPoint) sender).Address, 0);
 
-							/* Just to possibly update the session source IP */
-							_sessionManager.UpdateSession(TunnelType, endPoint, data);
+							/* Make sure that the heartbeat packet is null-terminated */
+							data[datalen] = 0;
+
+							/* Possibly update the session source IP if changed */
+							if (!_sessionManager.UpdateSession(TunnelType, endPoint, data)) {
+								Console.WriteLine("Heartbeat packet invalid, discarded");
+							}
 						}
 					}
 
@@ -195,7 +201,7 @@ namespace Nabla {
 					default:
 						throw new Exception("Unsupported tunnel type: " + TunnelType);
 					}
-					int datalen = _rawSocket.ReceiveFrom(data, ref endPoint);
+					datalen = _rawSocket.ReceiveFrom(data, ref endPoint);
 					Console.WriteLine("Received a packet from {0}", endPoint);
 
 					if (!_sessionManager.SessionAlive(TunnelType, endPoint))

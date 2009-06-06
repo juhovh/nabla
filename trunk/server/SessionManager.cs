@@ -204,7 +204,7 @@ namespace Nabla {
 						strlen = i;
 						break;
 					} else if (data[i] < 32 || data[i] > 126) {
-						Console.WriteLine("Invalid heartbeat packet");
+						Console.WriteLine("Heartbeat packet contains non-ascii characters");
 						return false;
 					}
 				}
