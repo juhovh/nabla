@@ -48,6 +48,8 @@ namespace Nabla {
 			public string UserName;
 			public string ChallengeType;
 			public string Challenge;
+
+			public Int64 UserId;
 		}
 
 		private TcpClient _client;
@@ -256,9 +258,10 @@ namespace Nabla {
 					return "400 Login failed, login/password mismatch";
 				}
 
-				IPEndPoint endPoint = (IPEndPoint) _client.Client.RemoteEndPoint;
-
+				info.UserId = userInfo.UserId;
 				_state = SessionState.Main;
+
+				IPEndPoint endPoint = (IPEndPoint) _client.Client.RemoteEndPoint;
 				string ret = "200 Succesfully logged in using " + info.ChallengeType;
 				ret += " as " + userInfo.UserName + " (" + userInfo.FullName + ")";
 				ret += " from " + endPoint.Address;
@@ -306,7 +309,15 @@ namespace Nabla {
 
 		private string handleTunnelCommand(TICDatabase db, SessionInfo info, string[] words) {
 			if (words[0].Equals("list")) {
-				return "400 Not implemented yet";
+				TICTunnelInfo[] tunnels = db.ListTunnels(info.UserId);
+
+				string ret = "201 Listing tunnels\n";
+				foreach (TICTunnelInfo t in tunnels) {
+					ret += String.Format("T{0} {1} {2} {3}\n",
+						t.TunnelId, t.IPv6Endpoint, t.IPv4Endpoint, t.POPId);
+				}
+				ret += "202 <tunnel_id> <ipv6_endpoint> <ipv4_endpoint> <pop_name>";
+				return ret;
 			} else if (words[0].Equals("show")) {
 				if (words.Length != 2) {
 					return "400 Show requires a tunnel id";
@@ -320,7 +331,7 @@ namespace Nabla {
 						tunnelId = int.Parse(words[1]);
 					}
 				} catch (Exception) {
-					return "400 Given tunnel id " + words[1] + " is not valid";
+					return "400 Given tunnel id '" + words[1] + "' is not valid";
 				}
 
 				TICTunnelInfo tunnelInfo = db.GetTunnelInfo(tunnelId);
@@ -328,7 +339,9 @@ namespace Nabla {
 					return "400 Unknown tunnel endpoint T" + tunnelId;
 				}
 
-				/* XXX: Check that the owner is correct */
+				if (tunnelInfo.OwnerId != info.UserId) {
+					return "400 T" + tunnelId + " is not one of your tunnels";
+				}
 
 				string ret = "201 Showing tunnel information for T" + tunnelId + "\n";
 				ret += tunnelInfo.ToString();
@@ -374,7 +387,15 @@ namespace Nabla {
 
 		private string handleRouteCommand(TICDatabase db, SessionInfo info, string[] words) {
 			if (words[0].Equals("list")) {
-				return "400 Not implemented yet";
+				TICRouteInfo[] routes = db.ListRoutes(info.UserId);
+
+				string ret = "201 Listing routes\n";
+				foreach (TICRouteInfo r in routes) {
+					ret += String.Format("R{0} T{1} {2}/{3}\n",
+						r.RouteId, r.TunnelId, r.IPv6Prefix, r.IPv6PrefixLength);
+				}
+				ret += "202 <route_id> <tunnel_id> <route_prefix>";
+				return ret;
 			} else if (words[0].Equals("show")) {
 				if (words.Length != 2) {
 					return "400 Show requires a route id";
@@ -388,7 +409,7 @@ namespace Nabla {
 						routeId = int.Parse(words[1]);
 					}
 				} catch (Exception) {
-					return "400 Given route id " + words[1] + " is not valid";
+					return "400 Given route id '" + words[1] + "' is not valid";
 				}
 
 				TICRouteInfo routeInfo = db.GetRouteInfo(routeId);
@@ -397,6 +418,9 @@ namespace Nabla {
 				}
 
 				/* XXX: Check that the owner is correct */
+				if (routeInfo.OwnerId != info.UserId) {
+					return "400 T" + routeId + " is not your route";
+				}
 
 				string ret = "201 Showing route information for R" + routeId + "\n";
 				ret += routeInfo.ToString();
@@ -410,7 +434,14 @@ namespace Nabla {
 
 		private string handlePopCommand(TICDatabase db, SessionInfo info, string[] words) {
 			if (words[0].Equals("list")) {
-				return "400 Not implemented yet";
+				TICPopInfo[] pops = db.ListPops();
+
+				string ret = "201 Listing PoPs\n";
+				foreach (TICPopInfo p in pops) {
+					ret += p.POPId + "\n";
+				}
+				ret += "202 <pop_name>";
+				return ret;
 			} else if (words[0].Equals("show")) {
 				if (words.Length != 2) {
 					return "400 Show requires a pop id";
