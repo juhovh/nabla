@@ -21,6 +21,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Security.Cryptography;
+using Nabla.Database;
 
 namespace Nabla {
 	public class TICSession {
@@ -90,21 +91,23 @@ namespace Nabla {
 		private void threadLoop() {
 			SessionInfo info = new SessionInfo();
 
-			while (_running) {
-				if (info.PromptEnabled) {
-					_writer.Write("config$ \n");
+			using (TICDatabase db = new TICDatabase("nabla.db")) {
+				while (_running) {
+					if (info.PromptEnabled) {
+						_writer.Write("config$ \n");
+					}
+
+					string line = _reader.ReadLine().Trim();
+					string[] words = line.Split(new char[] {' '},
+					                            StringSplitOptions.RemoveEmptyEntries);
+
+					string response = handleCommand(db, info, words);
+					_writer.Write(response + "\n");
 				}
-
-				string line = _reader.ReadLine().Trim();
-				string[] words = line.Split(new char[] {' '},
-				                            StringSplitOptions.RemoveEmptyEntries);
-
-				string response = handleCommand(info, words);
-				_writer.Write(response + "\n");
 			}
 		}
 
-		private string handleCommand(SessionInfo info, string[] words) {
+		private string handleCommand(TICDatabase db, SessionInfo info, string[] words) {
 			if (words.Length == 0) {
 				return "200 Empty line, please enter at least something we accept";
 			} else if (words[0].Equals("set")) {
@@ -172,7 +175,6 @@ namespace Nabla {
 					return "400 Challenge expects a authentication type";
 				}
 
-				/* XXX: Save the challenge type */
 				info.ChallengeType = words[1];
 				_state = SessionState.Authenticate;
 
@@ -196,13 +198,14 @@ namespace Nabla {
 				}
 
 				/* XXX: Check against the real user name pw in the db */
-				string passwordHash = "foobar";
-				if (passwordHash == null) {
+				TICUserInfo userInfo = db.GetUserInfo(info.UserName);
+				if (userInfo == null) {
 					_state = SessionState.Initial;
 					return "400 User " + info.UserName + " does not exist in the DB.";
 				}
 	
 				bool passwordMatch;
+				string passwordHash = userInfo.Password;
 				MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
 				if (words[1].Equals("clear")) {
 					byte[] pwBytes = Encoding.UTF8.GetBytes(words[2]);
@@ -239,12 +242,11 @@ namespace Nabla {
 				}
 
 				/* XXX: This should be gotten from the database or elsewhere */
-				string fullName = "Foo Bar";
 				string ipaddr = "127.0.0.1";
 				_state = SessionState.Logged;
 
 				string ret = "200 Succesfully logged in using " + info.ChallengeType;
-				ret += " as " + info.UserName + " (" + fullName + ")";
+				ret += " as " + userInfo.UserName + " (" + userInfo.FullName + ")";
 				ret += " from " + ipaddr;
 				return ret;
 			} else if (words[0].Equals("tunnel") && _state == SessionState.Logged) {

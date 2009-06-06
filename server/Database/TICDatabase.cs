@@ -22,13 +22,9 @@ using System.Data.SQLite;
 
 namespace Nabla.Database {
 	public class TICUserInfo {
-		public readonly string UserName;
-		public readonly string Password;
-
-		public TICUserInfo(string userName, string password) {
-			UserName = userName;
-			Password = password;
-		}
+		public string UserName;
+		public string Password;
+		public string FullName;
 	}
 
 	public class TICDatabase : IDisposable {
@@ -41,7 +37,7 @@ namespace Nabla.Database {
 
 		public void CreateTables() {
 			using (SQLiteCommand command = new SQLiteCommand(_conn)) {
-				command.CommandText = "create table tic_users (id integer primary key autoincrement, username varchar(32), password varchar(32))";
+				command.CommandText = "CREATE TABLE tic_users (id integer primary key autoincrement, username varchar(32), password varchar(32), fullname varchar(128))";
 				command.ExecuteNonQuery();
 			}
 		}
@@ -55,7 +51,7 @@ namespace Nabla.Database {
 			}
 
 			using (SQLiteCommand command = new SQLiteCommand(_conn)) {
-				command.CommandText = "SELECT username, password FROM " + tableName + " WHERE username = " + userName;
+				command.CommandText = "SELECT * FROM " + tableName + " WHERE username = " + userName;
 
 				SQLiteDataAdapter adapter = new SQLiteDataAdapter();
 				adapter.SelectCommand = command;
@@ -64,7 +60,10 @@ namespace Nabla.Database {
 				adapter.Fill(dataSet, tableName);
 
 				foreach (DataRow dataRow in dataSet.Tables[tableName].Rows) {
-					userInfo = new TICUserInfo(dataRow["username"].ToString(), dataRow["password"].ToString());
+					userInfo = new TICUserInfo();
+					userInfo.UserName = dataRow["username"].ToString();
+					userInfo.Password = dataRow["password"].ToString();
+					userInfo.FullName = dataRow["fullname"].ToString();
 				}
 			}
 
