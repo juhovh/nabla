@@ -305,15 +305,140 @@ namespace Nabla {
 		}
 
 		private string handleTunnelCommand(TICDatabase db, SessionInfo info, string[] words) {
-			return "400 Not implemented yet";
+			if (words[0].Equals("list")) {
+				return "400 Not implemented yet";
+			} else if (words[0].Equals("show")) {
+				if (words.Length != 2) {
+					return "400 Show requires a tunnel id";
+				}
+
+				int tunnelId = 0;
+				try {
+					if (words[1].StartsWith("T")) {
+						tunnelId = int.Parse(words[1].Substring(1));
+					} else {
+						tunnelId = int.Parse(words[1]);
+					}
+				} catch (Exception) {
+					return "400 Given tunnel id " + words[1] + " is not valid";
+				}
+
+				TICTunnelInfo tunnelInfo = db.GetTunnelInfo(tunnelId);
+				if (tunnelInfo == null) {
+					return "400 Unknown tunnel endpoint T" + tunnelId;
+				}
+
+				/* XXX: Check that the owner is correct */
+
+				string ret = "201 Showing tunnel information for T" + tunnelId;
+				ret += tunnelInfo.ToString();
+				ret += "202 Done";
+
+				return ret;
+			} else if (words[0].Equals("set")) {
+				if (words.Length != 4) {
+					return "400 set requires 3 arguments";
+				}
+
+				if (words[2].Equals("endpoint")) {
+					return "400 Not implemented yet";
+				} else if (words[2].Equals("state")) {
+					return "400 Not implemented yet";
+				} else {
+					return "400 " + words[2] + " is not a known variable";
+				}
+			} else if (words[0].Equals("put")) {
+				if (words.Length != 3) {
+					return "400 put requires 2 arguments";
+				}
+
+				if (words[2].Equals("publickey")) {
+					return "400 Not implemented yet";
+				} else {
+					return "400 " + words[2] + " is not a known variable";
+				}
+			} else if (words[0].Equals("get")) {
+				if (words.Length != 3) {
+					return "400 get requires 2 arguments";
+				}
+
+				if (words[2].Equals("publickey")) {
+					return "400 Not implemented yet";
+				} else {
+					return "400 " + words[2] + " is not a known variable";
+				}
+			} else {
+				return "400 Unknown command: " + words[0];
+			}
 		}
 
 		private string handleRouteCommand(TICDatabase db, SessionInfo info, string[] words) {
-			return "400 Not implemented yet";
+			if (words[0].Equals("list")) {
+				return "400 Not implemented yet";
+			} else if (words[0].Equals("show")) {
+				if (words.Length != 2) {
+					return "400 Show requires a route id";
+				}
+
+				int routeId = 0;
+				try {
+					if (words[1].StartsWith("R")) {
+						routeId = int.Parse(words[1].Substring(1));
+					} else {
+						routeId = int.Parse(words[1]);
+					}
+				} catch (Exception) {
+					return "400 Given route id " + words[1] + " is not valid";
+				}
+
+				TICRouteInfo routeInfo = db.GetRouteInfo(routeId);
+				if (routeInfo == null) {
+					return "400 Unknown route R" + routeId;
+				}
+
+				/* XXX: Check that the owner is correct */
+
+				string ret = "201 Showing route information for R" + routeId;
+				ret += routeInfo.ToString();
+				ret += "202 Done";
+
+				return ret;
+			} else {
+				return "400 Unknown command: " + words[0];
+			}
 		}
 
 		private string handlePopCommand(TICDatabase db, SessionInfo info, string[] words) {
-			return "400 Not implemented yet";
+			if (words[0].Equals("list")) {
+				return "400 Not implemented yet";
+			} else if (words[0].Equals("show")) {
+				if (words.Length != 2) {
+					return "400 Show requires a pop id";
+				}
+
+				TICPopInfo popInfo = db.GetPopInfo(words[1]);
+				if (popInfo == null) {
+					return "400 Unknown PoP '" + words[1] + "'";
+				}
+
+				string ret = "201 Showing PoP information for " + words[1];
+				ret += popInfo.ToString();
+				ret += "202 Done";
+
+				return ret;
+			} else if (words[0].Equals("get")) {
+				if (words.Length != 3) {
+					return "400 get requires 2 arguments";
+				}
+
+				if (words[2].Equals("publickey")) {
+					return "400 Not implemented yet";
+				} else {
+					return "400 " + words[2] + " is not a known variable";
+				}
+			} else {
+				return "400 Unknown command: " + words[0];
+			}
 		}
 
 		private string getHelpString() {
@@ -346,9 +471,9 @@ namespace Nabla {
 				break;
 			case SessionState.Tunnel:
 				ret += "list\n";
-				ret += "show <tunnel-id> endpoint {<new-ipv4>|heartbeat|ayiya}\n";
+				ret += "show <tunnel-id>\n";
+				ret += "set <tunnel-id> endpoint {<new-ipv4>|heartbeat|ayiya}\n";
 				ret += "set <tunnel-id> state {enabled|disabled}\n";
-				ret += "set <tunnel-id> heartbeat <password>\n";
 				ret += "put <tunnel-id> publickey\n";
 				ret += "get <tunnel-id> publickey\n";
 				break;
