@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 using System.Collections.Generic;
 
 namespace Nabla.Sockets {
-	public class RawSocketNative : RawSocket {
+	public class RawSocketNative : RawSocket, IDisposable {
 		private bool _disposed = false;
 		private IntPtr _sock;
 		private int _waitms;
