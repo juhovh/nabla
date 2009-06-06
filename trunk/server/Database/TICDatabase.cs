@@ -48,8 +48,8 @@ namespace Nabla.Database {
 				", popid varchar(8)" +
 				", ipv4endpoint varchar(15)" +
 				", ipv4pop varchar(15)" +
-				", userstate boolean" +
-				", adminstate boolean" +
+				", userenabled boolean" +
+				", adminenabled boolean" +
 				", password varchar(32)" +
 				", beatinterval integer)";
 			string routeString = "CREATE TABLE tic_routes (" +
@@ -59,8 +59,8 @@ namespace Nabla.Database {
 				", description varchar(512)" +
 				", created varchar(19)" +
 				", lastmodified varchar(19)" +
-				", userstate boolean" +
-				", adminstate boolean)";
+				", userenabled boolean" +
+				", adminenabled boolean)";
 			string popString = "CREATE TABLE tic_pops (" +
 				"id varchar(8) primary key" +
 				", city varchar(32)" +
@@ -106,6 +106,121 @@ namespace Nabla.Database {
 				"'" + userInfo.UserName + "', " +
 				"'" + pwHash + "', " +
 				"'" + userInfo.FullName + "')";
+
+			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
+				connection.Open();
+				using (SQLiteCommand command = new SQLiteCommand(connection)) {
+					command.CommandText = commandString;
+					command.ExecuteNonQuery();
+				}
+				connection.Close();
+			}
+		}
+
+		public void AddTunnelInfo(TICTunnelInfo tunnelInfo) {
+			string tableName = "tic_tunnels";
+
+			MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
+			byte[] pwBytes = Encoding.UTF8.GetBytes(tunnelInfo.Password);
+			byte[] pwHashBytes = md5.ComputeHash(pwBytes);
+			string pwHash = BitConverter.ToString(pwHashBytes).Replace("-", "").ToLower();
+
+			string connectionString = "Data Source=" + _dbName;
+			string commandString = "INSERT INTO " + tableName +
+				" (ipv6endpoint, ipv6pop, ipv6prefixlen" +
+				", mtu, name, popid" +
+				", ipv4endpoint, ipv4pop" +
+				", userenabled, adminenabled" +
+				", password, beatinterval" +
+				") VALUES (" +
+				"'" + tunnelInfo.IPv6EndPoint + "', " +
+				"'" + tunnelInfo.IPv6POP + "', " +
+				tunnelInfo.IPv6PrefixLength + ", " +
+
+				tunnelInfo.TunnelMTU + ", " +
+				"'" + tunnelInfo.TunnelName + "', " +
+
+				"'" + tunnelInfo.POPId + "', " +
+				"'" + tunnelInfo.IPv4Endpoint + "', " +
+				"'" + tunnelInfo.IPv4POP + "', " +
+
+				"'" + (tunnelInfo.UserEnabled ? "true" : "false") + "', " +
+				"'" + (tunnelInfo.AdminEnabled ? "true" : "false") + "', " +
+
+				"'" + pwHash + "', " +
+				tunnelInfo.HeartbeatInterval + ")";
+
+			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
+				connection.Open();
+				using (SQLiteCommand command = new SQLiteCommand(connection)) {
+					command.CommandText = commandString;
+					command.ExecuteNonQuery();
+				}
+				connection.Close();
+			}
+		}
+
+		public void AddRouteInfo(TICRouteInfo routeInfo) {
+			string tableName = "tic_routes";
+
+			routeInfo.Created = DateTime.UtcNow;
+			routeInfo.LastModified = DateTime.UtcNow;
+
+			string connectionString = "Data Source=" + _dbName;
+			string commandString = "INSERT INTO " + tableName +
+				" (ipv6prefix, ipv6prefixlen" +
+				", description" +
+				", crated, lastmodified" +
+				", userenabled, adminenabled" +
+				") VALUES (" +
+				"'" + routeInfo.IPv6Prefix + "', " +
+				routeInfo.IPv6PrefixLength + ", " +
+
+				"'" + routeInfo.Description + ", " +
+
+				"'" + routeInfo.Created.ToString("s") + "', " +
+				"'" + routeInfo.LastModified.ToString("s") + "', " +
+
+				"'" + (routeInfo.UserEnabled ? "true" : "false") + "', " +
+				"'" + (routeInfo.AdminEnabled ? "true" : "false") + "')";
+
+			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
+				connection.Open();
+				using (SQLiteCommand command = new SQLiteCommand(connection)) {
+					command.CommandText = commandString;
+					command.ExecuteNonQuery();
+				}
+				connection.Close();
+			}
+		}
+
+		public void AddPopInfo(TICPopInfo popInfo) {
+			string tableName = "tic_pops";
+
+			string connectionString = "Data Source=" + _dbName;
+			string commandString = "INSERT INTO " + tableName +
+				" (id, city, country" +
+				", ipv4, ipv6" +
+				", heartbeat, tinc, multicast" +
+				", ispshort, ispname, ispwebsite" +
+				", ispasn, isplir" +
+				") VALUES (" +
+				"'" + popInfo.POPId + "', " +
+				"'" + popInfo.City + "', " +
+				"'" + popInfo.Country + "', " +
+
+				"'" + popInfo.IPv4 + "', " +
+				"'" + popInfo.IPv6 + "', " +
+
+				"'" + (popInfo.HeartbeatSupport ? "true" : "false") + "', " +
+				"'" + (popInfo.TincSupport ? "true" : "false") + "', " +
+				"'" + popInfo.MulticastSupport + "', " +
+
+				"'" + popInfo.ISPShort + "', " +
+				"'" + popInfo.ISPName + "', " +
+				"'" + popInfo.ISPWebsite + "', " +
+				popInfo.ISPASNumber + ", " +
+				"'" + popInfo.ISPLIRId + "')";
 
 			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
 				connection.Open();
@@ -174,24 +289,24 @@ namespace Nabla.Database {
 
 					foreach (DataRow dataRow in dataSet.Tables[tableName].Rows) {
 						tunnelInfo = new TICTunnelInfo();
-						tunnelInfo.TunnelId = (int) dataRow["id"];
+						tunnelInfo.TunnelId = (Int64) dataRow["id"];
 
 						tunnelInfo.IPv6EndPoint = IPAddress.Parse((string) dataRow["ipv6endpoint"]);
 						tunnelInfo.IPv6POP = IPAddress.Parse((string) dataRow["ipv6pop"]);
-						tunnelInfo.IPv6PrefixLength = (int) dataRow["ipv6prefixlen"];
+						tunnelInfo.IPv6PrefixLength = (Int64) dataRow["ipv6prefixlen"];
 
-						tunnelInfo.TunnelMTU = (int) dataRow["mtu"];
+						tunnelInfo.TunnelMTU = (Int64) dataRow["mtu"];
 						tunnelInfo.TunnelName = (string) dataRow["name"];
 
 						tunnelInfo.POPId = (string) dataRow["popid"];
 						tunnelInfo.IPv4Endpoint = (string) dataRow["ipv4endpoint"];
 						tunnelInfo.IPv4POP = IPAddress.Parse((string) dataRow["ipv4pop"]);
 
-						tunnelInfo.UserState = (bool) dataRow["userstate"];
-						tunnelInfo.AdminState = (bool) dataRow["adminstate"];
+						tunnelInfo.UserEnabled = (bool) dataRow["userenabled"];
+						tunnelInfo.AdminEnabled = (bool) dataRow["adminenabled"];
 
 						tunnelInfo.Password = (string) dataRow["password"];
-						tunnelInfo.HeartbeatInterval = (int) dataRow["beatinterval"];
+						tunnelInfo.HeartbeatInterval = (Int64) dataRow["beatinterval"];
 
 						if (tunnelInfo.IPv4Endpoint.Equals("heartbeat")) {
 							tunnelInfo.Type = "6in4-heartbeat";
@@ -230,18 +345,21 @@ namespace Nabla.Database {
 					}
 
 					foreach (DataRow dataRow in dataSet.Tables[tableName].Rows) {
+						System.Globalization.CultureInfo provider
+							= System.Globalization.CultureInfo.InvariantCulture;
+
 						routeInfo = new TICRouteInfo();
-						routeInfo.RouteId = (int) dataRow["id"];
+						routeInfo.RouteId = (Int64) dataRow["id"];
 
 						routeInfo.IPv6Prefix = IPAddress.Parse((string) dataRow["ipv6prefix"]);
-						routeInfo.IPv6PrefixLength = (int) dataRow["ipv6prefixlen"];
+						routeInfo.IPv6PrefixLength = (Int64) dataRow["ipv6prefixlen"];
 
 						routeInfo.Description = (string) dataRow["description"];
-						routeInfo.Created = DateTime.Parse((string) dataRow["created"]);
-						routeInfo.LastModified = DateTime.Parse((string) dataRow["lastmodified"]);
+						routeInfo.Created = DateTime.ParseExact((string) dataRow["created"], "s", provider);
+						routeInfo.LastModified = DateTime.ParseExact((string) dataRow["lastmodified"], "s", provider);
 
-						routeInfo.UserState = (bool) dataRow["userstate"];
-						routeInfo.AdminState = (bool) dataRow["adminstate"];
+						routeInfo.UserEnabled = (bool) dataRow["userenabled"];
+						routeInfo.AdminEnabled = (bool) dataRow["adminenabled"];
 					}
 				}
 				connection.Close();
@@ -287,7 +405,7 @@ namespace Nabla.Database {
 						popInfo.ISPShort = (string) dataRow["ispshort"];
 						popInfo.ISPName = (string) dataRow["ispname"];
 						popInfo.ISPWebsite = (string) dataRow["ispwebsite"];
-						popInfo.ISPASNumber = (int) dataRow["ispasn"];
+						popInfo.ISPASNumber = (Int64) dataRow["ispasn"];
 						popInfo.ISPLIRId = (string) dataRow["isplir"];
 					}
 				}
