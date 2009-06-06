@@ -41,8 +41,8 @@ namespace Nabla.Database {
 		public string IPv4Endpoint;
 		public IPAddress IPv4POP;
 
-		public string UserState;
-		public string AdminState;
+		public bool UserState;
+		public bool AdminState;
 
 		public string Password;
 		public int HeartbeatInterval;
@@ -60,8 +60,8 @@ namespace Nabla.Database {
 			ret += "POP Id: " + POPId + "\n";
 			ret += "IPv4 Endpoint: " + IPv4Endpoint + "\n";
 			ret += "IPv4POP: " + IPv4POP + "\n";
-			ret += "UserState: " + UserState + "\n";
-			ret += "AdminState: " + AdminState + "\n";
+			ret += "UserState: " + (UserState ? "enabled" : "disabled") + "\n";
+			ret += "AdminState: " + (AdminState ? "enabled" : "disabled") + "\n";
 			ret += "Password: " + Password + "\n";
 			ret += "Heartbeat_Interval: " + HeartbeatInterval + "\n";
 
@@ -71,25 +71,24 @@ namespace Nabla.Database {
 
 	public class TICRouteInfo {
 		public int RouteId;
-		public IPAddress Prefix;
-		public int PrefixLength;
+		public IPAddress IPv6Prefix;
+		public int IPv6PrefixLength;
 		public string Description;
 		public DateTime Created;
 		public DateTime LastModified;
-		public string UserState;
-		public string AdminState;
+		public bool UserState;
+		public bool AdminState;
 
 		public override string ToString() {
 			string ret = "";
 
 			ret += "RouteId: R" + RouteId + "\n";
-			ret += "Prefix: " + Prefix + "/" + PrefixLength + "\n";
+			ret += "Prefix: " + IPv6Prefix + "/" + IPv6PrefixLength + "\n";
 			ret += "Description: " + Description + "\n";
-			/* XXX: Is this printed in correct format */
-			ret += "Created: " + Created + "\n";
-			ret += "LastModified: " + LastModified + "\n";
-			ret += "UserState: " + UserState + "\n";
-			ret += "AdminState: " + AdminState + "\n";
+			ret += "Created: " + Created.ToString("s").Replace("T", " ") + "\n";
+			ret += "LastModified: " + LastModified.ToString("s").Replace("T", " ") + "\n";
+			ret += "UserState: " + (UserState ? "enabled" : "disabled") + "\n";
+			ret += "AdminState: " + (AdminState ? "enabled" : "disabled") + "\n";
 
 			return ret;
 		}
@@ -107,7 +106,7 @@ namespace Nabla.Database {
 		public string ISPShort;
 		public string ISPName;
 		public string ISPWebsite;
-		public string ISPASNumber;
+		public int ISPASNumber;
 		public string ISPLIRId;
 
 		public override string ToString() {
@@ -123,7 +122,7 @@ namespace Nabla.Database {
 			ret += "Multicast Support: " + MulticastSupport + "\n";
 			ret += "ISP Short: " + ISPShort + "\n";
 			ret += "ISP Name: " + ISPName + "\n";
-			ret += "ISP ASN: " + ISPASNumber + "\n";
+			ret += "ISP ASN: AS" + ISPASNumber + "\n";
 			ret += "ISP LIR: " + ISPLIRId + "\n";
 
 			return ret;
