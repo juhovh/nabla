@@ -21,6 +21,7 @@ using System.Net;
 using System.Text;
 using System.Data;
 using System.Data.SQLite;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 
 namespace Nabla.Database {
@@ -40,6 +41,7 @@ namespace Nabla.Database {
 				", fullname varchar(128))";
 			string tunnelString = "CREATE TABLE tic_tunnels (" +
 				"id integer primary key autoincrement" +
+				", ownerid integer" +
 				", ipv6endpoint varchar(39)" +
 				", ipv6pop varchar(39)" +
 				", ipv6prefixlen integer" +
@@ -54,6 +56,8 @@ namespace Nabla.Database {
 				", beatinterval integer)";
 			string routeString = "CREATE TABLE tic_routes (" +
 				"id integer primary key autoincrement" +
+				", ownerid integer" +
+				", tunnelid integer" +
 				", ipv6prefix varchar(39)" +
 				", ipv6prefixlen integer" +
 				", description varchar(512)" +
@@ -127,13 +131,16 @@ namespace Nabla.Database {
 
 			string connectionString = "Data Source=" + _dbName;
 			string commandString = "INSERT INTO " + tableName +
-				" (ipv6endpoint, ipv6pop, ipv6prefixlen" +
+				" (ownerid" +
+				", ipv6endpoint, ipv6pop, ipv6prefixlen" +
 				", mtu, name, popid" +
 				", ipv4endpoint, ipv4pop" +
 				", userenabled, adminenabled" +
 				", password, beatinterval" +
 				") VALUES (" +
-				"'" + tunnelInfo.IPv6EndPoint + "', " +
+				tunnelInfo.OwnerId + ", " +
+
+				"'" + tunnelInfo.IPv6Endpoint + "', " +
 				"'" + tunnelInfo.IPv6POP + "', " +
 				tunnelInfo.IPv6PrefixLength + ", " +
 
@@ -168,11 +175,15 @@ namespace Nabla.Database {
 
 			string connectionString = "Data Source=" + _dbName;
 			string commandString = "INSERT INTO " + tableName +
-				" (ipv6prefix, ipv6prefixlen" +
+				" (ownerid, tunnelid" +
+				", ipv6prefix, ipv6prefixlen" +
 				", description" +
 				", created, lastmodified" +
 				", userenabled, adminenabled" +
 				") VALUES (" +
+				routeInfo.OwnerId + ", " +
+				routeInfo.TunnelId + ", " +
+
 				"'" + routeInfo.IPv6Prefix + "', " +
 				routeInfo.IPv6PrefixLength + ", " +
 
@@ -232,50 +243,108 @@ namespace Nabla.Database {
 			}
 		}
 
-		public TICUserInfo GetUserInfo(string userName) {
-			string tableName = "tic_users";
-
-			string connectionString = "Data Source=" + _dbName;
-			string commandString = "SELECT * FROM " + tableName;
-			if (userName != null) {
-				commandString += " WHERE username = '" + userName + "'";
+		public TICTunnelInfo[] ListTunnels(Int64 userId) {
+			if (userId <= 0) {
+				return new TICTunnelInfo[] {};
 			}
 
-			TICUserInfo userInfo = null;
-			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) {
-				connection.Open();
-				using (SQLiteCommand command = new SQLiteCommand(connection)) {
-					command.CommandText = commandString;
+			List<TICTunnelInfo> tunnels = new List<TICTunnelInfo>();
 
-					DataSet dataSet = new DataSet();
-					using (SQLiteDataAdapter adapter = new SQLiteDataAdapter()) {
-						adapter.SelectCommand = command;
-						adapter.Fill(dataSet, tableName);
-					}
-
-					foreach (DataRow dataRow in dataSet.Tables[tableName].Rows) {
-						userInfo = new TICUserInfo();
-						userInfo.UserName = dataRow["username"].ToString();
-						userInfo.Password = dataRow["password"].ToString();
-						userInfo.FullName = dataRow["fullname"].ToString();
-					}
-				}
-				connection.Close();
+			DataTable dataTable = getDataTable("tic_tunnels", "WHERE ownerid = '" + userId + "'");
+			foreach (DataRow dataRow in dataTable.Rows) {
+				tunnels.Add(dataRowToTunnelInfo(dataRow));
 			}
 
-			return userInfo;
+			return tunnels.ToArray();
 		}
 
-		public TICTunnelInfo GetTunnelInfo(int tunnelId) {
-			string tableName = "tic_tunnels";
+		public TICRouteInfo[] ListRoutes(Int64 userId) {
+			if (userId <= 0) {
+				return new TICRouteInfo[] {};
+			}
+
+			List<TICRouteInfo> routes = new List<TICRouteInfo>();
+
+			DataTable dataTable = getDataTable("tic_routes", "WHERE ownerid = '" + userId + "'");
+			foreach (DataRow dataRow in dataTable.Rows) {
+				routes.Add(dataRowToRouteInfo(dataRow));
+			}
+
+			return routes.ToArray();
+		}
+
+		public TICPopInfo[] ListPops() {
+			List<TICPopInfo> pops = new List<TICPopInfo>();
+
+			DataTable dataTable = getDataTable("tic_pops", null);
+			foreach (DataRow dataRow in dataTable.Rows) {
+				pops.Add(dataRowToPopInfo(dataRow));
+			}
+
+			return pops.ToArray();
+		}
+
+		public TICUserInfo GetUserInfo(string userName) {
+			if (userName == null) {
+				return null;
+			}
+
+			DataTable dataTable = getDataTable("tic_users", "WHERE username = '" + userName + "'");
+			if (dataTable.Rows.Count == 0) {
+				return null;
+			}
+
+			return dataRowToUserInfo(dataTable.Rows[0]);
+		}
+
+		public TICTunnelInfo GetTunnelInfo(Int64 tunnelId) {
 			if (tunnelId <= 0) {
 				return null;
 			}
 
-			string connectionString = "Data Source=" + _dbName;
-			string commandString = "SELECT * FROM " + tableName + " WHERE id = " + tunnelId;
+			DataTable dataTable = getDataTable("tic_tunnels", "WHERE id = '" + tunnelId + "'");
+			if (dataTable.Rows.Count == 0) {
+				return null;
+			}
 
-			TICTunnelInfo tunnelInfo = null;
+			return dataRowToTunnelInfo(dataTable.Rows[0]);
+		}
+
+		public TICRouteInfo GetRouteInfo(Int64 routeId) {
+			if (routeId <= 0) {
+				return null;
+			}
+
+			DataTable dataTable = getDataTable("tic_routes", "WHERE id = '" + routeId + "'");
+			if (dataTable.Rows.Count == 0) {
+				return null;
+			}
+
+			return dataRowToRouteInfo(dataTable.Rows[0]);
+		}
+
+		public TICPopInfo GetPopInfo(string popId) {
+			if (popId == null) {
+				return null;
+			}
+
+			DataTable dataTable = getDataTable("tic_pops", "WHERE id = '" + popId + "'");
+			if (dataTable.Rows.Count == 0) {
+				return null;
+			}
+
+			return dataRowToPopInfo(dataTable.Rows[0]);
+		}
+
+
+		private DataTable getDataTable(string tableName, string whereString) {
+			string connectionString = "Data Source=" + _dbName;
+			string commandString = "SELECT * FROM " + tableName;
+			if (whereString != null) {
+				commandString += " " + whereString;
+			}
+
+			DataTable dataTable;
 			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) {
 				connection.Open();
 				using (SQLiteCommand command = new SQLiteCommand(connection)) {
@@ -287,127 +356,95 @@ namespace Nabla.Database {
 						adapter.Fill(dataSet, tableName);
 					}
 
-					foreach (DataRow dataRow in dataSet.Tables[tableName].Rows) {
-						tunnelInfo = new TICTunnelInfo();
-						tunnelInfo.TunnelId = (Int64) dataRow["id"];
-
-						tunnelInfo.IPv6EndPoint = IPAddress.Parse((string) dataRow["ipv6endpoint"]);
-						tunnelInfo.IPv6POP = IPAddress.Parse((string) dataRow["ipv6pop"]);
-						tunnelInfo.IPv6PrefixLength = (Int64) dataRow["ipv6prefixlen"];
-
-						tunnelInfo.TunnelMTU = (Int64) dataRow["mtu"];
-						tunnelInfo.TunnelName = (string) dataRow["name"];
-
-						tunnelInfo.POPId = (string) dataRow["popid"];
-						tunnelInfo.IPv4Endpoint = (string) dataRow["ipv4endpoint"];
-						tunnelInfo.IPv4POP = IPAddress.Parse((string) dataRow["ipv4pop"]);
-
-						tunnelInfo.UserEnabled = (bool) dataRow["userenabled"];
-						tunnelInfo.AdminEnabled = (bool) dataRow["adminenabled"];
-
-						tunnelInfo.Password = (string) dataRow["password"];
-						tunnelInfo.HeartbeatInterval = (Int64) dataRow["beatinterval"];
-
-						if (tunnelInfo.IPv4Endpoint.Equals("heartbeat")) {
-							tunnelInfo.Type = "6in4-heartbeat";
-						} else if (tunnelInfo.IPv4Endpoint.Equals("ayiya")) {
-							tunnelInfo.Type = "ayiya";
-						} else {
-							tunnelInfo.Type = "6in4";
-						}
-					}
+					dataTable = dataSet.Tables[tableName];
 				}
 				connection.Close();
+			}
+
+			return dataTable;
+		}
+
+		private TICUserInfo dataRowToUserInfo(DataRow dataRow) {
+			TICUserInfo userInfo = new TICUserInfo();
+			userInfo.UserId = (Int64) dataRow["id"];
+
+			userInfo.UserName = (string) dataRow["username"];
+			userInfo.Password = (string) dataRow["password"];
+			userInfo.FullName = (string) dataRow["fullname"];
+
+			return userInfo;
+		}
+
+		private TICTunnelInfo dataRowToTunnelInfo(DataRow dataRow) {
+			TICTunnelInfo tunnelInfo = new TICTunnelInfo();
+			tunnelInfo.TunnelId = (Int64) dataRow["id"];
+			tunnelInfo.OwnerId = (Int64) dataRow["ownerid"];
+
+			tunnelInfo.IPv6Endpoint = IPAddress.Parse((string) dataRow["ipv6endpoint"]);
+			tunnelInfo.IPv6POP = IPAddress.Parse((string) dataRow["ipv6pop"]);
+			tunnelInfo.IPv6PrefixLength = (Int64) dataRow["ipv6prefixlen"];
+
+			tunnelInfo.TunnelMTU = (Int64) dataRow["mtu"];
+			tunnelInfo.TunnelName = (string) dataRow["name"];
+
+			tunnelInfo.POPId = (string) dataRow["popid"];
+			tunnelInfo.IPv4Endpoint = (string) dataRow["ipv4endpoint"];
+			tunnelInfo.IPv4POP = IPAddress.Parse((string) dataRow["ipv4pop"]);
+
+			tunnelInfo.UserEnabled = (bool) dataRow["userenabled"];
+			tunnelInfo.AdminEnabled = (bool) dataRow["adminenabled"];
+
+			tunnelInfo.Password = (string) dataRow["password"];
+			tunnelInfo.HeartbeatInterval = (Int64) dataRow["beatinterval"];
+
+			if (tunnelInfo.IPv4Endpoint.Equals("heartbeat")) {
+				tunnelInfo.Type = "6in4-heartbeat";
+			} else if (tunnelInfo.IPv4Endpoint.Equals("ayiya")) {
+				tunnelInfo.Type = "ayiya";
+			} else {
+				tunnelInfo.Type = "6in4";
 			}
 
 			return tunnelInfo;
 		}
 
-		public TICRouteInfo GetRouteInfo(int routeId) {
-			string tableName = "tic_routes";
-			if (routeId <= 0) {
-				return null;
-			}
+		private TICRouteInfo dataRowToRouteInfo(DataRow dataRow) {
+			TICRouteInfo routeInfo = new TICRouteInfo();
+			routeInfo.RouteId = (Int64) dataRow["id"];
+			routeInfo.OwnerId = (Int64) dataRow["ownerid"];
+			routeInfo.TunnelId = (Int64) dataRow["tunnelid"];
 
-			string connectionString = "Data Source=" + _dbName;
-			string commandString = "SELECT * FROM " + tableName + " WHERE id = " + routeId;
+			routeInfo.IPv6Prefix = IPAddress.Parse((string) dataRow["ipv6prefix"]);
+			routeInfo.IPv6PrefixLength = (Int64) dataRow["ipv6prefixlen"];
 
-			TICRouteInfo routeInfo = null;
-			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) {
-				connection.Open();
-				using (SQLiteCommand command = new SQLiteCommand(connection)) {
-					command.CommandText = commandString;
+			routeInfo.Description = (string) dataRow["description"];
+			routeInfo.Created = (DateTime) dataRow["created"];
+			routeInfo.LastModified = (DateTime) dataRow["lastmodified"];
 
-					DataSet dataSet = new DataSet();
-					using (SQLiteDataAdapter adapter = new SQLiteDataAdapter()) {
-						adapter.SelectCommand = command;
-						adapter.Fill(dataSet, tableName);
-					}
-
-					foreach (DataRow dataRow in dataSet.Tables[tableName].Rows) {
-						routeInfo = new TICRouteInfo();
-						routeInfo.RouteId = (Int64) dataRow["id"];
-
-						routeInfo.IPv6Prefix = IPAddress.Parse((string) dataRow["ipv6prefix"]);
-						routeInfo.IPv6PrefixLength = (Int64) dataRow["ipv6prefixlen"];
-
-						routeInfo.Description = (string) dataRow["description"];
-						routeInfo.Created = (DateTime) dataRow["created"];
-						routeInfo.LastModified = (DateTime) dataRow["lastmodified"];
-
-						routeInfo.UserEnabled = (bool) dataRow["userenabled"];
-						routeInfo.AdminEnabled = (bool) dataRow["adminenabled"];
-					}
-				}
-				connection.Close();
-			}
+			routeInfo.UserEnabled = (bool) dataRow["userenabled"];
+			routeInfo.AdminEnabled = (bool) dataRow["adminenabled"];
 
 			return routeInfo;
 		}
 
-		public TICPopInfo GetPopInfo(string popId) {
-			string tableName = "tic_pops";
-			if (popId == null) {
-				return null;
-			}
+		private TICPopInfo dataRowToPopInfo(DataRow dataRow) {
+			TICPopInfo popInfo = new TICPopInfo();
+			popInfo.POPId = (string) dataRow["id"];
+			popInfo.City = (string) dataRow["city"];
+			popInfo.Country = (string) dataRow["country"];
 
-			string connectionString = "Data Source=" + _dbName;
-			string commandString = "SELECT * FROM " + tableName + " WHERE id = '" + popId + "'";
+			popInfo.IPv4 = IPAddress.Parse((string) dataRow["ipv4"]);
+			popInfo.IPv6 = IPAddress.Parse((string) dataRow["ipv6"]);
 
-			TICPopInfo popInfo = null;
-			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) {
-				connection.Open();
-				using (SQLiteCommand command = new SQLiteCommand(connection)) {
-					command.CommandText = commandString;
+			popInfo.HeartbeatSupport = (bool) dataRow["heartbeat"];
+			popInfo.TincSupport = (bool) dataRow["tinc"];
+			popInfo.MulticastSupport = (string) dataRow["multicast"];
 
-					DataSet dataSet = new DataSet();
-					using (SQLiteDataAdapter adapter = new SQLiteDataAdapter()) {
-						adapter.SelectCommand = command;
-						adapter.Fill(dataSet, tableName);
-					}
-
-					foreach (DataRow dataRow in dataSet.Tables[tableName].Rows) {
-						popInfo = new TICPopInfo();
-						popInfo.POPId = (string) dataRow["id"];
-						popInfo.City = (string) dataRow["city"];
-						popInfo.Country = (string) dataRow["country"];
-
-						popInfo.IPv4 = IPAddress.Parse((string) dataRow["ipv4"]);
-						popInfo.IPv6 = IPAddress.Parse((string) dataRow["ipv6"]);
-
-						popInfo.HeartbeatSupport = (bool) dataRow["heartbeat"];
-						popInfo.TincSupport = (bool) dataRow["tinc"];
-						popInfo.MulticastSupport = (string) dataRow["multicast"];
-
-						popInfo.ISPShort = (string) dataRow["ispshort"];
-						popInfo.ISPName = (string) dataRow["ispname"];
-						popInfo.ISPWebsite = (string) dataRow["ispwebsite"];
-						popInfo.ISPASNumber = (Int64) dataRow["ispasn"];
-						popInfo.ISPLIRId = (string) dataRow["isplir"];
-					}
-				}
-				connection.Close();
-			}
+			popInfo.ISPShort = (string) dataRow["ispshort"];
+			popInfo.ISPName = (string) dataRow["ispname"];
+			popInfo.ISPWebsite = (string) dataRow["ispwebsite"];
+			popInfo.ISPASNumber = (Int64) dataRow["ispasn"];
+			popInfo.ISPLIRId = (string) dataRow["isplir"];
 
 			return popInfo;
 		}

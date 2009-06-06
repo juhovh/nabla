@@ -21,16 +21,18 @@ using System.Net;
 
 namespace Nabla.Database {
 	public class TICUserInfo {
+		public Int64 UserId;
 		public string UserName;
 		public string Password;
 		public string FullName;
 	}
 
 	public class TICTunnelInfo {
+		public Int64 OwnerId;
 		public Int64 TunnelId;
 		public string Type;
 
-		public IPAddress IPv6EndPoint;
+		public IPAddress IPv6Endpoint;
 		public IPAddress IPv6POP;
 		public Int64 IPv6PrefixLength;
 
@@ -52,7 +54,7 @@ namespace Nabla.Database {
 
 			ret += "TunnelId: T" + TunnelId + "\n";
 			ret += "Type: " + Type + "\n";
-			ret += "IPv6 Endpoint: " + IPv6EndPoint + "\n";
+			ret += "IPv6 Endpoint: " + IPv6Endpoint + "\n";
 			ret += "IPv6 POP: " + IPv6POP + "\n";
 			ret += "IPv6 PrefixLength: " + IPv6PrefixLength + "\n";
 			ret += "Tunnel MTU: " + TunnelMTU + "\n";
@@ -70,6 +72,8 @@ namespace Nabla.Database {
 	}
 
 	public class TICRouteInfo {
+		public Int64 OwnerId;
+		public Int64 TunnelId;
 		public Int64 RouteId;
 		public IPAddress IPv6Prefix;
 		public Int64 IPv6PrefixLength;

@@ -18,8 +18,12 @@ public class TICDatabaseCreate {
 		userInfo.FullName = "Juho Vähä-Herttua";
 		db.AddUserInfo(userInfo);
 
+		/* This is to get the user ID correctly */
+		userInfo = db.GetUserInfo(userInfo.UserName);
+
 		TICTunnelInfo tunnelInfo = new TICTunnelInfo();
-		tunnelInfo.IPv6EndPoint = IPAddress.Parse("fec0::2");
+		tunnelInfo.OwnerId = userInfo.UserId;
+		tunnelInfo.IPv6Endpoint = IPAddress.Parse("fec0::2");
 		tunnelInfo.IPv6POP = IPAddress.Parse("fec0::1");
 		tunnelInfo.IPv6PrefixLength = 64;
 		tunnelInfo.TunnelMTU = 1280;
@@ -31,7 +35,12 @@ public class TICDatabaseCreate {
 		tunnelInfo.HeartbeatInterval = 60;
 		db.AddTunnelInfo(tunnelInfo);
 
+		/* This is to get the tunnel ID correctly */
+		tunnelInfo = db.ListTunnels(userInfo.UserId)[0];
+
 		TICRouteInfo routeInfo = new TICRouteInfo();
+		routeInfo.OwnerId = userInfo.UserId;
+		routeInfo.TunnelId = tunnelInfo.TunnelId;
 		routeInfo.IPv6Prefix = IPAddress.Parse("fec1::");
 		routeInfo.IPv6PrefixLength = 64;
 		routeInfo.Description = "This is a default route for a subnet";
