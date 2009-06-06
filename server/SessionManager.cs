@@ -169,7 +169,7 @@ namespace Nabla {
 					}
 				}
 				string str = Encoding.ASCII.GetString(data, 0, strlen);
-				if (str.IndexOf("HEARTBEAT TUNNEL ") != 0) {
+				if (!str.StartsWith("HEARTBEAT TUNNEL ")) {
 					Console.WriteLine("Heartbeat string not found");
 					return false;
 				}
