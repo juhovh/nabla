@@ -117,14 +117,10 @@ namespace Nabla {
 					return;
 				}
 
-				Console.WriteLine("Protocol type {0}, NAT identifier {0}",
-				                  packet.ProtocolType, packet.ExtNatID);
-
 				NATMapping m = _mapper.GetExtMapping(packet.ProtocolType,
 				                                     packet.ExtNatID);
 
 				if (m == null) {
-					Console.WriteLine("Unmapped IPv4 connection, drop packet");
 					return;
 				}
 
