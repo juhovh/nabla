@@ -330,7 +330,7 @@ namespace Nabla {
 
 				/* XXX: Check that the owner is correct */
 
-				string ret = "201 Showing tunnel information for T" + tunnelId;
+				string ret = "201 Showing tunnel information for T" + tunnelId + "\n";
 				ret += tunnelInfo.ToString();
 				ret += "202 Done";
 
@@ -398,7 +398,7 @@ namespace Nabla {
 
 				/* XXX: Check that the owner is correct */
 
-				string ret = "201 Showing route information for R" + routeId;
+				string ret = "201 Showing route information for R" + routeId + "\n";
 				ret += routeInfo.ToString();
 				ret += "202 Done";
 
@@ -421,7 +421,7 @@ namespace Nabla {
 					return "400 Unknown PoP '" + words[1] + "'";
 				}
 
-				string ret = "201 Showing PoP information for " + words[1];
+				string ret = "201 Showing PoP information for " + words[1] + "\n";
 				ret += popInfo.ToString();
 				ret += "202 Done";
 

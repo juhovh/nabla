@@ -27,25 +27,25 @@ namespace Nabla.Database {
 	}
 
 	public class TICTunnelInfo {
-		public int TunnelId;
+		public Int64 TunnelId;
 		public string Type;
 
 		public IPAddress IPv6EndPoint;
 		public IPAddress IPv6POP;
-		public int IPv6PrefixLength;
+		public Int64 IPv6PrefixLength;
 
-		public int TunnelMTU;
+		public Int64 TunnelMTU;
 		public string TunnelName;
 
 		public string POPId;
 		public string IPv4Endpoint;
 		public IPAddress IPv4POP;
 
-		public bool UserState;
-		public bool AdminState;
+		public bool UserEnabled;
+		public bool AdminEnabled;
 
 		public string Password;
-		public int HeartbeatInterval;
+		public Int64 HeartbeatInterval;
 
 		public override string ToString() {
 			string ret = "";
@@ -60,8 +60,8 @@ namespace Nabla.Database {
 			ret += "POP Id: " + POPId + "\n";
 			ret += "IPv4 Endpoint: " + IPv4Endpoint + "\n";
 			ret += "IPv4POP: " + IPv4POP + "\n";
-			ret += "UserState: " + (UserState ? "enabled" : "disabled") + "\n";
-			ret += "AdminState: " + (AdminState ? "enabled" : "disabled") + "\n";
+			ret += "UserState: " + (UserEnabled ? "enabled" : "disabled") + "\n";
+			ret += "AdminState: " + (AdminEnabled ? "enabled" : "disabled") + "\n";
 			ret += "Password: " + Password + "\n";
 			ret += "Heartbeat_Interval: " + HeartbeatInterval + "\n";
 
@@ -70,14 +70,14 @@ namespace Nabla.Database {
 	}
 
 	public class TICRouteInfo {
-		public int RouteId;
+		public Int64 RouteId;
 		public IPAddress IPv6Prefix;
-		public int IPv6PrefixLength;
+		public Int64 IPv6PrefixLength;
 		public string Description;
 		public DateTime Created;
 		public DateTime LastModified;
-		public bool UserState;
-		public bool AdminState;
+		public bool UserEnabled;
+		public bool AdminEnabled;
 
 		public override string ToString() {
 			string ret = "";
@@ -87,8 +87,8 @@ namespace Nabla.Database {
 			ret += "Description: " + Description + "\n";
 			ret += "Created: " + Created.ToString("s").Replace("T", " ") + "\n";
 			ret += "LastModified: " + LastModified.ToString("s").Replace("T", " ") + "\n";
-			ret += "UserState: " + (UserState ? "enabled" : "disabled") + "\n";
-			ret += "AdminState: " + (AdminState ? "enabled" : "disabled") + "\n";
+			ret += "UserState: " + (UserEnabled ? "enabled" : "disabled") + "\n";
+			ret += "AdminState: " + (AdminEnabled ? "enabled" : "disabled") + "\n";
 
 			return ret;
 		}
@@ -106,7 +106,7 @@ namespace Nabla.Database {
 		public string ISPShort;
 		public string ISPName;
 		public string ISPWebsite;
-		public int ISPASNumber;
+		public Int64 ISPASNumber;
 		public string ISPLIRId;
 
 		public override string ToString() {
