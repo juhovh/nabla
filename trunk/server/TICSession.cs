@@ -31,7 +31,11 @@ namespace Nabla {
 			Initial,
 			Challenge,
 			Authenticate,
-			Logged
+			Main,
+
+			Tunnel,
+			Route,
+			Pop
 		};
 
 		private class SessionInfo {
@@ -145,7 +149,18 @@ namespace Nabla {
 				}
 			} else if (words[0].Equals("help")) {
 				return getHelpString();
-			} else if (words[0].Equals("exit") || words[0].Equals("quit")) {
+			} else if (words[0].Equals("exit")) {
+				if (_state == SessionState.Tunnel ||
+				    _state == SessionState.Route ||
+				    _state == SessionState.Pop) {
+					_state = SessionState.Main;
+					return "200 Context set to main";
+				}
+
+				/* In other cases exit is equivalent to quit */
+				_running = false;
+				return "200 Thank you for using this " + _serviceName + " service";
+			} else if (words[0].Equals("quit")) {
 				_running = false;
 				return "200 Thank you for using this " + _serviceName + " service";
 			} else if (words[0].Equals("starttls") && _state == SessionState.Initial) {
@@ -243,47 +258,111 @@ namespace Nabla {
 
 				IPEndPoint endPoint = (IPEndPoint) _client.Client.RemoteEndPoint;
 
-				_state = SessionState.Logged;
+				_state = SessionState.Main;
 				string ret = "200 Succesfully logged in using " + info.ChallengeType;
 				ret += " as " + userInfo.UserName + " (" + userInfo.FullName + ")";
 				ret += " from " + endPoint.Address;
 				return ret;
-			} else if (words[0].Equals("tunnel") && _state == SessionState.Logged) {
-				return "400 Not implemented yet";
-			} else if (words[0].Equals("pop") && _state == SessionState.Logged) {
-				return "400 Not implemented yet";
+			} else if (words[0].Equals("tunnel") && _state == SessionState.Main) {
+				if (words.Length > 1) {
+					/* Execute the command directly in current context */
+					string[] tmp = new string[words.Length-1];
+					Array.Copy(words, 1, tmp, 0, tmp.Length);
+					return handleTunnelCommand(db, info, tmp);
+				}
+
+				_state = SessionState.Tunnel;
+				return "200 Context set to tunnel";
+			} else if (words[0].Equals("route") && _state == SessionState.Main) {
+				if (words.Length > 1) {
+					/* Execute the command directly in current context */
+					string[] tmp = new string[words.Length-1];
+					Array.Copy(words, 1, tmp, 0, tmp.Length);
+					return handleRouteCommand(db, info, tmp);
+				}
+
+				_state = SessionState.Route;
+				return "200 Context set to route";
+			} else if (words[0].Equals("pop") && _state == SessionState.Main) {
+				if (words.Length > 1) {
+					/* Execute the command directly in current context */
+					string[] tmp = new string[words.Length-1];
+					Array.Copy(words, 1, tmp, 0, tmp.Length);
+					return handlePopCommand(db, info, tmp);
+				}
+
+				_state = SessionState.Pop;
+				return "200 Context set to pop";
+			} else if (_state == SessionState.Tunnel) {
+				return handleTunnelCommand(db, info, words);
+			} else if (_state == SessionState.Route) {
+				return handleRouteCommand(db, info, words);
+			} else if (_state == SessionState.Pop) {
+				return handlePopCommand(db, info, words);
 			} else {
 				return "400 Unknown command: " + words[0];
 			}
 		}
 
+		private string handleTunnelCommand(TICDatabase db, SessionInfo info, string[] words) {
+			return "400 Not implemented yet";
+		}
+
+		private string handleRouteCommand(TICDatabase db, SessionInfo info, string[] words) {
+			return "400 Not implemented yet";
+		}
+
+		private string handlePopCommand(TICDatabase db, SessionInfo info, string[] words) {
+			return "400 Not implemented yet";
+		}
+
 		private string getHelpString() {
 			string ret = "201 Available commands\n";
+
+			string mainCommands = "";
+			mainCommands += "set prompt enabled|disabled\n";
+			mainCommands += "get unixtime\n";
 
 			switch (_state) {
 			case SessionState.Initial:
 				ret += "starttls\n";
 				ret += "client <name/version> <osname/osversion>\n";
 				ret += "username <nic-hdl>\n";
+				ret += mainCommands;
 				break;
 			case SessionState.Challenge:
 				ret += "challenge clear|md5\n";
+				ret += mainCommands;
 				break;
 			case SessionState.Authenticate:
 				ret += "authenticate clear|md5 <response>\n";
+				ret += mainCommands;
 				break;
-			case SessionState.Logged:
-				ret += "tunnel list\n";
-				ret += "tunnel show <tunnel-id>\n";
-				ret += "tunnel set <tunnel-id> endpoint {<new-ipv4>|current}\n";
-				ret += "tunnel set <tunnel-id> state {enabled|disabled}\n";
-				ret += "pop list\n";
-				ret += "pop show <pop-name>\n";
+			case SessionState.Main:
+				ret += "tunnel\n";
+				ret += "route\n";
+				ret += "pop\n";
+				ret += mainCommands;
+				break;
+			case SessionState.Tunnel:
+				ret += "list\n";
+				ret += "show <tunnel-id> endpoint {<new-ipv4>|heartbeat|ayiya}\n";
+				ret += "set <tunnel-id> state {enabled|disabled}\n";
+				ret += "set <tunnel-id> heartbeat <password>\n";
+				ret += "put <tunnel-id> publickey\n";
+				ret += "get <tunnel-id> publickey\n";
+				break;
+			case SessionState.Route:
+				ret += "list\n";
+				ret += "show <route-id>\n";
+				break;
+			case SessionState.Pop:
+				ret += "list\n";
+				ret += "show <popname>\n";
+				ret += "get <popname> publickey\n";
 				break;
 			}
 
-			ret += "set prompt enabled|disabled\n";
-			ret += "get unixtime\n";
 			ret += "help\n";
 			ret += "exit\n";
 			ret += "quit\n";
