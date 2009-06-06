@@ -82,7 +82,8 @@ endif
 
 nabla-server: nabla-rawsock
 ifneq ($(CSC),)
-	$(CSC) -lib:bin,lib -out:$(TARGET_server) -r:$(LIBS_server) $(SRCS_server)
+	cp lib/*.dll bin/
+	$(CSC) -lib:bin -out:$(TARGET_server) -r:$(LIBS_server) $(SRCS_server)
 endif
 
 nabla-rawsock:
