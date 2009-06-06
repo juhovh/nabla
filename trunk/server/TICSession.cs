@@ -89,21 +89,20 @@ namespace Nabla {
 		}
 
 		private void threadLoop() {
+			TICDatabase db = new TICDatabase("nabla.db");
 			SessionInfo info = new SessionInfo();
 
-			using (TICDatabase db = new TICDatabase("nabla.db")) {
-				while (_running) {
-					if (info.PromptEnabled) {
-						_writer.Write("config$ \n");
-					}
-
-					string line = _reader.ReadLine().Trim();
-					string[] words = line.Split(new char[] {' '},
-					                            StringSplitOptions.RemoveEmptyEntries);
-
-					string response = handleCommand(db, info, words);
-					_writer.Write(response + "\n");
+			while (_running) {
+				if (info.PromptEnabled) {
+					_writer.Write("config$ \n");
 				}
+
+				string line = _reader.ReadLine().Trim();
+				string[] words = line.Split(new char[] {' '},
+				                            StringSplitOptions.RemoveEmptyEntries);
+
+				string response = handleCommand(db, info, words);
+				_writer.Write(response + "\n");
 			}
 		}
 

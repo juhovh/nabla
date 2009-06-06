@@ -27,59 +27,64 @@ namespace Nabla.Database {
 		public string FullName;
 	}
 
-	public class TICDatabase : IDisposable {
-		SQLiteConnection _conn;
+	public class TICDatabase {
+		string _dbName;
 
-		public TICDatabase(string filename) {
-			_conn = new SQLiteConnection("Data Source=" + filename);
-			_conn.Open();
+		public TICDatabase(string dbName) {
+			_dbName = dbName;
 		}
 
 		public void CreateTables() {
-			using (SQLiteCommand command = new SQLiteCommand(_conn)) {
-				command.CommandText = "CREATE TABLE tic_users (id integer primary key autoincrement, username varchar(32), password varchar(32), fullname varchar(128))";
-				command.ExecuteNonQuery();
+			string connectionString = "Data Source=" + _dbName;
+			string commandString = "CREATE TABLE tic_users (" +
+				"id integer primary key autoincrement" +
+				", username varchar(32)" +
+				", password varchar(32)" +
+				", fullname varchar(128))";
+
+			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
+				connection.Open();
+				using (SQLiteCommand command = new SQLiteCommand(connection)) {
+					command.CommandText = commandString;
+					command.ExecuteNonQuery();
+				}
+				connection.Close();
 			}
 		}
 
 		public TICUserInfo GetUserInfo(string userName) {
 			string tableName = "tic_users";
-			TICUserInfo userInfo = null;
 
-			if (userName == null) {
-				userName = "*";
+			string connectionString = "Data Source=" + _dbName;
+			string commandString = "SELECT * FROM " + tableName;
+			if (userName != null) {
+				commandString += " WHERE username = " + userName;
 			}
 
-			using (SQLiteCommand command = new SQLiteCommand(_conn)) {
-				command.CommandText = "SELECT * FROM " + tableName + " WHERE username = " + userName;
+			TICUserInfo userInfo = null;
+			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) {
+				connection.Open();
+				using (SQLiteCommand command = new SQLiteCommand(connection)) {
+					command.CommandText = commandString;
 
-				SQLiteDataAdapter adapter = new SQLiteDataAdapter();
-				adapter.SelectCommand = command;
+					DataSet dataSet = new DataSet();
 
-				DataSet dataSet = new DataSet();
-				adapter.Fill(dataSet, tableName);
+					using (SQLiteDataAdapter adapter = new SQLiteDataAdapter()) {
+						adapter.SelectCommand = command;
+						adapter.Fill(dataSet, tableName);
+					}
 
-				foreach (DataRow dataRow in dataSet.Tables[tableName].Rows) {
-					userInfo = new TICUserInfo();
-					userInfo.UserName = dataRow["username"].ToString();
-					userInfo.Password = dataRow["password"].ToString();
-					userInfo.FullName = dataRow["fullname"].ToString();
+					foreach (DataRow dataRow in dataSet.Tables[tableName].Rows) {
+						userInfo = new TICUserInfo();
+						userInfo.UserName = dataRow["username"].ToString();
+						userInfo.Password = dataRow["password"].ToString();
+						userInfo.FullName = dataRow["fullname"].ToString();
+					}
 				}
+				connection.Close();
 			}
 
 			return userInfo;
-		}
-
-		public void Dispose() {
-			Dispose(true);
-			GC.SuppressFinalize(this);
-		}
-
-		protected virtual void Dispose(bool disposing) {
-			if (disposing) {
-				_conn.Close();
-				_conn.Dispose();
-			}
 		}
 	}
 }
