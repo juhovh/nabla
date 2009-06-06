@@ -146,6 +146,7 @@ namespace Nabla {
 			} else if (words[0].Equals("help")) {
 				return getHelpString();
 			} else if (words[0].Equals("exit") || words[0].Equals("quit")) {
+				_running = false;
 				return "200 Thank you for using this " + _serviceName + " service";
 			} else if (words[0].Equals("starttls") && _state == SessionState.Initial) {
 				return "400 This service is not SSL enabled (yet)";
@@ -202,7 +203,6 @@ namespace Nabla {
 					return "400 Challenge authentication type differs";
 				}
 
-				/* XXX: Check against the real user name pw in the db */
 				TICUserInfo userInfo = db.GetUserInfo(info.UserName);
 				if (userInfo == null) {
 					_state = SessionState.Initial;
@@ -246,13 +246,12 @@ namespace Nabla {
 					return "400 Login failed, login/password mismatch";
 				}
 
-				/* XXX: This should be gotten from the database or elsewhere */
-				string ipaddr = "127.0.0.1";
-				_state = SessionState.Logged;
+				IPEndPoint endPoint = (IPEndPoint) _client.Client.RemoteEndPoint;
 
+				_state = SessionState.Logged;
 				string ret = "200 Succesfully logged in using " + info.ChallengeType;
 				ret += " as " + userInfo.UserName + " (" + userInfo.FullName + ")";
-				ret += " from " + ipaddr;
+				ret += " from " + endPoint.Address;
 				return ret;
 			} else if (words[0].Equals("tunnel") && _state == SessionState.Logged) {
 				return "400 Not implemented yet";
