@@ -23,12 +23,6 @@ using System.Data.SQLite;
 using System.Security.Cryptography;
 
 namespace Nabla.Database {
-	public class TICUserInfo {
-		public string UserName;
-		public string Password;
-		public string FullName;
-	}
-
 	public class TICDatabase {
 		string _dbName;
 
