@@ -5,6 +5,7 @@ using Nabla;
 
 public class ParallelDeviceTest {
 	private static void Main(string[] args) {
+		Console.WriteLine("Date: " + DateTime.Now);
 		TICServer server = new TICServer();
 		server.Start();
 	}
