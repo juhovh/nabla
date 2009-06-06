@@ -17,8 +17,10 @@
  */
 
 using System;
+using System.Text;
 using System.Data;
 using System.Data.SQLite;
+using System.Security.Cryptography;
 
 namespace Nabla.Database {
 	public class TICUserInfo {
@@ -41,6 +43,31 @@ namespace Nabla.Database {
 				", username varchar(32)" +
 				", password varchar(32)" +
 				", fullname varchar(128))";
+
+			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
+				connection.Open();
+				using (SQLiteCommand command = new SQLiteCommand(connection)) {
+					command.CommandText = commandString;
+					command.ExecuteNonQuery();
+				}
+				connection.Close();
+			}
+		}
+
+		public void AddUserInfo(TICUserInfo userInfo) {
+			string tableName = "tic_users";
+
+			MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
+			byte[] pwBytes = Encoding.UTF8.GetBytes(userInfo.Password);
+			byte[] pwHashBytes = md5.ComputeHash(pwBytes);
+			string pwHash = BitConverter.ToString(pwHashBytes).Replace("-", "").ToLower();
+
+			string connectionString = "Data Source=" + _dbName;
+			string commandString = "INSERT INTO " + tableName +
+				" (username, password, fullname) VALUES (" +
+				"'" + userInfo.UserName + "', " +
+				"'" + pwHash + "', " +
+				"'" + userInfo.FullName + "')";
 
 			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
 				connection.Open();
