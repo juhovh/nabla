@@ -186,8 +186,13 @@ namespace Nabla {
 				if (words[1].Equals("clear")) {
 					return "200 Cleartext authentication has no challenge";
 				} else if (words[1].Equals("md5")) {
-					/* XXX: Get a real challenge instead */
-					info.Challenge = "foobar";
+					MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
+					byte[] challBytes = Encoding.ASCII.GetBytes(info.UserName + DateTime.Now);
+					byte[] hashBytes = md5.ComputeHash(challBytes);
+					string hashStr
+						= BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+
+					info.Challenge = hashStr;
 					return "200 " + info.Challenge;
 				} else {
 					_state = SessionState.Challenge;
@@ -220,22 +225,12 @@ namespace Nabla {
 
 					passwordMatch = theirHashStr.Equals(passwordHash);
 				} else if (words[1].Equals("md5")) {
-					byte[] ourBytes = Encoding.ASCII.GetBytes(passwordHash + info.Challenge);
+					byte[] ourBytes = Encoding.ASCII.GetBytes(info.Challenge + passwordHash);
 					byte[] ourHash = md5.ComputeHash(ourBytes);
 					string ourHashStr
 						= BitConverter.ToString(ourHash).Replace("-", "").ToLower();
 
-					byte[] pwBytes = _reader.CurrentEncoding.GetBytes(words[2]);
-					byte[] pwHashBytes = md5.ComputeHash(pwBytes);
-					byte[] challBytes = Encoding.ASCII.GetBytes(info.Challenge);
-
-					byte[] theirBytes = new byte[pwHashBytes.Length + challBytes.Length];
-					Array.Copy(theirBytes, 0, pwBytes, 0, pwBytes.Length);
-					Array.Copy(theirBytes, pwBytes.Length, challBytes, 0, challBytes.Length);
-					byte[] theirHash = md5.ComputeHash(theirBytes);
-					string theirHashStr
-						= BitConverter.ToString(theirHash).Replace("-", "").ToLower();
-
+					string theirHashStr = words[2];
 					passwordMatch = theirHashStr.Equals(ourHashStr);
 				} else {
 					return "400 Unknown authentication type: " + words[1];
