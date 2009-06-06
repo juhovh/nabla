@@ -11,7 +11,7 @@ SRCS_client := client/client.c client/tunnel.c client/tunnel_ipv4.c client/tunne
 SRCS_rawsock   := server/Sockets/rawsock.c
 SRCS_RawSocket := server/Sockets/RawSocket.cs server/Sockets/RawSocketNative.cs server/Sockets/RawSocketPcap.cs
 SRCS_server    := server/*.cs server/Database/*.cs
-LIBS_server    := System,System.Data.SQLite,Nabla.Sockets
+LIBS_server    := System,System.Data,System.Data.SQLite,Nabla.Sockets
 
 TARGET_ext :=
 TARGET_libpre := lib

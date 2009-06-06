@@ -21,14 +21,66 @@ using System.Data;
 using System.Data.SQLite;
 
 namespace Nabla.Database {
-	public class TICDatabase {
-		public TICDatabase() {
-			SQLiteConnection connection = new SQLiteConnection("Data Source=mydatabase.db");
-			connection.Open();
+	public class TICUserInfo {
+		public readonly string UserName;
+		public readonly string Password;
 
-			SQLiteCommand command = new SQLiteCommand(connection);
-			command.CommandText = "create table users (id integer primary key autoincrement, username varchar(32), password varchar(128))";
-			command.ExecuteNonQuery();
+		public TICUserInfo(string userName, string password) {
+			UserName = userName;
+			Password = password;
+		}
+	}
+
+	public class TICDatabase : IDisposable {
+		SQLiteConnection _conn;
+
+		public TICDatabase(string filename) {
+			_conn = new SQLiteConnection("Data Source=" + filename);
+			_conn.Open();
+		}
+
+		public void CreateTables() {
+			using (SQLiteCommand command = new SQLiteCommand(_conn)) {
+				command.CommandText = "create table tic_users (id integer primary key autoincrement, username varchar(32), password varchar(32))";
+				command.ExecuteNonQuery();
+			}
+		}
+
+		public TICUserInfo GetUserInfo(string userName) {
+			string tableName = "tic_users";
+			TICUserInfo userInfo = null;
+
+			if (userName == null) {
+				userName = "*";
+			}
+
+			using (SQLiteCommand command = new SQLiteCommand(_conn)) {
+				command.CommandText = "SELECT username, password FROM " + tableName + " WHERE username = " + userName;
+
+				SQLiteDataAdapter adapter = new SQLiteDataAdapter();
+				adapter.SelectCommand = command;
+
+				DataSet dataSet = new DataSet();
+				adapter.Fill(dataSet, tableName);
+
+				foreach (DataRow dataRow in dataSet.Tables[tableName].Rows) {
+					userInfo = new TICUserInfo(dataRow["username"].ToString(), dataRow["password"].ToString());
+				}
+			}
+
+			return userInfo;
+		}
+
+		public void Dispose() {
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		protected virtual void Dispose(bool disposing) {
+			if (disposing) {
+				_conn.Close();
+				_conn.Dispose();
+			}
 		}
 	}
 }
