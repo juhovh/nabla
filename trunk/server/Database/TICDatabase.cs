@@ -26,14 +26,19 @@ using System.Security.Cryptography;
 
 namespace Nabla.Database {
 	public class TICDatabase {
-		string _dbName;
+		private SQLiteConnection _connection;
 
 		public TICDatabase(string dbName) {
-			_dbName = dbName;
+			_connection = new SQLiteConnection("Data Source=" + dbName);
+			_connection.Open();
+		}
+
+		public void Cleanup() {
+			_connection.Close();
+			_connection.Dispose();
 		}
 
 		public void CreateTables() {
-			string connectionString = "Data Source=" + _dbName;
 			string userString = "CREATE TABLE tic_users (" +
 				"id integer primary key autoincrement" +
 				", username varchar(32)" +
@@ -80,19 +85,15 @@ namespace Nabla.Database {
 				", ispasn integer" +
 				", isplir varchar(32))";
 
-			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
-				connection.Open();
-				using (SQLiteCommand command = new SQLiteCommand(connection)) {
-					command.CommandText = userString;
-					command.ExecuteNonQuery();
-					command.CommandText = tunnelString;
-					command.ExecuteNonQuery();
-					command.CommandText = routeString;
-					command.ExecuteNonQuery();
-					command.CommandText = popString;
-					command.ExecuteNonQuery();
-				}
-				connection.Close();
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = userString;
+				command.ExecuteNonQuery();
+				command.CommandText = tunnelString;
+				command.ExecuteNonQuery();
+				command.CommandText = routeString;
+				command.ExecuteNonQuery();
+				command.CommandText = popString;
+				command.ExecuteNonQuery();
 			}
 		}
 
@@ -104,20 +105,15 @@ namespace Nabla.Database {
 			byte[] pwHashBytes = md5.ComputeHash(pwBytes);
 			string pwHash = BitConverter.ToString(pwHashBytes).Replace("-", "").ToLower();
 
-			string connectionString = "Data Source=" + _dbName;
 			string commandString = "INSERT INTO " + tableName +
 				" (username, password, fullname) VALUES (" +
 				"'" + userInfo.UserName + "', " +
 				"'" + pwHash + "', " +
 				"'" + userInfo.FullName + "')";
 
-			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
-				connection.Open();
-				using (SQLiteCommand command = new SQLiteCommand(connection)) {
-					command.CommandText = commandString;
-					command.ExecuteNonQuery();
-				}
-				connection.Close();
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = commandString;
+				command.ExecuteNonQuery();
 			}
 		}
 
@@ -129,7 +125,6 @@ namespace Nabla.Database {
 			byte[] pwHashBytes = md5.ComputeHash(pwBytes);
 			string pwHash = BitConverter.ToString(pwHashBytes).Replace("-", "").ToLower();
 
-			string connectionString = "Data Source=" + _dbName;
 			string commandString = "INSERT INTO " + tableName +
 				" (ownerid" +
 				", ipv6endpoint, ipv6pop, ipv6prefixlen" +
@@ -157,13 +152,9 @@ namespace Nabla.Database {
 				"'" + pwHash + "', " +
 				tunnelInfo.HeartbeatInterval + ")";
 
-			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
-				connection.Open();
-				using (SQLiteCommand command = new SQLiteCommand(connection)) {
-					command.CommandText = commandString;
-					command.ExecuteNonQuery();
-				}
-				connection.Close();
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = commandString;
+				command.ExecuteNonQuery();
 			}
 		}
 
@@ -173,7 +164,6 @@ namespace Nabla.Database {
 			routeInfo.Created = DateTime.UtcNow;
 			routeInfo.LastModified = DateTime.UtcNow;
 
-			string connectionString = "Data Source=" + _dbName;
 			string commandString = "INSERT INTO " + tableName +
 				" (ownerid, tunnelid" +
 				", ipv6prefix, ipv6prefixlen" +
@@ -195,20 +185,15 @@ namespace Nabla.Database {
 				"'" + (routeInfo.UserEnabled ? "true" : "false") + "', " +
 				"'" + (routeInfo.AdminEnabled ? "true" : "false") + "')";
 
-			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
-				connection.Open();
-				using (SQLiteCommand command = new SQLiteCommand(connection)) {
-					command.CommandText = commandString;
-					command.ExecuteNonQuery();
-				}
-				connection.Close();
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = commandString;
+				command.ExecuteNonQuery();
 			}
 		}
 
 		public void AddPopInfo(TICPopInfo popInfo) {
 			string tableName = "tic_pops";
 
-			string connectionString = "Data Source=" + _dbName;
 			string commandString = "INSERT INTO " + tableName +
 				" (id, city, country" +
 				", ipv4, ipv6" +
@@ -233,13 +218,9 @@ namespace Nabla.Database {
 				popInfo.ISPASNumber + ", " +
 				"'" + popInfo.ISPLIRId + "')";
 
-			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) { 
-				connection.Open();
-				using (SQLiteCommand command = new SQLiteCommand(connection)) {
-					command.CommandText = commandString;
-					command.ExecuteNonQuery();
-				}
-				connection.Close();
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = commandString;
+				command.ExecuteNonQuery();
 			}
 		}
 
@@ -338,27 +319,22 @@ namespace Nabla.Database {
 
 
 		private DataTable getDataTable(string tableName, string whereString) {
-			string connectionString = "Data Source=" + _dbName;
 			string commandString = "SELECT * FROM " + tableName;
 			if (whereString != null) {
 				commandString += " " + whereString;
 			}
 
 			DataTable dataTable;
-			using (SQLiteConnection connection = new SQLiteConnection(connectionString)) {
-				connection.Open();
-				using (SQLiteCommand command = new SQLiteCommand(connection)) {
-					command.CommandText = commandString;
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = commandString;
 
-					DataSet dataSet = new DataSet();
-					using (SQLiteDataAdapter adapter = new SQLiteDataAdapter()) {
-						adapter.SelectCommand = command;
-						adapter.Fill(dataSet, tableName);
-					}
-
-					dataTable = dataSet.Tables[tableName];
+				DataSet dataSet = new DataSet();
+				using (SQLiteDataAdapter adapter = new SQLiteDataAdapter()) {
+					adapter.SelectCommand = command;
+					adapter.Fill(dataSet, tableName);
 				}
-				connection.Close();
+
+				dataTable = dataSet.Tables[tableName];
 			}
 
 			return dataTable;
