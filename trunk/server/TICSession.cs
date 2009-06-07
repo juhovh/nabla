@@ -19,9 +19,7 @@
 using System;
 using System.IO;
 using System.Net;
-using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 using System.Security.Cryptography;
 using Nabla.Database;
 
@@ -40,6 +38,7 @@ namespace Nabla {
 
 		private class SessionInfo {
 			public SessionState State = SessionState.Initial;
+			public string Source;
 
 			public bool PromptEnabled;
 			public string ClientName;
@@ -54,68 +53,46 @@ namespace Nabla {
 			public Int64 UserId;
 		}
 
-		private TcpClient _client;
-		private StreamReader _reader;
-		private StreamWriter _writer;
-
 		private string _serviceName;
 		private string _serviceUrl;
 
-		private Object _runlock = new Object();
-		private volatile bool _running = false;
+		private volatile bool _running;
 
-		private Thread _thread;
-
-		public TICSession(TcpClient client, string serviceName, string serviceUrl) {
-			_client = client;
-			_reader = new StreamReader(client.GetStream());
-			_writer = new StreamWriter(client.GetStream());
-
+		public TICSession(string serviceName, string serviceUrl) {
 			_serviceName = serviceName;
 			_serviceUrl = serviceUrl;
-
-			_thread = new Thread(new ThreadStart(threadLoop));
 		}
 
-		public void Start() {
-			lock (_runlock) {
-				_running = true;
-				_thread.Start();
-			}
-			
+		public void StopLoop() {
+			_running = false;
 		}
 
-		public void Stop() {
-			lock (_runlock) {
-				_running = false;
-				_thread.Join();
-			}
-		}
-
-		private void threadLoop() {
+		public void SessionLoop(string source, TextReader reader, TextWriter writer) {
 			TICDatabase db = new TICDatabase("nabla.db");
+
 			SessionInfo info = new SessionInfo();
+			info.Source = source;
 
 			/* Write the initial welcome line */
-			_writer.WriteLine("200 " + _serviceName + " TIC Service on " + Dns.GetHostName() + " ready (" + _serviceUrl + ")");
-			_writer.Flush();
+			writer.WriteLine("200 " + _serviceName + " TIC Service on " + Dns.GetHostName() + " ready (" + _serviceUrl + ")");
+			writer.Flush();
 
+			_running = true;
 			while (_running) {
 				if (info.PromptEnabled) {
-					_writer.Write("config$ \n");
+					writer.Write("config$ \n");
 				}
 
-				string line = _reader.ReadLine().Trim();
+				string line = reader.ReadLine().Trim();
 				string[] words = line.Split(new char[] {' '},
 				                            StringSplitOptions.RemoveEmptyEntries);
 
 				string response = handleCommand(db, info, words);
-				_writer.Write(response + "\n");
-				_writer.Flush();
+				writer.Write(response + "\n");
+				writer.Flush();
 			}
 
 			db.Cleanup();
-			_client.Close();
 		}
 
 		private string handleCommand(TICDatabase db, SessionInfo info, string[] words) {
@@ -236,7 +213,7 @@ namespace Nabla {
 				string passwordHash = userInfo.Password;
 				MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
 				if (words[1].Equals("clear")) {
-					byte[] pwBytes = _reader.CurrentEncoding.GetBytes(words[2]);
+					byte[] pwBytes = Encoding.UTF8.GetBytes(words[2]);
 					byte[] theirHash = md5.ComputeHash(pwBytes);
 					string theirHashStr
 						= BitConverter.ToString(theirHash).Replace("-", "").ToLower();
@@ -262,10 +239,9 @@ namespace Nabla {
 				info.UserId = userInfo.UserId;
 				info.State = SessionState.Main;
 
-				IPEndPoint endPoint = (IPEndPoint) _client.Client.RemoteEndPoint;
 				string ret = "200 Succesfully logged in using " + info.ChallengeType;
 				ret += " as " + userInfo.UserName + " (" + userInfo.FullName + ")";
-				ret += " from " + endPoint.Address;
+				ret += " from " + info.Source;
 				return ret;
 			} else if (words[0].Equals("tunnel") && info.State == SessionState.Main) {
 				if (words.Length > 1) {
