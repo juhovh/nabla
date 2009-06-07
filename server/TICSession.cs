@@ -114,6 +114,7 @@ namespace Nabla {
 				_writer.Flush();
 			}
 
+			db.Cleanup();
 			_client.Close();
 		}
 

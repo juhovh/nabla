@@ -61,6 +61,8 @@ public class TICDatabaseCreate {
 		popInfo.ISPASNumber = 1234;
 		popInfo.ISPLIRId = "id.test";
 		db.AddPopInfo(popInfo);
+
+		db.Cleanup();
 	}
 }
 
