@@ -55,8 +55,8 @@ namespace Nabla.Database {
 				", popid varchar(8)" +
 				", ipv4endpoint varchar(15)" +
 				", ipv4pop varchar(15)" +
-				", userenabled boolean" +
-				", adminenabled boolean" +
+				", userstate varchar(8)" +
+				", adminstate varchar(8)" +
 				", password varchar(32)" +
 				", beatinterval integer)";
 			string routeString = "CREATE TABLE tic_routes (" +
@@ -68,8 +68,8 @@ namespace Nabla.Database {
 				", description varchar(512)" +
 				", created datetime" +
 				", lastmodified datetime" +
-				", userenabled boolean" +
-				", adminenabled boolean)";
+				", userstate varchar(8)" +
+				", adminstate varchar(8))";
 			string popString = "CREATE TABLE tic_pops (" +
 				"id varchar(8) primary key" +
 				", city varchar(32)" +
@@ -130,7 +130,7 @@ namespace Nabla.Database {
 				", ipv6endpoint, ipv6pop, ipv6prefixlen" +
 				", mtu, name, popid" +
 				", ipv4endpoint, ipv4pop" +
-				", userenabled, adminenabled" +
+				", userstate, adminstate" +
 				", password, beatinterval" +
 				") VALUES (" +
 				tunnelInfo.OwnerId + ", " +
@@ -146,8 +146,8 @@ namespace Nabla.Database {
 				"'" + tunnelInfo.IPv4Endpoint + "', " +
 				"'" + tunnelInfo.IPv4POP + "', " +
 
-				"'" + (tunnelInfo.UserEnabled ? "true" : "false") + "', " +
-				"'" + (tunnelInfo.AdminEnabled ? "true" : "false") + "', " +
+				"'" + (tunnelInfo.UserEnabled ? "enabled" : "disabled") + "', " +
+				"'" + (tunnelInfo.AdminEnabled ? "enabled" : "disabled") + "', " +
 
 				"'" + pwHash + "', " +
 				tunnelInfo.HeartbeatInterval + ")";
@@ -169,7 +169,7 @@ namespace Nabla.Database {
 				", ipv6prefix, ipv6prefixlen" +
 				", description" +
 				", created, lastmodified" +
-				", userenabled, adminenabled" +
+				", userstate, adminstate" +
 				") VALUES (" +
 				routeInfo.OwnerId + ", " +
 				routeInfo.TunnelId + ", " +
@@ -182,8 +182,8 @@ namespace Nabla.Database {
 				"datetime('" + routeInfo.Created.ToString("s") + "'), " +
 				"datetime('" + routeInfo.LastModified.ToString("s") + "'), " +
 
-				"'" + (routeInfo.UserEnabled ? "true" : "false") + "', " +
-				"'" + (routeInfo.AdminEnabled ? "true" : "false") + "')";
+				"'" + (routeInfo.UserEnabled ? "enabled" : "disabled") + "', " +
+				"'" + (routeInfo.AdminEnabled ? "enabled" : "disabled") + "')";
 
 			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
 				command.CommandText = commandString;
@@ -317,6 +317,27 @@ namespace Nabla.Database {
 			return dataRowToPopInfo(dataTable.Rows[0]);
 		}
 
+		public void UpdateTunnelIPv4Endpoint(Int64 tunnelId, string endpoint) {
+			string commandString = "UPDATE tic_tunnels";
+			commandString += " SET ipv4endpoint='" + endpoint + "'";
+			commandString += " WHERE id=" + tunnelId;
+
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = commandString;
+				command.ExecuteNonQuery();
+			}
+		}
+
+		public void UpdateTunnelUserEnabled(Int64 tunnelId, bool enabled) {
+			string commandString = "UPDATE tic_tunnels";
+			commandString += " SET userstate='" + (enabled ? "enabled" : "disabled") + "'";
+			commandString += " WHERE id=" + tunnelId;
+
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = commandString;
+				command.ExecuteNonQuery();
+			}
+		}
 
 		private DataTable getDataTable(string tableName, string whereString) {
 			string commandString = "SELECT * FROM " + tableName;
@@ -367,8 +388,11 @@ namespace Nabla.Database {
 			tunnelInfo.IPv4Endpoint = (string) dataRow["ipv4endpoint"];
 			tunnelInfo.IPv4POP = IPAddress.Parse((string) dataRow["ipv4pop"]);
 
-			tunnelInfo.UserEnabled = (bool) dataRow["userenabled"];
-			tunnelInfo.AdminEnabled = (bool) dataRow["adminenabled"];
+			string userState = (string) dataRow["userstate"];
+			tunnelInfo.UserEnabled = userState.Equals("enabled");
+
+			string adminState = (string) dataRow["adminstate"];
+			tunnelInfo.AdminEnabled = adminState.Equals("enabled");
 
 			tunnelInfo.Password = (string) dataRow["password"];
 			tunnelInfo.HeartbeatInterval = (Int64) dataRow["beatinterval"];
@@ -397,8 +421,11 @@ namespace Nabla.Database {
 			routeInfo.Created = (DateTime) dataRow["created"];
 			routeInfo.LastModified = (DateTime) dataRow["lastmodified"];
 
-			routeInfo.UserEnabled = (bool) dataRow["userenabled"];
-			routeInfo.AdminEnabled = (bool) dataRow["adminenabled"];
+			string userState = (string) dataRow["userstate"];
+			routeInfo.UserEnabled = userState.Equals("enabled");
+
+			string adminState = (string) dataRow["adminstate"];
+			routeInfo.AdminEnabled = adminState.Equals("enabled");
 
 			return routeInfo;
 		}

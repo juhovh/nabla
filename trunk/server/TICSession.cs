@@ -19,6 +19,7 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Security.Cryptography;
 using Nabla.Database;
@@ -98,35 +99,6 @@ namespace Nabla {
 		private string handleCommand(TICDatabase db, SessionInfo info, string[] words) {
 			if (words.Length == 0) {
 				return "200 Empty line, please enter at least something we accept";
-			} else if (words[0].Equals("set")) {
-				if (words.Length != 3) {
-					return "400 'set' requires two arguments";
-				}
-
-				if (words[1].Equals("prompt")) {
-					if (words[2].Equals("enabled")) {
-						info.PromptEnabled = true;
-						return "200 Prompt enabled";
-					} else if (words[2].Equals("disabled")) {
-						info.PromptEnabled = false;
-						return "200 Prompt disabled";
-					} else {
-						return "400 Can only be enabled or disabled";
-					}
-				} else {
-					return "400 No such option '" + words[1] + "' to set";
-				}
-			} else if (words[0].Equals("get")) {
-				if (words.Length != 2) {
-					return "400 'get' requires one argument";
-				}
-
-				if (words[1].Equals("unixtime")) {
-					UInt32 time = (UInt32) (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
-					return "200 " + time;
-				} else {
-					return "400 No such option '" + words[1] + "' to get";
-				}
 			} else if (words[0].Equals("help")) {
 				return getHelpString(info);
 			} else if (words[0].Equals("exit")) {
@@ -279,6 +251,35 @@ namespace Nabla {
 				return handleRouteCommand(db, info, words);
 			} else if (info.State == SessionState.Pop) {
 				return handlePopCommand(db, info, words);
+			} else if (words[0].Equals("set")) {
+				if (words.Length != 3) {
+					return "400 'set' requires two arguments";
+				}
+
+				if (words[1].Equals("prompt")) {
+					if (words[2].Equals("enabled")) {
+						info.PromptEnabled = true;
+						return "200 Prompt enabled";
+					} else if (words[2].Equals("disabled")) {
+						info.PromptEnabled = false;
+						return "200 Prompt disabled";
+					} else {
+						return "400 Can only be enabled or disabled";
+					}
+				} else {
+					return "400 No such option '" + words[1] + "' to set";
+				}
+			} else if (words[0].Equals("get")) {
+				if (words.Length != 2) {
+					return "400 'get' requires one argument";
+				}
+
+				if (words[1].Equals("unixtime")) {
+					UInt32 time = (UInt32) (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+					return "200 " + time;
+				} else {
+					return "400 No such option '" + words[1] + "' to get";
+				}
 			} else {
 				return "400 Unknown command: " + words[0];
 			}
@@ -330,10 +331,63 @@ namespace Nabla {
 					return "400 set requires 3 arguments";
 				}
 
+				int tunnelId = 0;
+				try {
+					if (words[1].StartsWith("T")) {
+						tunnelId = int.Parse(words[1].Substring(1));
+					} else {
+						tunnelId = int.Parse(words[1]);
+					}
+				} catch (Exception) {
+					return "400 Given tunnel id '" + words[1] + "' is not valid";
+				}
+
+				TICTunnelInfo tunnelInfo = db.GetTunnelInfo(tunnelId);
+				if (tunnelInfo == null) {
+					return "400 Unknown tunnel endpoint T" + tunnelId;
+				}
+
 				if (words[2].Equals("endpoint")) {
-					return "400 Not implemented yet";
+					if (!words[3].Equals("heartbeat") && !words[3].Equals("ayiya")) {
+						bool valid = false;
+						try {
+							IPAddress addr = IPAddress.Parse(words[3]);
+							if (addr.AddressFamily == AddressFamily.InterNetwork) {
+								byte[] b = addr.GetAddressBytes();
+								if (b[0] == 10 ||
+								    (b[0] == 172 && (b[1]&0xf0) == 0x10) ||
+								    (b[0] == 192 && b[1] == 168)) {
+									return "400 RFC1918 Address";
+								} else {
+									valid = true;
+								}
+							}
+						} catch (Exception) {}
+
+						if (!valid) {
+							return "400 invalid IPv4 address";
+						}
+					}
+
+					db.UpdateTunnelIPv4Endpoint(tunnelId, words[3]);
+					return "200 Endpoint of T" + tunnelId + " changed to " + words[3];
 				} else if (words[2].Equals("state")) {
-					return "400 Not implemented yet";
+					bool enabled;
+
+					if (words[3].Equals("enabled")) {
+						enabled = true;
+					} else if (words[3].Equals("disabled")) {
+						enabled = false;
+					} else {
+						return "400 Defined state " + words[3] + " unknown";
+					}
+
+					if (tunnelInfo.UserEnabled == enabled) {
+						return "400 Tunnel was already in the requested state";
+					}
+
+					db.UpdateTunnelUserEnabled(tunnelId, enabled);
+					return "State of T" + tunnelId + " changed to " + words[3];
 				} else {
 					return "400 " + words[2] + " is not a known variable";
 				}
