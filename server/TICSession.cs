@@ -39,6 +39,8 @@ namespace Nabla {
 		};
 
 		private class SessionInfo {
+			public SessionState State = SessionState.Initial;
+
 			public bool PromptEnabled;
 			public string ClientName;
 			public string ClientVersion;
@@ -63,8 +65,6 @@ namespace Nabla {
 		private volatile bool _running = false;
 
 		private Thread _thread;
-
-		private SessionState _state = SessionState.Initial;
 
 		public TICSession(TcpClient client, string serviceName, string serviceUrl) {
 			_client = client;
@@ -150,12 +150,12 @@ namespace Nabla {
 					return "400 No such option '" + words[1] + "' to get";
 				}
 			} else if (words[0].Equals("help")) {
-				return getHelpString();
+				return getHelpString(info);
 			} else if (words[0].Equals("exit")) {
-				if (_state == SessionState.Tunnel ||
-				    _state == SessionState.Route ||
-				    _state == SessionState.Pop) {
-					_state = SessionState.Main;
+				if (info.State == SessionState.Tunnel ||
+				    info.State == SessionState.Route ||
+				    info.State == SessionState.Pop) {
+					info.State = SessionState.Main;
 					return "200 Context set to main";
 				}
 
@@ -165,9 +165,9 @@ namespace Nabla {
 			} else if (words[0].Equals("quit")) {
 				_running = false;
 				return "200 Thank you for using this " + _serviceName + " service";
-			} else if (words[0].Equals("starttls") && _state == SessionState.Initial) {
+			} else if (words[0].Equals("starttls") && info.State == SessionState.Initial) {
 				return "400 This service is not SSL enabled (yet)";
-			} else if (words[0].Equals("client") && _state == SessionState.Initial) {
+			} else if (words[0].Equals("client") && info.State == SessionState.Initial) {
 				if (words.Length < 2 || !words[1].Contains("/")) {
 					return "400 A valid client identifier is expected";
 				}
@@ -183,22 +183,22 @@ namespace Nabla {
 				}
 
 				return "200 Client Identity accepted";
-			} else if (words[0].Equals("username") && _state == SessionState.Initial) {
+			} else if (words[0].Equals("username") && info.State == SessionState.Initial) {
 				if (words.Length != 2) {
 					return "400 A username is expected";
 				}
 
 				info.UserName = words[1];
-				_state = SessionState.Challenge;
+				info.State = SessionState.Challenge;
 
 				return "200 Choose your authentication challenge please";
-			} else if (words[0].Equals("challenge") && _state == SessionState.Challenge) {
+			} else if (words[0].Equals("challenge") && info.State == SessionState.Challenge) {
 				if (words.Length != 2) {
 					return "400 Challenge expects a authentication type";
 				}
 
 				info.ChallengeType = words[1];
-				_state = SessionState.Authenticate;
+				info.State = SessionState.Authenticate;
 
 				if (words[1].Equals("clear")) {
 					return "200 Cleartext authentication has no challenge";
@@ -212,22 +212,22 @@ namespace Nabla {
 					info.Challenge = hashStr;
 					return "200 " + info.Challenge;
 				} else {
-					_state = SessionState.Challenge;
+					info.State = SessionState.Challenge;
 					return "400 Unknown authentication type: " + words[1];
 				}
-			} else if (words[0].Equals("authenticate") && _state == SessionState.Authenticate) {
+			} else if (words[0].Equals("authenticate") && info.State == SessionState.Authenticate) {
 				if (words.Length != 3) {
 					return "400 Authenticate requires 2 arguments";
 				}
 
 				if (!words[1].Equals(info.ChallengeType)) {
-					_state = SessionState.Challenge;
+					info.State = SessionState.Challenge;
 					return "400 Challenge authentication type differs";
 				}
 
 				TICUserInfo userInfo = db.GetUserInfo(info.UserName);
 				if (userInfo == null) {
-					_state = SessionState.Initial;
+					info.State = SessionState.Initial;
 					return "400 User " + info.UserName + " does not exist in the DB.";
 				}
 	
@@ -254,19 +254,19 @@ namespace Nabla {
 				}
 
 				if (!passwordMatch) {
-					_state = SessionState.Initial;
+					info.State = SessionState.Initial;
 					return "400 Login failed, login/password mismatch";
 				}
 
 				info.UserId = userInfo.UserId;
-				_state = SessionState.Main;
+				info.State = SessionState.Main;
 
 				IPEndPoint endPoint = (IPEndPoint) _client.Client.RemoteEndPoint;
 				string ret = "200 Succesfully logged in using " + info.ChallengeType;
 				ret += " as " + userInfo.UserName + " (" + userInfo.FullName + ")";
 				ret += " from " + endPoint.Address;
 				return ret;
-			} else if (words[0].Equals("tunnel") && _state == SessionState.Main) {
+			} else if (words[0].Equals("tunnel") && info.State == SessionState.Main) {
 				if (words.Length > 1) {
 					/* Execute the command directly in current context */
 					string[] tmp = new string[words.Length-1];
@@ -274,9 +274,9 @@ namespace Nabla {
 					return handleTunnelCommand(db, info, tmp);
 				}
 
-				_state = SessionState.Tunnel;
+				info.State = SessionState.Tunnel;
 				return "200 Context set to tunnel";
-			} else if (words[0].Equals("route") && _state == SessionState.Main) {
+			} else if (words[0].Equals("route") && info.State == SessionState.Main) {
 				if (words.Length > 1) {
 					/* Execute the command directly in current context */
 					string[] tmp = new string[words.Length-1];
@@ -284,9 +284,9 @@ namespace Nabla {
 					return handleRouteCommand(db, info, tmp);
 				}
 
-				_state = SessionState.Route;
+				info.State = SessionState.Route;
 				return "200 Context set to route";
-			} else if (words[0].Equals("pop") && _state == SessionState.Main) {
+			} else if (words[0].Equals("pop") && info.State == SessionState.Main) {
 				if (words.Length > 1) {
 					/* Execute the command directly in current context */
 					string[] tmp = new string[words.Length-1];
@@ -294,13 +294,13 @@ namespace Nabla {
 					return handlePopCommand(db, info, tmp);
 				}
 
-				_state = SessionState.Pop;
+				info.State = SessionState.Pop;
 				return "200 Context set to pop";
-			} else if (_state == SessionState.Tunnel) {
+			} else if (info.State == SessionState.Tunnel) {
 				return handleTunnelCommand(db, info, words);
-			} else if (_state == SessionState.Route) {
+			} else if (info.State == SessionState.Route) {
 				return handleRouteCommand(db, info, words);
-			} else if (_state == SessionState.Pop) {
+			} else if (info.State == SessionState.Pop) {
 				return handlePopCommand(db, info, words);
 			} else {
 				return "400 Unknown command: " + words[0];
@@ -472,14 +472,14 @@ namespace Nabla {
 			}
 		}
 
-		private string getHelpString() {
+		private string getHelpString(SessionInfo info) {
 			string ret = "201 Available commands\n";
 
 			string mainCommands = "";
 			mainCommands += "set prompt enabled|disabled\n";
 			mainCommands += "get unixtime\n";
 
-			switch (_state) {
+			switch (info.State) {
 			case SessionState.Initial:
 				ret += "starttls\n";
 				ret += "client <name/version> <osname/osversion>\n";
