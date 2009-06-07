@@ -17,6 +17,7 @@
  */
 
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -34,7 +35,7 @@ namespace Nabla {
 
 		public TICServer(int port) {
 			_listener = new TcpListener(IPAddress.Any, port);
-			_thread = new Thread(new ThreadStart(threadLoop));
+			_thread = new Thread(new ThreadStart(listenerThread));
 		}
 
 		public void Start() {
@@ -53,12 +54,28 @@ namespace Nabla {
 			}
 		}
 
-		private void threadLoop() {
+		private void listenerThread() {
 			while (_running) {
 				TcpClient client = _listener.AcceptTcpClient();
-				TICSession session = new TICSession(client, "Nabla", "http://code.google.com/p/nabla/");
-				session.Start();
+
+				Thread thread = new Thread(new ParameterizedThreadStart(sessionThread));
+				thread.Start(client);
 			}
+		}
+
+		private void sessionThread(object data) {
+			TcpClient client = (TcpClient) data;
+
+			TICSession session = new TICSession("Nabla", "http://code.google.com/p/nabla/");
+
+			IPEndPoint endPoint = (IPEndPoint) client.Client.RemoteEndPoint;
+			string source = endPoint.Address.ToString();
+			StreamReader reader = new StreamReader(client.GetStream());
+			StreamWriter writer = new StreamWriter(client.GetStream());
+
+			session.SessionLoop(source, reader, writer);
+
+			client.Close();
 		}
 	}
 }
