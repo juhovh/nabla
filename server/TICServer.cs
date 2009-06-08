@@ -70,8 +70,7 @@ namespace Nabla {
 			string serviceUrl = "http://code.google.com/p/nabla/";
 
 			IPEndPoint endPoint = (IPEndPoint) client.Client.RemoteEndPoint;
-			string source = endPoint.Address.ToString();
-			TICSession session = new TICSession(serviceName, source);
+			TICSession session = new TICSession(serviceName, endPoint.Address);
 
 			StreamReader reader = new StreamReader(client.GetStream());
 			StreamWriter writer = new StreamWriter(client.GetStream());

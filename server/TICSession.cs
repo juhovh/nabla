@@ -39,7 +39,7 @@ namespace Nabla {
 
 		private class SessionInfo {
 			public SessionState State = SessionState.Initial;
-			public string Source;
+			public IPAddress SourceAddress;
 
 			public bool PromptEnabled;
 			public string ClientName;
@@ -59,10 +59,10 @@ namespace Nabla {
 		private SessionInfo _sessionInfo;
 		private bool _finished = false;
 
-		public TICSession(string serviceName, string source) {
+		public TICSession(string serviceName, IPAddress source) {
 			_db = new TICDatabase("nabla.db");
 			_sessionInfo = new SessionInfo();
-			_sessionInfo.Source = source;
+			_sessionInfo.SourceAddress = source;
 		}
 
 		public void Cleanup() {
@@ -201,7 +201,7 @@ namespace Nabla {
 
 				string ret = "200 Succesfully logged in using " + _sessionInfo.ChallengeType;
 				ret += " as " + userInfo.UserName + " (" + userInfo.FullName + ")";
-				ret += " from " + _sessionInfo.Source;
+				ret += " from " + _sessionInfo.SourceAddress;
 				return ret;
 			} else if (words[0].Equals("tunnel") && _sessionInfo.State == SessionState.Main) {
 				if (words.Length > 1) {

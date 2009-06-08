@@ -69,10 +69,11 @@ namespace Nabla {
 			int buflen = 0;
 
 			TcpClient client = (TcpClient) data;
-			TSPSession session = new TSPSession();
+
+			IPEndPoint endPoint = (IPEndPoint) client.Client.RemoteEndPoint;
+			TSPSession session = new TSPSession(ProtocolType.Tcp, endPoint.Address);
 
 			Stream stream = client.GetStream();
-			StreamWriter writer = new StreamWriter(client.GetStream());
 
 			while (!session.Finished()) {
 				int read = stream.Read(buf, buflen, buf.Length-buflen);
@@ -141,9 +142,24 @@ namespace Nabla {
 					}
 				}
 
+				/* Content-length of response depends on the state before the command */
+				bool outputContentLength = session.OutputContentLength;
 				string response = session.HandleCommand(line);
-				writer.Write(response);
-				writer.Flush();
+				if (response == null)
+					continue;
+
+				byte[] outBytes = Encoding.UTF8.GetBytes(response);
+				if (outputContentLength) {
+					string clString = "Content-length: " + outBytes.Length + "\r\n";
+					byte[] clBytes = Encoding.UTF8.GetBytes(clString);
+
+					byte[] tmpBytes = new byte[clBytes.Length + outBytes.Length];
+					Array.Copy(clBytes, 0, tmpBytes, 0, clBytes.Length);
+					Array.Copy(outBytes, 0, tmpBytes, clBytes.Length, outBytes.Length);
+					outBytes = tmpBytes;
+				}
+				stream.Write(outBytes, 0, outBytes.Length);
+				stream.Flush();
 			}
 
 			session.Cleanup();
