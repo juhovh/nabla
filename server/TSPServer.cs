@@ -19,6 +19,7 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Text;
 using System.Net.Sockets;
 using System.Threading;
 
@@ -64,14 +65,81 @@ namespace Nabla {
 		}
 
 		private void tcpSessionThread(object data) {
+			byte[] buf = new byte[512];
+			int buflen = 0;
+
 			TcpClient client = (TcpClient) data;
 			TSPSession session = new TSPSession();
 
-			StreamReader reader = new StreamReader(client.GetStream());
+			Stream stream = client.GetStream();
 			StreamWriter writer = new StreamWriter(client.GetStream());
 
 			while (!session.Finished()) {
-				string line = reader.ReadLine().Trim();
+				int read = stream.Read(buf, buflen, buf.Length-buflen);
+				if (read == 0 && buflen == 0) {
+					/* XXX: End of file */
+					break;
+				}
+				buflen += read;
+
+				/* Find a newline in buffer */
+				int newline = -1;
+				for (int i=1; i<buflen; i++) {
+					if (buf[i] == '\n' && buf[i-1] == '\r') {
+						newline = i-1;
+						break;
+					}
+				}
+
+				if (newline == -1) {
+					/* XXX: No newline found */
+					break;
+				}
+
+				string line = Encoding.UTF8.GetString(buf, 0, newline);
+
+				/* Move the additional bytes to the beginning of buffer */
+				buflen -= newline+2;
+				Array.Copy(buf, newline+2, buf, 0, buflen);
+
+				/* This is weird, why is there sometimes nulls? */
+				while (line[0] == '\0') {
+					line = line.Substring(1);
+				}
+
+				/* If Content-length is set, read multiline content */
+				if (line.StartsWith("Content-length:")) {
+					string lenstr = line.Substring("Content-length:".Length).Trim();
+					try {
+						int len = int.Parse(lenstr);
+						byte[] content = new byte[len];
+
+						while (buflen < content.Length) {
+							read = stream.Read(buf, buflen, buf.Length-buflen);
+							if (read == 0) {
+								break;
+							}
+							buflen += read;
+						}
+
+						if (buflen < content.Length) {
+							/* XXX: End of file */
+							break;
+						}
+
+						/* Copy content into the content array */
+						Array.Copy(buf, 0, content, 0, content.Length);
+
+						/* Move the additional bytes to the beginning of buffer */
+						buflen -= content.Length;
+						Array.Copy(buf, content.Length, buf, 0, buflen);
+
+						line = Encoding.UTF8.GetString(content);
+					} catch (Exception) {
+						/* XXX: Break doesn't work here very well */
+						break;
+					}
+				}
 
 				string response = session.HandleCommand(line);
 				writer.Write(response);

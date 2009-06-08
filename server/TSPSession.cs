@@ -28,7 +28,6 @@ namespace Nabla {
 	public class TSPSession {
 		private enum SessionState {
 			Initial,
-			Challenge,
 			Authenticate,
 			Main,
 
@@ -67,19 +66,38 @@ namespace Nabla {
 		}
 
 		public string HandleCommand(string command) {
-			string[] words = command.Split(new char[] {' '},
-			                               StringSplitOptions.RemoveEmptyEntries);
-			string response = handleCommand(words) + "\n";
-
-			return response;
+			Console.WriteLine("Handling command: " + command);
+			return handleCommand(command) + "\r\n";
 		}
 
 		public bool Finished() {
 			return _finished;
 		}
 
-		private string handleCommand(string[] words) {
-			return "Unknown command";
+		private string handleCommand(string command) {
+			string[] words = command.Split(new char[] {' '},
+			                               StringSplitOptions.RemoveEmptyEntries);
+
+			if (_sessionInfo.State == SessionState.Initial) {
+				if (!command.Equals("VERSION=2.0.0")) {
+					_finished = true;
+					return "302 Unsupported client version";
+				}
+
+				/* XXX: Should return the real capabilities */
+				_sessionInfo.State = SessionState.Authenticate;
+				return "CAPABILITY TUNNEL=V6V4 TUNNEL=V6UDPV4 AUTH=ANONYMOUS";
+			} else if (_sessionInfo.State == SessionState.Authenticate) {
+				if (!words[0].Equals("AUTHENTICATE")) {
+					return "300 Authentication failed";
+				}
+
+				_sessionInfo.State = SessionState.Main;
+				return "200 Success";
+			} else {
+				_finished = true;
+				return "310 Unknown command";
+			}
 		}
 	}
 }
