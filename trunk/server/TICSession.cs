@@ -55,45 +55,33 @@ namespace Nabla {
 		}
 
 		private string _serviceName;
-		private string _serviceUrl;
+		private TICDatabase _db;
+		private SessionInfo _sessionInfo;
+		private bool _finished = false;
 
-		private volatile bool _running;
-
-		public TICSession(string serviceName, string serviceUrl) {
-			_serviceName = serviceName;
-			_serviceUrl = serviceUrl;
+		public TICSession(string serviceName, string source) {
+			_db = new TICDatabase("nabla.db");
+			_sessionInfo = new SessionInfo();
+			_sessionInfo.Source = source;
 		}
 
-		public void StopLoop() {
-			_running = false;
+		public void Cleanup() {
+			_db.Cleanup();
 		}
 
-		public void SessionLoop(string source, TextReader reader, TextWriter writer) {
-			TICDatabase db = new TICDatabase("nabla.db");
-
-			SessionInfo info = new SessionInfo();
-			info.Source = source;
-
-			/* Write the initial welcome line */
-			writer.WriteLine("200 " + _serviceName + " TIC Service on " + Dns.GetHostName() + " ready (" + _serviceUrl + ")");
-			writer.Flush();
-
-			_running = true;
-			while (_running) {
-				if (info.PromptEnabled) {
-					writer.Write("config$ \n");
-				}
-
-				string line = reader.ReadLine().Trim();
-				string[] words = line.Split(new char[] {' '},
-				                            StringSplitOptions.RemoveEmptyEntries);
-
-				string response = handleCommand(db, info, words);
-				writer.Write(response + "\n");
-				writer.Flush();
+		public string HandleCommand(string command) {
+			string[] words = command.Split(new char[] {' '},
+			                               StringSplitOptions.RemoveEmptyEntries);
+			string response = handleCommand(_db, _sessionInfo, words) + "\n";
+			if (_sessionInfo.PromptEnabled) {
+				response += ("config$ ");
 			}
 
-			db.Cleanup();
+			return response;
+		}
+
+		public bool Finished() {
+			return _finished;
 		}
 
 		private string handleCommand(TICDatabase db, SessionInfo info, string[] words) {
@@ -110,10 +98,10 @@ namespace Nabla {
 				}
 
 				/* In other cases exit is equivalent to quit */
-				_running = false;
+				_finished = true;
 				return "200 Thank you for using this " + _serviceName + " service";
 			} else if (words[0].Equals("quit")) {
-				_running = false;
+				_finished = true;
 				return "200 Thank you for using this " + _serviceName + " service";
 			} else if (words[0].Equals("starttls") && info.State == SessionState.Initial) {
 				return "400 This service is not SSL enabled (yet)";
