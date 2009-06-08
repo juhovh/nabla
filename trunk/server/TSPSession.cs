@@ -160,28 +160,20 @@ namespace Nabla {
 				if (!c.Name.Equals("client"))
 					continue;
 
-				string addrType;
-				if (_sessionInfo.SourceAddress.AddressFamily ==
-				    AddressFamily.InterNetwork) {
-					addrType = "ipv4";
-				} else {
-					addrType = "ipv6";
-				}
 				foreach (XmlElement cc in c.ChildNodes) {
 					if (cc.Name.Equals("address")) {
-						if (cc.GetAttribute("type").Equals(addrType)) {
-							IPAddress srcAddr = IPAddress.Any;
-							try {
-								srcAddr = IPAddress.Parse(cc.FirstChild.Value);
-							} catch (Exception) {
-								/* XXX: Handle invalid address */
-							}
-
-							Console.WriteLine("Client address reported: " + srcAddr);
-
-							/* If addresses don't match, we're behind NAT */
-							behindNAT = !_sessionInfo.SourceAddress.Equals(srcAddr);
+						IPAddress srcAddr = elementToAddress(cc);
+						if (srcAddr == null) {
+							/* XXX: Handle invalid address */
 						}
+
+						if (srcAddr.AddressFamily !=
+						    _sessionInfo.SourceAddress.AddressFamily) {
+							continue;
+						}
+
+						/* If addresses don't match, we're behind NAT */
+						behindNAT = !_sessionInfo.SourceAddress.Equals(srcAddr);
 					}
 				}
 			}
@@ -207,15 +199,8 @@ namespace Nabla {
 			response.AppendChild(tunnel);
 
 			XmlElement server = response.CreateElement("client");
-			XmlElement ipv4address = response.CreateElement("address");
-			ipv4address.SetAttribute("type", "ipv4");
-			ipv4address.AppendChild(response.CreateTextNode("192.0.2.114"));
-			server.AppendChild(ipv4address);
-			XmlElement ipv6address = response.CreateElement("address");
-			ipv6address.SetAttribute("type", "ipv4");
-			ipv6address.AppendChild(response.CreateTextNode("192.0.2.114"));
-			server.AppendChild(ipv6address);
-			tunnel.AppendChild(server);
+			server.AppendChild(addressToElement(response, IPAddress.Parse("192.0.2.114")));
+			server.AppendChild(addressToElement(response, IPAddress.Parse("::1")));
 
 			return "200 OK\r\n" + response.OuterXml;
 		}
@@ -236,6 +221,38 @@ namespace Nabla {
 
 		private string handleRejectCommand(XmlElement doc, string type) {
 			return null;
+		}
+
+		private IPAddress elementToAddress(XmlElement element) {
+			if (element.Name.Equals("address")) {
+				try {
+					IPAddress address = IPAddress.Parse(element.FirstChild.Value);
+					string type = getAddressType(address);
+					if (!type.Equals(element.GetAttribute("type"))) {
+						return address;
+					}
+				} catch (Exception) {}
+			}
+
+			return null;
+		}
+
+		private XmlElement addressToElement(XmlDocument doc, IPAddress address) {
+			XmlElement element = doc.CreateElement("address");
+			element.SetAttribute("type", getAddressType(address));
+			element.AppendChild(doc.CreateTextNode(address.ToString()));
+			return element;
+		}
+
+		private string getAddressType(IPAddress address) {
+			switch (address.AddressFamily) {
+			case AddressFamily.InterNetwork:
+				return "ipv4";
+			case AddressFamily.InterNetworkV6:
+				return "ipv6";
+			default:
+				return null;
+			}
 		}
 	}
 }
