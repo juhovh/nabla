@@ -66,15 +66,30 @@ namespace Nabla {
 		private void sessionThread(object data) {
 			TcpClient client = (TcpClient) data;
 
-			TICSession session = new TICSession("Nabla", "http://code.google.com/p/nabla/");
+			string serviceName = "Nabla";
+			string serviceUrl = "http://code.google.com/p/nabla/";
 
 			IPEndPoint endPoint = (IPEndPoint) client.Client.RemoteEndPoint;
 			string source = endPoint.Address.ToString();
+			TICSession session = new TICSession(serviceName, source);
+
 			StreamReader reader = new StreamReader(client.GetStream());
 			StreamWriter writer = new StreamWriter(client.GetStream());
 
-			session.SessionLoop(source, reader, writer);
+			/* Write the initial welcome line */
+			writer.WriteLine("200 " + serviceName + " TIC Service on " + Dns.GetHostName() + " ready" +
+			                 " (" + serviceUrl + ")");
+			writer.Flush();
 
+			while (!session.Finished()) {
+				string line = reader.ReadLine().Trim();
+
+				string response = session.HandleCommand(line);
+				writer.Write(response);
+				writer.Flush();
+			}
+
+			session.Cleanup();
 			client.Close();
 		}
 	}
