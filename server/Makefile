@@ -5,6 +5,7 @@ all:
 	gmcs -out:RawSocketTest.exe -r:Nabla.Sockets tests/RawSocketTest.cs
 	gmcs -out:ParallelDeviceTest.exe -r:Nabla.Sockets tests/ParallelDeviceTest.cs ParallelDevice.cs
 	gmcs -out:TICServerTest.exe -r:System.Data,System.Data.SQLite tests/TICServerTest.cs TICServer.cs TICSession.cs Database/*.cs
+	gmcs -out:TSPServerTest.exe -r:System.Data,System.Data.SQLite tests/TSPServerTest.cs TSPServer.cs TSPSession.cs Database/*.cs
 	gmcs -out:TICDatabaseCreate.exe -r:System.Data,System.Data.SQLite tests/TICDatabaseCreate.cs Database/*.cs
 
 lib:

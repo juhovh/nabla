@@ -72,7 +72,7 @@ namespace Nabla {
 		public string HandleCommand(string command) {
 			string[] words = command.Split(new char[] {' '},
 			                               StringSplitOptions.RemoveEmptyEntries);
-			string response = handleCommand(_db, _sessionInfo, words) + "\n";
+			string response = handleCommand(words) + "\n";
 			if (_sessionInfo.PromptEnabled) {
 				response += ("config$ ");
 			}
@@ -84,16 +84,16 @@ namespace Nabla {
 			return _finished;
 		}
 
-		private string handleCommand(TICDatabase db, SessionInfo info, string[] words) {
+		private string handleCommand(string[] words) {
 			if (words.Length == 0) {
 				return "200 Empty line, please enter at least something we accept";
 			} else if (words[0].Equals("help")) {
-				return getHelpString(info);
+				return getHelpString();
 			} else if (words[0].Equals("exit")) {
-				if (info.State == SessionState.Tunnel ||
-				    info.State == SessionState.Route ||
-				    info.State == SessionState.Pop) {
-					info.State = SessionState.Main;
+				if (_sessionInfo.State == SessionState.Tunnel ||
+				    _sessionInfo.State == SessionState.Route ||
+				    _sessionInfo.State == SessionState.Pop) {
+					_sessionInfo.State = SessionState.Main;
 					return "200 Context set to main";
 				}
 
@@ -103,70 +103,70 @@ namespace Nabla {
 			} else if (words[0].Equals("quit")) {
 				_finished = true;
 				return "200 Thank you for using this " + _serviceName + " service";
-			} else if (words[0].Equals("starttls") && info.State == SessionState.Initial) {
+			} else if (words[0].Equals("starttls") && _sessionInfo.State == SessionState.Initial) {
 				return "400 This service is not SSL enabled (yet)";
-			} else if (words[0].Equals("client") && info.State == SessionState.Initial) {
+			} else if (words[0].Equals("client") && _sessionInfo.State == SessionState.Initial) {
 				if (words.Length < 2 || !words[1].Contains("/")) {
 					return "400 A valid client identifier is expected";
 				}
 
-				info.ClientName = words[1].Substring(0, words[1].IndexOf('/'));
-				info.ClientVersion = words[1].Substring(words[1].IndexOf('/')+1);
+				_sessionInfo.ClientName = words[1].Substring(0, words[1].IndexOf('/'));
+				_sessionInfo.ClientVersion = words[1].Substring(words[1].IndexOf('/')+1);
 
 				if (words.Length >= 3 && words[2].Contains("/")) {
-					info.OSName = words[2].Substring(0, words[2].IndexOf('/'));
-					info.OSVersion = words[2].Substring(words[2].IndexOf('/')+1);
+					_sessionInfo.OSName = words[2].Substring(0, words[2].IndexOf('/'));
+					_sessionInfo.OSVersion = words[2].Substring(words[2].IndexOf('/')+1);
 				} else if (words.Length >= 3) {
-					info.OSName = words[2];
+					_sessionInfo.OSName = words[2];
 				}
 
 				return "200 Client Identity accepted";
-			} else if (words[0].Equals("username") && info.State == SessionState.Initial) {
+			} else if (words[0].Equals("username") && _sessionInfo.State == SessionState.Initial) {
 				if (words.Length != 2) {
 					return "400 A username is expected";
 				}
 
-				info.UserName = words[1];
-				info.State = SessionState.Challenge;
+				_sessionInfo.UserName = words[1];
+				_sessionInfo.State = SessionState.Challenge;
 
 				return "200 Choose your authentication challenge please";
-			} else if (words[0].Equals("challenge") && info.State == SessionState.Challenge) {
+			} else if (words[0].Equals("challenge") && _sessionInfo.State == SessionState.Challenge) {
 				if (words.Length != 2) {
 					return "400 Challenge expects a authentication type";
 				}
 
-				info.ChallengeType = words[1];
-				info.State = SessionState.Authenticate;
+				_sessionInfo.ChallengeType = words[1];
+				_sessionInfo.State = SessionState.Authenticate;
 
 				if (words[1].Equals("clear")) {
 					return "200 Cleartext authentication has no challenge";
 				} else if (words[1].Equals("md5")) {
 					MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
-					byte[] challBytes = Encoding.ASCII.GetBytes(info.UserName + DateTime.Now);
+					byte[] challBytes = Encoding.ASCII.GetBytes(_sessionInfo.UserName + DateTime.Now);
 					byte[] hashBytes = md5.ComputeHash(challBytes);
 					string hashStr
 						= BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
 
-					info.Challenge = hashStr;
-					return "200 " + info.Challenge;
+					_sessionInfo.Challenge = hashStr;
+					return "200 " + _sessionInfo.Challenge;
 				} else {
-					info.State = SessionState.Challenge;
+					_sessionInfo.State = SessionState.Challenge;
 					return "400 Unknown authentication type: " + words[1];
 				}
-			} else if (words[0].Equals("authenticate") && info.State == SessionState.Authenticate) {
+			} else if (words[0].Equals("authenticate") && _sessionInfo.State == SessionState.Authenticate) {
 				if (words.Length != 3) {
 					return "400 Authenticate requires 2 arguments";
 				}
 
-				if (!words[1].Equals(info.ChallengeType)) {
-					info.State = SessionState.Challenge;
+				if (!words[1].Equals(_sessionInfo.ChallengeType)) {
+					_sessionInfo.State = SessionState.Challenge;
 					return "400 Challenge authentication type differs";
 				}
 
-				TICUserInfo userInfo = db.GetUserInfo(info.UserName);
+				TICUserInfo userInfo = _db.GetUserInfo(_sessionInfo.UserName);
 				if (userInfo == null) {
-					info.State = SessionState.Initial;
-					return "400 User " + info.UserName + " does not exist in the DB.";
+					_sessionInfo.State = SessionState.Initial;
+					return "400 User " + _sessionInfo.UserName + " does not exist in the DB.";
 				}
 	
 				bool passwordMatch;
@@ -180,7 +180,7 @@ namespace Nabla {
 
 					passwordMatch = theirHashStr.Equals(passwordHash);
 				} else if (words[1].Equals("md5")) {
-					byte[] ourBytes = Encoding.ASCII.GetBytes(info.Challenge + passwordHash);
+					byte[] ourBytes = Encoding.ASCII.GetBytes(_sessionInfo.Challenge + passwordHash);
 					byte[] ourHash = md5.ComputeHash(ourBytes);
 					string ourHashStr
 						= BitConverter.ToString(ourHash).Replace("-", "").ToLower();
@@ -192,53 +192,53 @@ namespace Nabla {
 				}
 
 				if (!passwordMatch) {
-					info.State = SessionState.Initial;
+					_sessionInfo.State = SessionState.Initial;
 					return "400 Login failed, login/password mismatch";
 				}
 
-				info.UserId = userInfo.UserId;
-				info.State = SessionState.Main;
+				_sessionInfo.UserId = userInfo.UserId;
+				_sessionInfo.State = SessionState.Main;
 
-				string ret = "200 Succesfully logged in using " + info.ChallengeType;
+				string ret = "200 Succesfully logged in using " + _sessionInfo.ChallengeType;
 				ret += " as " + userInfo.UserName + " (" + userInfo.FullName + ")";
-				ret += " from " + info.Source;
+				ret += " from " + _sessionInfo.Source;
 				return ret;
-			} else if (words[0].Equals("tunnel") && info.State == SessionState.Main) {
+			} else if (words[0].Equals("tunnel") && _sessionInfo.State == SessionState.Main) {
 				if (words.Length > 1) {
 					/* Execute the command directly in current context */
 					string[] tmp = new string[words.Length-1];
 					Array.Copy(words, 1, tmp, 0, tmp.Length);
-					return handleTunnelCommand(db, info, tmp);
+					return handleTunnelCommand(tmp);
 				}
 
-				info.State = SessionState.Tunnel;
+				_sessionInfo.State = SessionState.Tunnel;
 				return "200 Context set to tunnel";
-			} else if (words[0].Equals("route") && info.State == SessionState.Main) {
+			} else if (words[0].Equals("route") && _sessionInfo.State == SessionState.Main) {
 				if (words.Length > 1) {
 					/* Execute the command directly in current context */
 					string[] tmp = new string[words.Length-1];
 					Array.Copy(words, 1, tmp, 0, tmp.Length);
-					return handleRouteCommand(db, info, tmp);
+					return handleRouteCommand(tmp);
 				}
 
-				info.State = SessionState.Route;
+				_sessionInfo.State = SessionState.Route;
 				return "200 Context set to route";
-			} else if (words[0].Equals("pop") && info.State == SessionState.Main) {
+			} else if (words[0].Equals("pop") && _sessionInfo.State == SessionState.Main) {
 				if (words.Length > 1) {
 					/* Execute the command directly in current context */
 					string[] tmp = new string[words.Length-1];
 					Array.Copy(words, 1, tmp, 0, tmp.Length);
-					return handlePopCommand(db, info, tmp);
+					return handlePopCommand(tmp);
 				}
 
-				info.State = SessionState.Pop;
+				_sessionInfo.State = SessionState.Pop;
 				return "200 Context set to pop";
-			} else if (info.State == SessionState.Tunnel) {
-				return handleTunnelCommand(db, info, words);
-			} else if (info.State == SessionState.Route) {
-				return handleRouteCommand(db, info, words);
-			} else if (info.State == SessionState.Pop) {
-				return handlePopCommand(db, info, words);
+			} else if (_sessionInfo.State == SessionState.Tunnel) {
+				return handleTunnelCommand(words);
+			} else if (_sessionInfo.State == SessionState.Route) {
+				return handleRouteCommand(words);
+			} else if (_sessionInfo.State == SessionState.Pop) {
+				return handlePopCommand(words);
 			} else if (words[0].Equals("set")) {
 				if (words.Length != 3) {
 					return "400 'set' requires two arguments";
@@ -246,10 +246,10 @@ namespace Nabla {
 
 				if (words[1].Equals("prompt")) {
 					if (words[2].Equals("enabled")) {
-						info.PromptEnabled = true;
+						_sessionInfo.PromptEnabled = true;
 						return "200 Prompt enabled";
 					} else if (words[2].Equals("disabled")) {
-						info.PromptEnabled = false;
+						_sessionInfo.PromptEnabled = false;
 						return "200 Prompt disabled";
 					} else {
 						return "400 Can only be enabled or disabled";
@@ -273,9 +273,9 @@ namespace Nabla {
 			}
 		}
 
-		private string handleTunnelCommand(TICDatabase db, SessionInfo info, string[] words) {
+		private string handleTunnelCommand(string[] words) {
 			if (words[0].Equals("list")) {
-				TICTunnelInfo[] tunnels = db.ListTunnels(info.UserId);
+				TICTunnelInfo[] tunnels = _db.ListTunnels(_sessionInfo.UserId);
 
 				string ret = "201 Listing tunnels\n";
 				foreach (TICTunnelInfo t in tunnels) {
@@ -300,12 +300,12 @@ namespace Nabla {
 					return "400 Given tunnel id '" + words[1] + "' is not valid";
 				}
 
-				TICTunnelInfo tunnelInfo = db.GetTunnelInfo(tunnelId);
+				TICTunnelInfo tunnelInfo = _db.GetTunnelInfo(tunnelId);
 				if (tunnelInfo == null) {
 					return "400 Unknown tunnel endpoint T" + tunnelId;
 				}
 
-				if (tunnelInfo.OwnerId != info.UserId) {
+				if (tunnelInfo.OwnerId != _sessionInfo.UserId) {
 					return "400 T" + tunnelId + " is not one of your tunnels";
 				}
 
@@ -330,7 +330,7 @@ namespace Nabla {
 					return "400 Given tunnel id '" + words[1] + "' is not valid";
 				}
 
-				TICTunnelInfo tunnelInfo = db.GetTunnelInfo(tunnelId);
+				TICTunnelInfo tunnelInfo = _db.GetTunnelInfo(tunnelId);
 				if (tunnelInfo == null) {
 					return "400 Unknown tunnel endpoint T" + tunnelId;
 				}
@@ -357,7 +357,7 @@ namespace Nabla {
 						}
 					}
 
-					db.UpdateTunnelIPv4Endpoint(tunnelId, words[3]);
+					_db.UpdateTunnelIPv4Endpoint(tunnelId, words[3]);
 					return "200 Endpoint of T" + tunnelId + " changed to " + words[3];
 				} else if (words[2].Equals("state")) {
 					bool enabled;
@@ -374,7 +374,7 @@ namespace Nabla {
 						return "400 Tunnel was already in the requested state";
 					}
 
-					db.UpdateTunnelUserEnabled(tunnelId, enabled);
+					_db.UpdateTunnelUserEnabled(tunnelId, enabled);
 					return "State of T" + tunnelId + " changed to " + words[3];
 				} else {
 					return "400 " + words[2] + " is not a known variable";
@@ -404,9 +404,9 @@ namespace Nabla {
 			}
 		}
 
-		private string handleRouteCommand(TICDatabase db, SessionInfo info, string[] words) {
+		private string handleRouteCommand(string[] words) {
 			if (words[0].Equals("list")) {
-				TICRouteInfo[] routes = db.ListRoutes(info.UserId);
+				TICRouteInfo[] routes = _db.ListRoutes(_sessionInfo.UserId);
 
 				string ret = "201 Listing routes\n";
 				foreach (TICRouteInfo r in routes) {
@@ -431,13 +431,13 @@ namespace Nabla {
 					return "400 Given route id '" + words[1] + "' is not valid";
 				}
 
-				TICRouteInfo routeInfo = db.GetRouteInfo(routeId);
+				TICRouteInfo routeInfo = _db.GetRouteInfo(routeId);
 				if (routeInfo == null) {
 					return "400 Unknown route R" + routeId;
 				}
 
 				/* XXX: Check that the owner is correct */
-				if (routeInfo.OwnerId != info.UserId) {
+				if (routeInfo.OwnerId != _sessionInfo.UserId) {
 					return "400 T" + routeId + " is not your route";
 				}
 
@@ -451,9 +451,9 @@ namespace Nabla {
 			}
 		}
 
-		private string handlePopCommand(TICDatabase db, SessionInfo info, string[] words) {
+		private string handlePopCommand(string[] words) {
 			if (words[0].Equals("list")) {
-				TICPopInfo[] pops = db.ListPops();
+				TICPopInfo[] pops = _db.ListPops();
 
 				string ret = "201 Listing PoPs\n";
 				foreach (TICPopInfo p in pops) {
@@ -466,7 +466,7 @@ namespace Nabla {
 					return "400 Show requires a pop id";
 				}
 
-				TICPopInfo popInfo = db.GetPopInfo(words[1]);
+				TICPopInfo popInfo = _db.GetPopInfo(words[1]);
 				if (popInfo == null) {
 					return "400 Unknown PoP '" + words[1] + "'";
 				}
@@ -491,14 +491,14 @@ namespace Nabla {
 			}
 		}
 
-		private string getHelpString(SessionInfo info) {
+		private string getHelpString() {
 			string ret = "201 Available commands\n";
 
 			string mainCommands = "";
 			mainCommands += "set prompt enabled|disabled\n";
 			mainCommands += "get unixtime\n";
 
-			switch (info.State) {
+			switch (_sessionInfo.State) {
 			case SessionState.Initial:
 				ret += "starttls\n";
 				ret += "client <name/version> <osname/osversion>\n";
