@@ -40,6 +40,7 @@ namespace Nabla {
 		private class SessionInfo {
 			public SessionState State = SessionState.Initial;
 			public IPAddress SourceAddress;
+			public IPAddress LocalAddress;
 
 			public bool PromptEnabled;
 			public string ClientName;
@@ -59,11 +60,12 @@ namespace Nabla {
 		private SessionInfo _sessionInfo;
 		private bool _finished = false;
 
-		public TSPSession(ProtocolType type, IPAddress sourceAddress) {
+		public TSPSession(ProtocolType type, IPAddress sourceAddress, IPAddress localAddress) {
 			_protocolType = type;
 			_db = new TICDatabase("nabla.db");
 			_sessionInfo = new SessionInfo();
 			_sessionInfo.SourceAddress = sourceAddress;
+			_sessionInfo.LocalAddress = localAddress;
 		}
 
 		public void Cleanup() {
@@ -165,6 +167,7 @@ namespace Nabla {
 						IPAddress srcAddr = elementToAddress(cc);
 						if (srcAddr == null) {
 							/* XXX: Handle invalid address */
+							continue;
 						}
 
 						if (srcAddr.AddressFamily !=
@@ -181,26 +184,50 @@ namespace Nabla {
 			if (behindNAT) {
 				if (type.Equals("v6anyv4")) {
 					type = "v6udpv4";
-				} else if (_protocolType != ProtocolType.Udp) {
+				}
+
+				if (_protocolType != ProtocolType.Udp) {
 					/* XXX: Type needs to be UDP */
 				} else if (!type.Equals("v6udpv4")) {
 					/* XXX: No suitable tunnel found */
 				}
+			} else {
+				if (type.Equals("v6anyv4")) {
+					type = "v6v4";
+				}
 			}
 
 			/* XXX: Check that type is correct and call SessionManager */
+			/* XXX: Set the real keepalive interval and address */
 			string lifetime = "1440";
+			int interval = 30;
+			IPAddress clientAddress = IPAddress.Parse("2001::1");
+			IPAddress serverAddress = IPAddress.Parse("2001::1");
+			IPAddress keepaliveAddress = serverAddress;
 
 			XmlDocument response = new XmlDocument();
 			XmlElement tunnel = response.CreateElement("tunnel");
+			XmlElement server = response.CreateElement("server");
+			XmlElement client = response.CreateElement("client");
+			XmlElement keepalive = response.CreateElement("keepalive");
+
+			keepalive.SetAttribute("interval", interval.ToString());
+			keepalive.AppendChild(addressToElement(response, keepaliveAddress));
+
+			client.AppendChild(addressToElement(response, _sessionInfo.SourceAddress));
+			client.AppendChild(addressToElement(response, clientAddress));
+			client.AppendChild(keepalive);
+
+			server.AppendChild(addressToElement(response, _sessionInfo.LocalAddress));
+			server.AppendChild(addressToElement(response, serverAddress));
+
 			tunnel.SetAttribute("action", "info");
 			tunnel.SetAttribute("type", type);
 			tunnel.SetAttribute("lifetime", lifetime);
-			response.AppendChild(tunnel);
+			tunnel.AppendChild(server);
+			tunnel.AppendChild(client);
 
-			XmlElement server = response.CreateElement("client");
-			server.AppendChild(addressToElement(response, IPAddress.Parse("192.0.2.114")));
-			server.AppendChild(addressToElement(response, IPAddress.Parse("::1")));
+			response.AppendChild(tunnel);
 
 			return "200 OK\r\n" + response.OuterXml;
 		}
@@ -228,7 +255,7 @@ namespace Nabla {
 				try {
 					IPAddress address = IPAddress.Parse(element.FirstChild.Value);
 					string type = getAddressType(address);
-					if (!type.Equals(element.GetAttribute("type"))) {
+					if (type.Equals(element.GetAttribute("type"))) {
 						return address;
 					}
 				} catch (Exception) {}
