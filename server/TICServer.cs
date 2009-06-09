@@ -69,8 +69,9 @@ namespace Nabla {
 			string serviceName = "Nabla";
 			string serviceUrl = "http://code.google.com/p/nabla/";
 
-			IPEndPoint endPoint = (IPEndPoint) client.Client.RemoteEndPoint;
-			TICSession session = new TICSession(serviceName, endPoint.Address);
+			IPEndPoint remoteEndPoint = (IPEndPoint) client.Client.RemoteEndPoint;
+			IPEndPoint localEndPoint = (IPEndPoint) client.Client.LocalEndPoint;
+			TICSession session = new TICSession(serviceName, remoteEndPoint.Address, localEndPoint.Address);
 
 			StreamReader reader = new StreamReader(client.GetStream());
 			StreamWriter writer = new StreamWriter(client.GetStream());
