@@ -2,12 +2,16 @@ using System;
 using System.Net;
 using Nabla.Database;
 
-public class TICDatabaseCreate {
+public class DatabaseCreate {
 	private static void Main(string[] args) {
 		if (args.Length != 1) {
 			Console.WriteLine("Requires database filename argument");
 			return;
 		}
+
+		UserDatabase userdb = new UserDatabase(args[0]);
+		userdb.CreateTables();
+		userdb.Cleanup();
 
 		TICDatabase db = new TICDatabase(args[0]);
 		db.CreateTables();
