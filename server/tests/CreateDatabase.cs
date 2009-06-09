@@ -11,6 +11,15 @@ public class CreateDatabase {
 
 		using (UserDatabase userDB = new UserDatabase(args[0])) {
 			userDB.CreateTables();
+
+			UserInfo userInfo = new UserInfo();
+			userInfo.UserName = "juhovh";
+			userInfo.Password = "salasana";
+			userInfo.TunnelPassword = "sanasala";
+			userInfo.FullName = "Juho Vähä-Herttua";
+			userDB.AddUserInfo(userInfo);
+
+			Console.WriteLine("Password correct: " + userDB.ValidatePassword("juhovh", "salasana"));
 		}
 
 		using (TICDatabase TicDB = new TICDatabase(args[0])) {
