@@ -56,20 +56,20 @@ namespace Nabla {
 		}
 
 		private ProtocolType _protocolType;
-		private TICDatabase _db;
+		private UserDatabase _db;
 		private SessionInfo _sessionInfo;
 		private bool _finished = false;
 
 		public TSPSession(ProtocolType type, IPAddress sourceAddress, IPAddress localAddress) {
 			_protocolType = type;
-			_db = new TICDatabase("nabla.db");
+			_db = new UserDatabase("nabla.db");
 			_sessionInfo = new SessionInfo();
 			_sessionInfo.SourceAddress = sourceAddress;
 			_sessionInfo.LocalAddress = localAddress;
 		}
 
 		public void Cleanup() {
-			_db.Cleanup();
+			_db.Dispose();
 		}
 
 		public string HandleCommand(string command) {
