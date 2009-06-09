@@ -68,7 +68,7 @@ namespace Nabla {
 		}
 
 		public void Cleanup() {
-			_db.Cleanup();
+			_db.Dispose();
 		}
 
 		public string HandleCommand(string command) {

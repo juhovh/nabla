@@ -25,17 +25,13 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 
 namespace Nabla.Database {
-	public class TICDatabase {
+	public class TICDatabase : IDisposable {
 		private SQLiteConnection _connection;
+		private volatile bool _disposed = false;
 
 		public TICDatabase(string dbName) {
 			_connection = new SQLiteConnection("Data Source=" + dbName);
 			_connection.Open();
-		}
-
-		public void Cleanup() {
-			_connection.Close();
-			_connection.Dispose();
 		}
 
 		public void CreateTables() {
@@ -415,6 +411,26 @@ namespace Nabla.Database {
 			popInfo.ISPLIRId = (string) dataRow["isplir"];
 
 			return popInfo;
+		}
+
+		public void Dispose() {
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		private void Dispose(bool disposing) {
+			if (_disposed) {
+				return;
+			}
+
+			/* If true, method is called from user code */
+			if (disposing) {
+				/* Dispose managed resources. */
+				_connection.Close();
+				_connection.Dispose();
+			}
+
+			_disposed = true;
 		}
 	}
 }

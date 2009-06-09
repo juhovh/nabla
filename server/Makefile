@@ -6,7 +6,7 @@ all:
 	gmcs -out:ParallelDeviceTest.exe -r:Nabla.Sockets tests/ParallelDeviceTest.cs ParallelDevice.cs
 	gmcs -out:TICServerTest.exe -r:System.Data,System.Data.SQLite tests/TICServerTest.cs TICServer.cs TICSession.cs Database/*.cs
 	gmcs -out:TSPServerTest.exe -r:System.Data,System.Data.SQLite tests/TSPServerTest.cs TSPServer.cs TSPSession.cs Database/*.cs
-	gmcs -out:DatabaseCreate.exe -r:System.Data,System.Data.SQLite tests/DatabaseCreate.cs Database/*.cs
+	gmcs -out:CreateDatabase.exe -r:System.Data,System.Data.SQLite tests/CreateDatabase.cs Database/*.cs
 
 lib:
 	gcc -Wall -Werror -fPIC -o librawsock.so -shared Sockets/rawsock.c
