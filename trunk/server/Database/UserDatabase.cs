@@ -39,7 +39,7 @@ namespace Nabla.Database {
 				"id integer primary key autoincrement" +
 				", username varchar(32)" +
 				", password varchar(64)" +
-				", tunnelpw varchar(32)" +
+				", tunnel_password varchar(32)" +
 				", fullname varchar(128))";
 
 			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
@@ -59,7 +59,7 @@ namespace Nabla.Database {
 			string tunnelPasswordHash = BitConverter.ToString(pwHashBytes).Replace("-", "").ToLower();
 
 			string commandString = "INSERT INTO " + tableName +
-				" (username, password, tunnelpw, fullname) VALUES (" +
+				" (username, password, tunnel_password, fullname) VALUES (" +
 				"'" + userInfo.UserName + "', " +
 				"'" + passwordHash + "', " +
 				"'" + tunnelPasswordHash + "', " +
@@ -130,7 +130,7 @@ namespace Nabla.Database {
 
 			userInfo.UserName = (string) dataRow["username"];
 			userInfo.Password = "";
-			userInfo.TunnelPassword = (string) dataRow["tunnelpw"];
+			userInfo.TunnelPassword = (string) dataRow["tunnel_password"];
 			userInfo.FullName = (string) dataRow["fullname"];
 
 			return userInfo;
