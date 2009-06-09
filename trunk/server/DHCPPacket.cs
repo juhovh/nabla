@@ -19,8 +19,19 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Collections.Generic;
 
 namespace Nabla {
+	public class DHCPOption {
+		public readonly byte Code;
+		public readonly byte[] Data;
+
+		public DHCPOption(byte code, byte[] data) {
+			Code = code;
+			Data = data;
+		}
+	}
+
 	public class DHCPPacket {
 		public Byte OP { get; private set; }
 		public Byte HTYPE { get; private set; }
@@ -66,11 +77,28 @@ namespace Nabla {
 			}
 		}
 
+		private List<DHCPOption> _options = new List<DHCPOption>();
+		public void AddOption(DHCPOption option) {
+			_options.Add(option);
+		}
+		public DHCPOption[] GetOptions() {
+			return _options.ToArray();
+		}
+
+		public static DHCPPacket Parse(byte[] data) {
+			DHCPPacket ret = new DHCPPacket();
+			ret.Data = data;
+			return ret;
+		}
+
 		public byte[] Data {
 			get {
-				/* XXX: Get options */
-				int optionSize = 0;
-				byte[] ret = new byte[240 + optionSize];
+				int optionsSize = 0;
+				foreach (DHCPOption o in _options) {
+					optionsSize += 2 + o.Data.Length;
+				}
+
+				byte[] ret = new byte[240 + optionsSize];
 				ret[0] = OP;
 				ret[1] = HTYPE;
 				ret[2] = HLEN;
@@ -98,9 +126,18 @@ namespace Nabla {
 				ret[238] = 83;
 				ret[239] = 99;
 
+				int index = 240;
+				foreach (DHCPOption o in _options) {
+					ret[index++] = o.Code;
+					ret[index++] = (byte) o.Data.Length;
+
+					Array.Copy(o.Data, 0, ret, index, o.Data.Length);
+					index += o.Data.Length;
+				}
+
 				return ret;
 			}
-			set {
+			private set {
 				if (value.Length < 240) {
 					throw new Exception("Length not enough for DHCP packet");
 				}
@@ -133,7 +170,20 @@ namespace Nabla {
 
 				/* SNAME and FILE fields can be ignored */
 
-				/* XXX: Parse the DHCP options */
+				int index = 240;
+				while (index < value.Length) {
+					if (value[index] == 0) {
+						index++;
+						continue;
+					}
+
+					int len = value[index+1];
+					byte[] data = new byte[len];
+					Array.Copy(value, index+2, data, 0, len);
+					DHCPOption option = new DHCPOption(value[index], data);
+					this.AddOption(option);
+					index += 2 + len;
+				}
 			}
 		}
 	}
