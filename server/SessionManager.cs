@@ -107,10 +107,10 @@ namespace Nabla {
 			}
 		}
 
-		private TunnelSession findSessionByGateway(TunnelType type, IPAddress gateway) {
+		private TunnelSession findSessionByPrivateAddress(TunnelType type, IPAddress address) {
 			foreach (TunnelSession ts in _sessions[type].Values) {
-				IPAddress gwaddr = ts.GatewayAddress;
-				if (gwaddr != null && gwaddr.Equals(gateway)) {
+				IPAddress gwaddr = ts.PrivateAddress;
+				if (gwaddr != null && gwaddr.Equals(address)) {
 					_sessions[ts.TunnelType].Remove(ts.EndPoint);
 					_rsessions[ts.AddressFamily].Remove(ts.EndPoint);
 					return ts;
@@ -118,7 +118,7 @@ namespace Nabla {
 			}
 
 			foreach (TunnelSession ts in _uninitiatedSessions) {
-				if (type == ts.TunnelType && gateway.Equals(ts.GatewayAddress)) {
+				if (type == ts.TunnelType && address.Equals(ts.PrivateAddress)) {
 					_uninitiatedSessions.Remove(ts);
 					return ts;
 				}
@@ -210,7 +210,7 @@ namespace Nabla {
 							/* Weird, did someone add it? */
 							session = _sessions[type][source];
 						} else {
-							session = findSessionByGateway(type, identifier);
+							session = findSessionByPrivateAddress(type, identifier);
 							if (session != null) {
 								session.EndPoint = source;
 								_sessions[session.TunnelType].Add(source, session);
@@ -298,7 +298,7 @@ namespace Nabla {
 							/* Weird, did someone add it? */
 							session = _sessions[type][source];
 						} else {
-							session = findSessionByGateway(type, identifier);
+							session = findSessionByPrivateAddress(type, identifier);
 							if (session != null) {
 								session.EndPoint = source;
 								_sessions[session.TunnelType].Add(source, session);
