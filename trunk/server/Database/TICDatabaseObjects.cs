@@ -30,7 +30,6 @@ namespace Nabla.Database {
 	public class TICTunnelInfo {
 		public Int64 OwnerId;
 		public Int64 TunnelId;
-		public string Type;
 
 		public IPAddress IPv6Endpoint;
 		public IPAddress IPv6POP;
@@ -52,8 +51,17 @@ namespace Nabla.Database {
 		public override string ToString() {
 			string ret = "";
 
+			string type;
+			if (IPv4Endpoint.Equals("heartbeat")) { 
+				type = "6in4-heartbeat"; 
+			} else if (IPv4Endpoint.Equals("ayiya")) { 
+				type = "ayiya"; 
+			} else { 
+				type = "6in4"; 
+			}
+
 			ret += "TunnelId: T" + TunnelId + "\n";
-			ret += "Type: " + Type + "\n";
+			ret += "Type: " + type + "\n";
 			ret += "IPv6 Endpoint: " + IPv6Endpoint + "\n";
 			ret += "IPv6 POP: " + IPv6POP + "\n";
 			ret += "IPv6 PrefixLength: " + IPv6PrefixLength + "\n";

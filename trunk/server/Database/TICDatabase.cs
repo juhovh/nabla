@@ -47,18 +47,11 @@ namespace Nabla.Database {
 			string tunnelString = "CREATE TABLE tic_tunnels (" +
 				"id integer primary key autoincrement" +
 				", ownerid integer" +
-				", ipv6endpoint varchar(39)" +
-				", ipv6pop varchar(39)" +
-				", ipv6prefixlen integer" +
-				", mtu integer" +
 				", name varchar(64)" +
-				", popid varchar(8)" +
 				", ipv4endpoint varchar(15)" +
-				", ipv4pop varchar(15)" +
 				", userstate varchar(8)" +
 				", adminstate varchar(8)" +
-				", password varchar(32)" +
-				", beatinterval integer)";
+				", password varchar(32))";
 			string routeString = "CREATE TABLE tic_routes (" +
 				"id integer primary key autoincrement" +
 				", ownerid integer" +
@@ -127,30 +120,19 @@ namespace Nabla.Database {
 
 			string commandString = "INSERT INTO " + tableName +
 				" (ownerid" +
-				", ipv6endpoint, ipv6pop, ipv6prefixlen" +
-				", mtu, name, popid" +
-				", ipv4endpoint, ipv4pop" +
+				", name, ipv4endpoint" +
 				", userstate, adminstate" +
-				", password, beatinterval" +
+				", password" +
 				") VALUES (" +
 				tunnelInfo.OwnerId + ", " +
 
-				"'" + tunnelInfo.IPv6Endpoint + "', " +
-				"'" + tunnelInfo.IPv6POP + "', " +
-				tunnelInfo.IPv6PrefixLength + ", " +
-
-				tunnelInfo.TunnelMTU + ", " +
 				"'" + tunnelInfo.TunnelName + "', " +
-
-				"'" + tunnelInfo.POPId + "', " +
 				"'" + tunnelInfo.IPv4Endpoint + "', " +
-				"'" + tunnelInfo.IPv4POP + "', " +
 
 				"'" + (tunnelInfo.UserEnabled ? "enabled" : "disabled") + "', " +
 				"'" + (tunnelInfo.AdminEnabled ? "enabled" : "disabled") + "', " +
 
-				"'" + pwHash + "', " +
-				tunnelInfo.HeartbeatInterval + ")";
+				"'" + pwHash + "')";
 
 			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
 				command.CommandText = commandString;
@@ -377,16 +359,8 @@ namespace Nabla.Database {
 			tunnelInfo.TunnelId = (Int64) dataRow["id"];
 			tunnelInfo.OwnerId = (Int64) dataRow["ownerid"];
 
-			tunnelInfo.IPv6Endpoint = IPAddress.Parse((string) dataRow["ipv6endpoint"]);
-			tunnelInfo.IPv6POP = IPAddress.Parse((string) dataRow["ipv6pop"]);
-			tunnelInfo.IPv6PrefixLength = (Int64) dataRow["ipv6prefixlen"];
-
-			tunnelInfo.TunnelMTU = (Int64) dataRow["mtu"];
 			tunnelInfo.TunnelName = (string) dataRow["name"];
-
-			tunnelInfo.POPId = (string) dataRow["popid"];
 			tunnelInfo.IPv4Endpoint = (string) dataRow["ipv4endpoint"];
-			tunnelInfo.IPv4POP = IPAddress.Parse((string) dataRow["ipv4pop"]);
 
 			string userState = (string) dataRow["userstate"];
 			tunnelInfo.UserEnabled = userState.Equals("enabled");
@@ -395,15 +369,6 @@ namespace Nabla.Database {
 			tunnelInfo.AdminEnabled = adminState.Equals("enabled");
 
 			tunnelInfo.Password = (string) dataRow["password"];
-			tunnelInfo.HeartbeatInterval = (Int64) dataRow["beatinterval"];
-
-			if (tunnelInfo.IPv4Endpoint.Equals("heartbeat")) {
-				tunnelInfo.Type = "6in4-heartbeat";
-			} else if (tunnelInfo.IPv4Endpoint.Equals("ayiya")) {
-				tunnelInfo.Type = "ayiya";
-			} else {
-				tunnelInfo.Type = "6in4";
-			}
 
 			return tunnelInfo;
 		}

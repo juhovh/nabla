@@ -40,6 +40,7 @@ namespace Nabla {
 		private class SessionInfo {
 			public SessionState State = SessionState.Initial;
 			public IPAddress SourceAddress;
+			public IPAddress LocalAddress;
 
 			public bool PromptEnabled;
 			public string ClientName;
@@ -59,10 +60,11 @@ namespace Nabla {
 		private SessionInfo _sessionInfo;
 		private bool _finished = false;
 
-		public TICSession(string serviceName, IPAddress source) {
+		public TICSession(string serviceName, IPAddress source, IPAddress local) {
 			_db = new TICDatabase("nabla.db");
 			_sessionInfo = new SessionInfo();
 			_sessionInfo.SourceAddress = source;
+			_sessionInfo.LocalAddress = local;
 		}
 
 		public void Cleanup() {
@@ -279,8 +281,12 @@ namespace Nabla {
 
 				string ret = "201 Listing tunnels\n";
 				foreach (TICTunnelInfo t in tunnels) {
+					/* XXX: Get IPv6 endpoint from SessionManager */
+					IPAddress ipv6Endpoint = IPAddress.Parse("2001::1");
+					string popId = "nabla";
+
 					ret += String.Format("T{0} {1} {2} {3}\n",
-						t.TunnelId, t.IPv6Endpoint, t.IPv4Endpoint, t.POPId);
+						t.TunnelId, ipv6Endpoint, t.IPv4Endpoint, popId);
 				}
 				ret += "202 <tunnel_id> <ipv6_endpoint> <ipv4_endpoint> <pop_name>";
 				return ret;
@@ -308,6 +314,16 @@ namespace Nabla {
 				if (tunnelInfo.OwnerId != _sessionInfo.UserId) {
 					return "400 T" + tunnelId + " is not one of your tunnels";
 				}
+
+				/* XXX: IPv6Endpoint, IPv6POP and HeartbeatInterval from SessionManager */
+				tunnelInfo.IPv6Endpoint = IPAddress.Parse("2001::1");
+				tunnelInfo.IPv6POP = IPAddress.Parse("2001::2");
+				tunnelInfo.HeartbeatInterval = 3600;
+
+				tunnelInfo.IPv6PrefixLength = 64;
+				tunnelInfo.TunnelMTU = 1280;
+				tunnelInfo.POPId = "nabla";
+				tunnelInfo.IPv4POP = _sessionInfo.LocalAddress;
 
 				string ret = "201 Showing tunnel information for T" + tunnelId + "\n";
 				ret += tunnelInfo.ToString();
