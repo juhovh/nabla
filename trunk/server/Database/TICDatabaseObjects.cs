@@ -20,6 +20,14 @@ using System;
 using System.Net;
 
 namespace Nabla.Database {
+	public class UserInfo {
+		public Int64 UserId;
+		public string UserName;
+		public string Password;
+		public string TunnelPassword;
+		public string FullName;
+	}
+
 	public class TICUserInfo {
 		public Int64 UserId;
 		public string UserName;
