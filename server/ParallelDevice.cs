@@ -330,6 +330,9 @@ namespace Nabla {
 							Console.WriteLine("Offered address: " + p.YIADDR);
 							Console.WriteLine("Prefix length: " + prefixlen);
 							Console.WriteLine("Default router: " + router);
+
+							/* Make sure DHCP packets don't get to clients */
+							continue;
 						}
 					}
 
