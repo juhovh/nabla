@@ -43,14 +43,20 @@ namespace Nabla {
 	}
 
 	public class DHCPPacket {
-		public byte OP { get; private set; }
-		public byte HTYPE { get; private set; }
-		public byte HLEN { get; private set; }
-		public byte HOPS { get; private set; }
+		private byte _op;
+		public byte OP { get { return _op; } private set { _op = value; } }
+		private byte _htype;
+		public byte HTYPE { get { return _htype; } private set { _htype = value; } }
+		private byte _hlen;
+		public byte HLEN { get { return _hlen; } private set { _hlen = value; } }
+		private byte _hops;
+		public byte HOPS { get { return _hops; } private set { _hops = value; } }
 
 		public UInt32 XID;
 		public UInt16 SECS;
-		public UInt16 FLAGS { get; private set; }
+
+		private UInt16 _flags;
+		public UInt16 FLAGS { get { return _flags; } private set { _flags = value; } }
 		public bool Broadcast {
 			get {
 				return ((FLAGS & 0x8000) != 0);
