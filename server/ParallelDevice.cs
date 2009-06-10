@@ -245,9 +245,8 @@ namespace Nabla {
 			byte[] data = new byte[2048];
 
 			/* FIXME: This should be just temporarily here */
-			DHCPPacket packet = DHCPPacket.GetDiscoverPacket(_hwaddr);
-			byte[] dhcpBytes = packet.GetIPv4Bytes(IPAddress.Any, IPAddress.Broadcast);
-			SendPacket(dhcpBytes);
+			sendDHCPDiscover();
+			sendNDRouterSol();
 
 			while (_running) {
 				if (!_socket.WaitForReadable())
@@ -325,7 +324,7 @@ namespace Nabla {
 						if (type == 133) {
 							/* XXX: Router solicitation */
 						} else if (type == 134) {
-							handleRouterAdv(data, datalen);
+							handleNDRouterAdv(data, datalen);
 							continue;
 						} else if (type == 135) {
 							handleNDSol(data, datalen);
@@ -522,6 +521,12 @@ namespace Nabla {
 				BitConverter.ToString(hwaddr).Replace('-', ':').ToLower(), addr);
 		}
 
+		private void sendDHCPDiscover() {
+			DHCPPacket packet = DHCPPacket.GetDiscoverPacket(_hwaddr);
+			byte[] dhcpBytes = packet.GetIPv4Bytes(IPAddress.Any, IPAddress.Broadcast);
+			SendPacket(dhcpBytes);
+		}
+
 		private void handleDHCPReply(byte[] data, int dhcpidx, int datalen) {
 			Console.WriteLine("Received DHCP packet from server");
 
@@ -556,7 +561,45 @@ namespace Nabla {
 			Console.WriteLine("Default router: " + router);
 		}
 
-		private void handleRouterAdv(byte[] data, int datalen) {
+		private void sendNDRouterSol() {
+			/* Construct Ethernet header for all-routers multicast address */
+			byte[] data = new byte[70];
+			data[0] = 0x33;
+			data[1] = 0x33;
+			data[2] = 0xff;
+			data[3] = 0x00;
+			data[4] = 0x00;
+			data[5] = 0x02;
+			Array.Copy(_hwaddr, 0, data, 6, 6);
+			data[12] = 0x86;
+			data[13] = 0xdd;
+
+			/* Construct IPv6 header for all-routers multicast address */
+			int length = 16;
+			data[14] = 0x60;                  // IP version 6
+			data[18] = (byte) (length >> 8);
+			data[19] = (byte)  length;
+			data[20] = 58;                    // next header ICMPv6
+			data[21] = 255;                   // hop limit 255
+			data[38] = 0xff;
+			data[39] = 0x02;
+			data[53] = 0x02;
+
+			/* Construct ICMPv6 packet with source link-layer address option */
+			data[54] = 133;
+			data[62] = 1;
+			data[63] = 1;
+			Array.Copy(_hwaddr, 0, data, 64, 6);
+
+			/* Store the checksum into ICMPv6 packet */
+			int checksum = ICMPv6Checksum(data);
+			data[14+40+2] = (byte) (checksum >> 8);
+			data[14+40+3] = (byte)  checksum;
+
+			_socket.Send(data);
+		}
+
+		private void handleNDRouterAdv(byte[] data, int datalen) {
 			if ((data[18] ==  0 && data[19] <  16) || // Minimum length: 16 bytes
 			    data[20] !=  58 || data[21] != 255 || // ICMPv6, hop=255
 			    data[54] != 134 || data[55] !=   0 || // Type: 134, Code: 0
