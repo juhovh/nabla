@@ -138,7 +138,6 @@ namespace Nabla {
 				IPAddress addr = new IPAddress(ipaddress);
 
 				if (!_ipv6map.ContainsKey(addr)) {
-					Console.WriteLine("Unmapped IPv6 connection, drop packet");
 					return;
 				}
 
