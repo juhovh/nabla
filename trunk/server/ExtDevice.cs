@@ -41,7 +41,6 @@ namespace Nabla {
 			_callback = cb;
 
 			/* FIXME: These values shouldn't be hardcoded */
-			_device.IPv4Route = new IPConfig(IPAddress.Parse("192.168.1.0"), 24, IPAddress.Parse("192.168.1.1"));
 			_device.AddSubnet(IPAddress.Parse("192.168.1.16"), 28);
 			_mapper.Addresses += IPAddress.Parse("192.168.1.16");
 		}
