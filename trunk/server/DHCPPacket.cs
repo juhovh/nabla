@@ -284,13 +284,22 @@ namespace Nabla {
 					if (value[index] == 0) {
 						index++;
 						continue;
+					} else if (value[index] == 255) {
+						/* End of option list */
+						break;
+					} else if (index == value.Length-1) {
+						Console.WriteLine("Invalid last DHCP option byte: " + value[index]);
+						break;
 					}
-
 					int len = value[index+1];
-					byte[] data = new byte[len];
-					Array.Copy(value, index+2, data, 0, len);
-					DHCPOption option = new DHCPOption(value[index], data);
-					this.AddOption(option);
+					if (index+2+len < value.Length) {
+						byte[] data = new byte[len];
+						Array.Copy(value, index+2, data, 0, len);
+						DHCPOption option = new DHCPOption(value[index], data);
+						this.AddOption(option);
+					} else {
+						Console.WriteLine("Invalid DHCP option: Code " + value[index] + " Length " + len);
+					}
 					index += 2 + len;
 				}
 			}
