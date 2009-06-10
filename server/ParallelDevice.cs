@@ -615,7 +615,36 @@ namespace Nabla {
 				return;
 			}
 
+			byte[] ipaddr = new byte[16];
+			Array.Copy(data, 22, ipaddr, 0, 16);
+			IPAddress router = new IPAddress(ipaddr);
+
+			IPAddress addr = null;
+			int prefixlen = -1;
+
+			int length = 14+40+((data[18] << 8) | data[19]);
+			int optidx = 14+40+16;
+			while (optidx < length-1) {
+				if (data[optidx] == 3 && data[optidx+1] == 4 && optidx+32 < length) {
+					prefixlen = data[optidx+2];
+
+					Array.Copy(data, optidx+16, ipaddr, 0, 16);
+					addr = new IPAddress(ipaddr);
+				} 
+
+				if (data[optidx+1] > 0) {
+					optidx += data[optidx+1]*8;
+				} else {
+					return;
+				}
+			}
+
 			Console.WriteLine("Got valid default router advertisement");
+			if (addr != null) {
+				Console.WriteLine("Prefix address: " + addr);
+				Console.WriteLine("Prefix length: " + prefixlen);
+				Console.WriteLine("Default router: " + router);
+			}
 		}
 
 		private void sendNDSol(IPAddress dest) {
