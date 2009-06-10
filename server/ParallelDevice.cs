@@ -299,7 +299,6 @@ namespace Nabla {
 
 						if (srcPort == 67 && dstPort == 68) {
 							handleDHCPReply(data, dataidx+8, datalen);
-							/* Make sure DHCP packets don't get to clients */
 							continue;
 						}
 					}
@@ -323,8 +322,10 @@ namespace Nabla {
 						/* ICMPv6 packet found */
 						int type = data[14+40];
 
-						if (type == 133 || type == 134) {
-							/* XXX: Router solicitation/advertisement */
+						if (type == 133) {
+							/* XXX: Router solicitation */
+						} else if (type == 134) {
+							handleRouterAdv(data, datalen);
 							continue;
 						} else if (type == 135) {
 							handleNDSol(data, datalen);
@@ -555,6 +556,18 @@ namespace Nabla {
 			Console.WriteLine("Default router: " + router);
 		}
 
+		private void handleRouterAdv(byte[] data, int datalen) {
+			if ((data[18] ==  0 && data[19] <  16) || // Minimum length: 16 bytes
+			    data[20] !=  58 || data[21] != 255 || // ICMPv6, hop=255
+			    data[54] != 134 || data[55] !=   0 || // Type: 134, Code: 0
+			    (data[60] ==  0 && data[61] ==  0)) { // Router lifetime: non-zero
+				/* XXX: Should invalid RouterAdv be reported? */
+				return;
+			}
+
+			Console.WriteLine("Got valid default router advertisement");
+		}
+
 		private void sendNDSol(IPAddress source, IPAddress dest) {
 			if (source.AddressFamily != AddressFamily.InterNetworkV6 ||
 			    dest.AddressFamily != AddressFamily.InterNetworkV6) {
@@ -661,7 +674,7 @@ namespace Nabla {
 		private void handleNDAdv(byte[] data, int datalen) {
 			if (data[18] !=   0 || data[19] !=  32 || // Length: 24 bytes + 8 byte option
 			    data[20] !=  58 || data[21] != 255 || // ICMPv6, hop=255
-			    data[54] != 136 || data[55] !=   0 || // Type: 135, Code: 0
+			    data[54] != 136 || data[55] !=   0 || // Type: 136, Code: 0
 			    data[78] !=   2 || data[79] !=   1) { // Option: target lladdr
 				/* XXX: Should invalid NDAdv be reported? */
 				return;
