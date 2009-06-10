@@ -566,9 +566,6 @@ namespace Nabla {
 			byte[] data = new byte[70];
 			data[0] = 0x33;
 			data[1] = 0x33;
-			data[2] = 0xff;
-			data[3] = 0x00;
-			data[4] = 0x00;
 			data[5] = 0x02;
 			Array.Copy(_hwaddr, 0, data, 6, 6);
 			data[12] = 0x86;
