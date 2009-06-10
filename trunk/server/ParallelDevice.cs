@@ -200,7 +200,7 @@ namespace Nabla {
 							if (dest.AddressFamily == AddressFamily.InterNetwork) {
 								sendARPRequest(src, dest);
 							} else {
-								sendNDSol(src, dest);
+								sendNDSol(dest);
 							}
 
 							DateTime startTime = DateTime.Now;
