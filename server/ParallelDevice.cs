@@ -625,12 +625,14 @@ namespace Nabla {
 			int length = 14+40+((data[18] << 8) | data[19]);
 			int optidx = 14+40+16;
 			while (optidx < length-1) {
-				if (data[optidx] == 3 && data[optidx+1] == 4 && optidx+32 < length) {
+				if (data[optidx] == 3 && data[optidx+1] == 4 && optidx+32 <= length) {
 					prefixlen = data[optidx+2];
 
 					Array.Copy(data, optidx+16, ipaddr, 0, 16);
 					addr = new IPAddress(ipaddr);
 				} 
+
+				/* XXX: Should MTU be handled? */
 
 				if (data[optidx+1] > 0) {
 					optidx += data[optidx+1]*8;
