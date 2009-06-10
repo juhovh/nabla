@@ -131,7 +131,6 @@ namespace Nabla {
 				multicast = (ipaddr[0] < 224 && ipaddr[0] > 239);
 				broadcast = (ipaddr[0] == 255 && ipaddr[1] == 255 &&
 				             ipaddr[2] == 255 && ipaddr[3] == 255);
-				Console.WriteLine("Source: " + src + " Dest: " + dest + " Broadcast: " + IPAddress.Broadcast + " " + broadcast);
 			} else if (version == 6) {
 				byte[] ipaddr = new byte[16];
 
@@ -286,9 +285,55 @@ namespace Nabla {
 					/* Get destination address */
 					byte[] ipaddr = new byte[4];
 					Array.Copy(data, 26, ipaddr, 0, 4);
-					IPAddress addr = new IPAddress(ipaddr);
+					IPAddress dest = new IPAddress(ipaddr);
 
-					if ((ipaddr[0] < 224 && ipaddr[0] > 239) && !addressInSubnets(addr)) {
+					bool multicast = (ipaddr[0] < 224 && ipaddr[0] > 239);
+					bool broadcast = (ipaddr[0] == 255 && ipaddr[1] == 255 &&
+					                  ipaddr[2] == 255 && ipaddr[3] == 255);
+
+					/* Check for DHCP UDP packet content */
+					int dataidx = 14 + (data[14]&0x0f)*4;
+					if (data[14+9] == 17 && datalen >= dataidx+8) {
+						int srcPort = (data[dataidx] << 8) | data[dataidx+1];
+						int dstPort = (data[dataidx+2] << 8) | data[dataidx+3];
+
+						if (srcPort == 67 && dstPort == 68) {
+							Console.WriteLine("Received DHCP packet from server");
+
+							int prefixlen = -1;
+							IPAddress router = null;
+
+							DHCPPacket p = DHCPPacket.Parse(data, dataidx+8, datalen-dataidx-8);
+
+							DHCPOption opt;
+							if ((opt = p.FindOption(1)) != null) {
+								byte[] snBytes = opt.Data;
+								if (snBytes.Length == 4) {
+									prefixlen = 0;
+									for (int i=0; i<32; i++) {
+										/* If byte is zero, quit searching */
+										if ((snBytes[i/8] & (0x80 >> (i%8))) == 0)
+											break;
+										prefixlen++;
+									}
+								}
+							}
+							if ((opt = p.FindOption(3)) != null) {
+								if (opt.Data.Length == 4) {
+									router = new IPAddress(opt.Data);
+								}
+							}
+
+							if (prefixlen >= 0) {
+								IPv4Route = new IPConfig(p.YIADDR, prefixlen, router);
+							}
+							Console.WriteLine("Offered address: " + p.YIADDR);
+							Console.WriteLine("Prefix length: " + prefixlen);
+							Console.WriteLine("Default router: " + router);
+						}
+					}
+
+					if (!multicast && !broadcast && !addressInSubnets(dest)) {
 						/* Packet not destined to us */
 						continue;
 					}

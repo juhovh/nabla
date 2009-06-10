@@ -74,8 +74,12 @@ namespace Nabla {
 		public void AddOption(DHCPOption option) {
 			_options.Add(option);
 		}
-		public DHCPOption[] GetOptions() {
-			return _options.ToArray();
+		public DHCPOption FindOption(byte code) {
+			foreach (DHCPOption o in _options) {
+				if (o.Code == code)
+					return o;
+			}
+			return null;
 		}
 
 		private DHCPPacket() {
@@ -106,16 +110,19 @@ namespace Nabla {
 			AddOption(new DHCPOption(53, new byte[] { (byte) type }));
 		}
 
-		public static DHCPPacket Parse(byte[] data) {
+		public static DHCPPacket Parse(byte[] data, int offset, int length) {
 			DHCPPacket ret = new DHCPPacket();
-			ret.Data = data;
+
+			byte[] tmpdata = new byte[length];
+			Array.Copy(data, offset, tmpdata, 0, length);
+			ret.Data = tmpdata;
+
 			return ret;
 		}
 
 		public static DHCPPacket GetDiscoverPacket(byte[] hwaddr) {
 			DHCPPacket packet = new DHCPPacket(DHCPType.DHCPDISCOVER);
 			Array.Copy(hwaddr, 0, packet.CHADDR, 0, hwaddr.Length);
-			packet.AddOption(new DHCPOption(61, new byte[] { 0x01, 0x00, 0x01, 0x23, 0x45, 0x67, 0x89 }));
 			return packet;
 		}
 
