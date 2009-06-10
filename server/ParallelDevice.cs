@@ -119,7 +119,7 @@ namespace Nabla {
 
 			IPAddress src;
 			IPAddress dest;
-			bool multicast;
+			bool multicast, broadcast;
 			if (version == 4) {
 				byte[] ipaddr = new byte[4];
 
@@ -129,6 +129,9 @@ namespace Nabla {
 				Array.Copy(data, offset+16, ipaddr, 0, 4);
 				dest = new IPAddress(ipaddr);
 				multicast = (ipaddr[0] < 224 && ipaddr[0] > 239);
+				broadcast = (ipaddr[0] == 255 && ipaddr[1] == 255 &&
+				             ipaddr[2] == 255 && ipaddr[3] == 255);
+				Console.WriteLine("Source: " + src + " Dest: " + dest + " Broadcast: " + IPAddress.Broadcast + " " + broadcast);
 			} else if (version == 6) {
 				byte[] ipaddr = new byte[16];
 
@@ -138,11 +141,12 @@ namespace Nabla {
 				Array.Copy(data, offset+24, ipaddr, 0, 16);
 				dest = new IPAddress(ipaddr);
 				multicast = dest.IsIPv6Multicast;
+				broadcast = false;
 			} else {
 				throw new Exception("Invalid IP packet version: " + version);
 			}
 
-			if (!addressInSubnets(src)) {
+			if (!src.Equals(IPAddress.Any) && !addressInSubnets(src)) {
 				throw new Exception("Source address " + src + " not in range");
 			}
 
@@ -164,6 +168,11 @@ namespace Nabla {
 					hwaddr[0] = 0x33;
 					hwaddr[1] = 0x33;
 					Array.Copy(dest.GetAddressBytes(), 12, hwaddr, 2, 4);
+				}
+			} else if (broadcast) {
+				hwaddr = new byte[6];
+				for (int i=0; i<6; i++) {
+					hwaddr[i] = 0xff;
 				}
 			} else {
 				if (dest.AddressFamily == AddressFamily.InterNetwork) {
@@ -235,6 +244,11 @@ namespace Nabla {
 
 		private void threadLoop() {
 			byte[] data = new byte[2048];
+
+			/* FIXME: This should be just temporarily here */
+			DHCPPacket packet = DHCPPacket.GetDiscoverPacket(_hwaddr);
+			byte[] dhcpBytes = packet.GetIPv4Bytes(IPAddress.Any, IPAddress.Broadcast);
+			SendPacket(dhcpBytes);
 
 			while (_running) {
 				if (!_socket.WaitForReadable())
