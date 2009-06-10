@@ -553,12 +553,13 @@ namespace Nabla {
 				}
 			}
 
-			if (prefixlen >= 0) {
+			if (IPv4Route == null && prefixlen >= 0) {
 				IPv4Route = new IPConfig(packet.YIADDR, prefixlen, router);
+
+				Console.WriteLine("Offered address: " + packet.YIADDR);
+				Console.WriteLine("Prefix length: " + prefixlen);
+				Console.WriteLine("Default router: " + router);
 			}
-			Console.WriteLine("Offered address: " + packet.YIADDR);
-			Console.WriteLine("Prefix length: " + prefixlen);
-			Console.WriteLine("Default router: " + router);
 		}
 
 		private void sendNDRouterSol() {
@@ -619,7 +620,7 @@ namespace Nabla {
 			Array.Copy(data, 22, ipaddr, 0, 16);
 			IPAddress router = new IPAddress(ipaddr);
 
-			IPAddress addr = null;
+			IPAddress prefix = null;
 			int prefixlen = -1;
 
 			int length = 14+40+((data[18] << 8) | data[19]);
@@ -629,7 +630,7 @@ namespace Nabla {
 					prefixlen = data[optidx+2];
 
 					Array.Copy(data, optidx+16, ipaddr, 0, 16);
-					addr = new IPAddress(ipaddr);
+					prefix = new IPAddress(ipaddr);
 				} 
 
 				/* XXX: Should MTU be handled? */
@@ -642,8 +643,10 @@ namespace Nabla {
 			}
 
 			Console.WriteLine("Got valid default router advertisement");
-			if (addr != null) {
-				Console.WriteLine("Prefix address: " + addr);
+			if (IPv6Route == null && prefix != null) {
+				IPv6Route = new IPConfig(prefix, prefixlen, router);
+
+				Console.WriteLine("Prefix address: " + prefix);
 				Console.WriteLine("Prefix length: " + prefixlen);
 				Console.WriteLine("Default router: " + router);
 			}
