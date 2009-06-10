@@ -578,6 +578,16 @@ namespace Nabla {
 			data[19] = (byte)  length;
 			data[20] = 58;                    // next header ICMPv6
 			data[21] = 255;                   // hop limit 255
+
+			/* Create a source link-local address from MAC */
+			data[22] = 0xfe;
+			data[23] = 0x80;
+			Array.Copy(_hwaddr, 0, data, 30, 3);
+			data[33] = 0xff;
+			data[34] = 0xfe;
+			Array.Copy(_hwaddr, 3, data, 35, 3);
+			data[30] = (byte) (data[30] ^ 0x02);
+
 			data[38] = 0xff;
 			data[39] = 0x02;
 			data[53] = 0x02;
@@ -608,9 +618,8 @@ namespace Nabla {
 			Console.WriteLine("Got valid default router advertisement");
 		}
 
-		private void sendNDSol(IPAddress source, IPAddress dest) {
-			if (source.AddressFamily != AddressFamily.InterNetworkV6 ||
-			    dest.AddressFamily != AddressFamily.InterNetworkV6) {
+		private void sendNDSol(IPAddress dest) {
+			if (dest.AddressFamily != AddressFamily.InterNetworkV6) {
 				throw new Exception("Address of wrong type");
 			}
 
@@ -633,7 +642,16 @@ namespace Nabla {
 			data[19] = (byte)  length;
 			data[20] = 58;                    // next header ICMPv6
 			data[21] = 255;                   // hop limit 255
-			Array.Copy(source.GetAddressBytes(), 0, data, 22, 16);
+
+			/* Create a source link-local address from MAC */
+			data[22] = 0xfe;
+			data[23] = 0x80;
+			Array.Copy(_hwaddr, 0, data, 30, 3);
+			data[33] = 0xff;
+			data[34] = 0xfe;
+			Array.Copy(_hwaddr, 3, data, 35, 3);
+			data[30] = (byte) (data[30] ^ 0x02);
+
 			data[38] = 0xff;
 			data[39] = 0x02;
 			data[49] = 0x01;
