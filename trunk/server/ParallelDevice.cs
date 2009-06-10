@@ -298,39 +298,7 @@ namespace Nabla {
 						int dstPort = (data[dataidx+2] << 8) | data[dataidx+3];
 
 						if (srcPort == 67 && dstPort == 68) {
-							Console.WriteLine("Received DHCP packet from server");
-
-							int prefixlen = -1;
-							IPAddress router = null;
-
-							DHCPPacket p = DHCPPacket.Parse(data, dataidx+8, datalen-dataidx-8);
-
-							DHCPOption opt;
-							if ((opt = p.FindOption(1)) != null) {
-								byte[] snBytes = opt.Data;
-								if (snBytes.Length == 4) {
-									prefixlen = 0;
-									for (int i=0; i<32; i++) {
-										/* If byte is zero, quit searching */
-										if ((snBytes[i/8] & (0x80 >> (i%8))) == 0)
-											break;
-										prefixlen++;
-									}
-								}
-							}
-							if ((opt = p.FindOption(3)) != null) {
-								if (opt.Data.Length == 4) {
-									router = new IPAddress(opt.Data);
-								}
-							}
-
-							if (prefixlen >= 0) {
-								IPv4Route = new IPConfig(p.YIADDR, prefixlen, router);
-							}
-							Console.WriteLine("Offered address: " + p.YIADDR);
-							Console.WriteLine("Prefix length: " + prefixlen);
-							Console.WriteLine("Default router: " + router);
-
+							handleDHCPReply(data, dataidx+8, datalen);
 							/* Make sure DHCP packets don't get to clients */
 							continue;
 						}
@@ -551,6 +519,40 @@ namespace Nabla {
 
 			Console.WriteLine("Added hardware address {0} for IP address {1} into ARP table",
 				BitConverter.ToString(hwaddr).Replace('-', ':').ToLower(), addr);
+		}
+
+		private void handleDHCPReply(byte[] data, int dhcpidx, int datalen) {
+			Console.WriteLine("Received DHCP packet from server");
+
+			int prefixlen = -1;
+			IPAddress router = null;
+			DHCPPacket packet = DHCPPacket.Parse(data, dhcpidx, datalen-dhcpidx);
+
+			DHCPOption opt;
+			if ((opt = packet.FindOption(1)) != null) {
+				byte[] snBytes = opt.Data;
+				if (snBytes.Length == 4) {
+					prefixlen = 0;
+					for (int i=0; i<32; i++) {
+						/* If byte is zero, quit searching */
+						if ((snBytes[i/8] & (0x80 >> (i%8))) == 0)
+							break;
+						prefixlen++;
+					}
+				}
+			}
+			if ((opt = packet.FindOption(3)) != null) {
+				if (opt.Data.Length == 4) {
+					router = new IPAddress(opt.Data);
+				}
+			}
+
+			if (prefixlen >= 0) {
+				IPv4Route = new IPConfig(packet.YIADDR, prefixlen, router);
+			}
+			Console.WriteLine("Offered address: " + packet.YIADDR);
+			Console.WriteLine("Prefix length: " + prefixlen);
+			Console.WriteLine("Default router: " + router);
 		}
 
 		private void sendNDSol(IPAddress source, IPAddress dest) {
