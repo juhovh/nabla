@@ -29,11 +29,11 @@ namespace Nabla {
 			}
 
 			SessionManager sessionManager = new SessionManager();
-			sessionManager.AddIntDevice(args[0], TunnelType.Heartbeat);
+			sessionManager.AddIntDevice(args[0], TunnelType.IPv6inIPv4);
 			sessionManager.AddExtDevice(args[1]);
 
 			IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("192.168.1.123"), 1234);
-			TunnelSession session = new TunnelSession(TunnelType.Heartbeat, endPoint);
+			TunnelSession session = new TunnelSession(TunnelType.IPv6inIPv4, endPoint);
 			session.Password = "salasana";
 			sessionManager.AddSession(session);
 

@@ -32,11 +32,21 @@ namespace Nabla {
 		}
 	}
 
+	public enum DHCPType : byte {
+		DHCPDISCOVER = 1,
+		DHCPOFFER    = 2,
+		DHCPREQUEST  = 3,
+		DHCPDECLINE  = 4,
+		DHCPACK      = 5,
+		DHCPNAK      = 7,
+		DHCPRELEASE  = 8
+	}
+
 	public class DHCPPacket {
-		public Byte OP { get; private set; }
-		public Byte HTYPE { get; private set; }
-		public Byte HLEN { get; private set; }
-		public Byte HOPS { get; private set; }
+		public byte OP { get; private set; }
+		public byte HTYPE { get; private set; }
+		public byte HLEN { get; private set; }
+		public byte HOPS { get; private set; }
 
 		public UInt32 XID;
 		public UInt16 SECS;
@@ -58,24 +68,7 @@ namespace Nabla {
 		public IPAddress YIADDR = IPAddress.Any;
 		public IPAddress SIADDR = IPAddress.Any;
 		public IPAddress GIADDR = IPAddress.Any;
-
-		public byte[] _chaddr;
-		public byte[] CHADDR {
-			get {
-				if (HLEN > 16) {
-					throw new Exception("HLEN too long");
-				}
-				byte[] ret = new byte[HLEN];
-				Array.Copy(_chaddr, 0, ret, 0, HLEN);
-				return ret;
-			}
-			set {
-				if (value.Length != HLEN) {
-					throw new Exception("Address length incorrect");
-				}
-				Array.Copy(value, 0, _chaddr, 0, HLEN);
-			}
-		}
+		public readonly byte[] CHADDR = new byte[16];
 
 		private List<DHCPOption> _options = new List<DHCPOption>();
 		public void AddOption(DHCPOption option) {
@@ -85,10 +78,113 @@ namespace Nabla {
 			return _options.ToArray();
 		}
 
+		private DHCPPacket() {
+		}
+
+		public DHCPPacket(DHCPType type) {
+			switch (type) {
+			case DHCPType.DHCPDISCOVER:
+			case DHCPType.DHCPREQUEST:
+			case DHCPType.DHCPDECLINE:
+			case DHCPType.DHCPRELEASE:
+				OP = 0x01;
+				break;
+			case DHCPType.DHCPOFFER:
+			case DHCPType.DHCPACK:
+			case DHCPType.DHCPNAK:
+				OP = 0x02;
+				break;
+			}
+
+			/* Set some defaults */
+			HTYPE = 0x01;
+			HLEN = 0x06;
+			HOPS = 0x00;
+			XID = 0x3903F326; // XXX: Should randomize
+
+			/* Add DHCP type option */
+			AddOption(new DHCPOption(53, new byte[] { (byte) type }));
+		}
+
 		public static DHCPPacket Parse(byte[] data) {
 			DHCPPacket ret = new DHCPPacket();
 			ret.Data = data;
 			return ret;
+		}
+
+		public static DHCPPacket GetDiscoverPacket(byte[] hwaddr) {
+			DHCPPacket packet = new DHCPPacket(DHCPType.DHCPDISCOVER);
+			Array.Copy(hwaddr, 0, packet.CHADDR, 0, hwaddr.Length);
+			packet.AddOption(new DHCPOption(61, new byte[] { 0x01, 0x00, 0x01, 0x23, 0x45, 0x67, 0x89 }));
+			return packet;
+		}
+
+		public byte[] GetIPv4Bytes(IPAddress source, IPAddress dest) {
+			byte[] dhcpData = this.Data;
+			byte[] data = new byte[20 + 8 + dhcpData.Length];
+
+			data[0] = 0x45;
+			data[2] = (byte) (data.Length >> 8);
+			data[3] = (byte) (data.Length);
+			data[8] = 64; // TTL 64
+			data[9] = 17; // Protocol UDP
+			Array.Copy(source.GetAddressBytes(), 0, data, 12, 4);
+			Array.Copy(dest.GetAddressBytes(), 0, data, 16, 4);
+
+			if (OP == 0x01) {
+				/* Client to server packet */
+				data[21] = 68;
+				data[23] = 67;
+			} else if (OP == 0x02) {
+				/* Server to client packet */
+				data[21] = 67;
+				data[23] = 68;
+			}
+
+			data[24] = (byte) ((dhcpData.Length + 8) >> 8);
+			data[25] = (byte) (dhcpData.Length + 8);
+
+			Array.Copy(dhcpData, 0, data, 28, dhcpData.Length);
+
+			calculateIPv4Checksum(data);
+			calculateUDPChecksum(data);
+
+			return data;
+		}
+
+		private void calculateIPv4Checksum(byte[] data) {
+			int length = (data[0] & 0x0f) * 4;
+
+			int checksum = 0;
+			data[10] = data[11] = 0;
+			for (int i=0; i<length; i++)
+				checksum += data[i] << ((i%2 == 0)?8:0);
+
+			if (checksum > 0xffff)
+				checksum = (checksum & 0xffff) + (checksum >> 16);
+			checksum = ~checksum;
+			data[10] = (byte) (checksum >> 8);
+			data[11] = (byte) (checksum);
+		}
+
+		private void calculateUDPChecksum(byte[] data) {
+			int startidx = (data[0] & 0x0f) * 4;
+			int length = (data[startidx+4] << 8) | data[startidx+5];
+
+			int checksum = 0;
+			data[startidx+6] = data[startidx+7] = 0;
+			checksum += data[9];
+			checksum += length;
+			for (int i=12; i<20; i++)
+				checksum += data[i] << ((i%2 == 0)?8:0);
+			for (int i=0; i<length; i++)
+				checksum += data[startidx+i] << ((i%2 == 0)?8:0);
+
+			if (checksum > 0xffff)
+				checksum = (checksum & 0xffff) + (checksum >> 16);
+			checksum = ~checksum;
+			data[startidx+6] = (byte) (checksum >> 8);
+			data[startidx+7] = (byte) (checksum);
 		}
 
 		public byte[] Data {
@@ -116,7 +212,7 @@ namespace Nabla {
 				Array.Copy(YIADDR.GetAddressBytes(), 0, ret, 16, 4);
 				Array.Copy(SIADDR.GetAddressBytes(), 0, ret, 20, 4);
 				Array.Copy(GIADDR.GetAddressBytes(), 0, ret, 24, 4);
-				Array.Copy(_chaddr, 0, ret, 28, 16);
+				Array.Copy(CHADDR, 0, ret, 28, 16);
 
 				/* SNAME and FILE fields can be null, 192 bytes */
 
@@ -166,7 +262,7 @@ namespace Nabla {
 				Array.Copy(value, 24, ipaddress, 0, 4);
 				GIADDR = new IPAddress(ipaddress);
 
-				Array.Copy(value, 28, _chaddr, 0, 16);
+				Array.Copy(value, 28, CHADDR, 0, 16);
 
 				/* SNAME and FILE fields can be ignored */
 
