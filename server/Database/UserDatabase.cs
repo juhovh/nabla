@@ -240,7 +240,8 @@ namespace Nabla.Database {
 			routeInfo.LastModified = DateTime.UtcNow;
 
 			string commandString = "INSERT INTO routes " +
-				" (ownerid, created, lastmodified, enabled, description, userenabled) VALUES (" +
+				" (tunnelid, ownerid, created, lastmodified, enabled, description, userenabled) VALUES (" +
+				"'" + routeInfo.TunnelId + "', " +
 				"'" + routeInfo.OwnerId + "', " +
 				"datetime('" + routeInfo.Created.ToString("s") + "'), " +
 				"datetime('" + routeInfo.LastModified.ToString("s") + "'), " +
@@ -285,8 +286,9 @@ namespace Nabla.Database {
 
 		private RouteInfo dataRowToRouteInfo(DataRow dataRow) {
 			RouteInfo routeInfo = new RouteInfo();
-			routeInfo.TunnelId = (Int64) dataRow["id"];
+			routeInfo.RouteId = (Int64) dataRow["id"];
 			routeInfo.OwnerId = (Int64) dataRow["ownerid"];
+			routeInfo.TunnelId = (Int64) dataRow["tunnelid"];
 			routeInfo.Created = (DateTime) dataRow["created"];
 			routeInfo.LastModified = (DateTime) dataRow["lastmodified"];
 			routeInfo.Enabled = (bool) dataRow["enabled"];

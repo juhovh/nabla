@@ -41,7 +41,7 @@ public class CreateDatabase {
 			RouteInfo routeInfo = new RouteInfo();
 			routeInfo.OwnerId = userInfo.UserId;
 			routeInfo.TunnelId = tunnelInfo.TunnelId;
-			tunnelInfo.Enabled = true;
+			routeInfo.Enabled = true;
 			routeInfo.Description = "This is a default route for a subnet";
 			routeInfo.UserEnabled = false;
 			userDB.AddRouteInfo(routeInfo);

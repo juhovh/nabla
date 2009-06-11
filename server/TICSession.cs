@@ -281,6 +281,11 @@ namespace Nabla {
 
 				string ret = "201 Listing tunnels\n";
 				foreach (TunnelInfo t in tunnels) {
+					/* XXX: Is there a cleaner way to do this? */
+					if (t.Endpoint.Equals("dynamic")) {
+						continue;
+					}
+
 					/* XXX: Get IPv6 endpoint from SessionManager */
 					IPAddress ipv6Endpoint = IPAddress.Parse("2001::1");
 
