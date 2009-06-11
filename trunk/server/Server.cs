@@ -31,7 +31,7 @@ namespace Nabla {
 			SessionManager sessionManager = new SessionManager();
 			InputDevice dev = new GenericInputDevice(args[0], GenericInputType.IPv6inIPv4);
 			sessionManager.AddInputDevice(dev);
-			sessionManager.AddExtDevice(args[1]);
+			sessionManager.AddOutputDevice(args[1], IPAddress.Parse("192.168.1.16"), true);
 
 			IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("192.168.1.123"), 1234);
 			TunnelSession session = new TunnelSession(TunnelType.IPv6inIPv4, endPoint);
