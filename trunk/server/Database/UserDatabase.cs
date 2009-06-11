@@ -44,17 +44,32 @@ namespace Nabla.Database {
 				", fullname varchar(128))";
 			string tunnelString = "CREATE TABLE tunnels (" +
 				"id integer primary key autoincrement" +
-				", enabled boolean" +
 				", ownerid integer" + 
-				", name varchar(64)" + 
+				", created datetime" +
+				", lastmodified datetime" +
+				", enabled boolean" +
+
+				", name varchar(128)" + 
 				", endpoint varchar(39)" +
-				", user_enabled boolean" +
+				", userenabled boolean" +
 				", password varchar(32))";
+			string routeString = "CREATE TABLE routes (" +
+				"id integer primary key autoincrement" +
+				", ownerid integer" + 
+				", tunnelid integer" +
+				", created datetime" +
+				", lastmodified datetime" +
+				", enabled boolean" +
+
+				", description varchar(512)" +
+				", userenabled boolean)";
 
 			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
 				command.CommandText = userString;
 				command.ExecuteNonQuery();
 				command.CommandText = tunnelString;
+				command.ExecuteNonQuery();
+				command.CommandText = routeString;
 				command.ExecuteNonQuery();
 			}
 		}
@@ -112,6 +127,180 @@ namespace Nabla.Database {
 			return dataRowToUserInfo(dataTable.Rows[0]);
 		}
 
+		private UserInfo dataRowToUserInfo(DataRow dataRow) {
+			UserInfo userInfo = new UserInfo();
+			userInfo.UserId = (Int64) dataRow["id"];
+			userInfo.Enabled = (bool) dataRow["enabled"];
+
+			userInfo.UserName = (string) dataRow["username"];
+			userInfo.Password = "";
+			userInfo.TunnelPassword = (string) dataRow["tunnel_password"];
+			userInfo.FullName = (string) dataRow["fullname"];
+
+			return userInfo;
+		}
+
+
+
+
+
+		public void AddTunnelInfo(TunnelInfo tunnelInfo) {
+			tunnelInfo.Created = DateTime.UtcNow;
+			tunnelInfo.LastModified = DateTime.UtcNow;
+
+			string commandString = "INSERT INTO tunnels " +
+				" (ownerid, created, lastmodified, enabled, " +
+				"  name, endpoint, userenabled, password) VALUES (" +
+				"'" + tunnelInfo.OwnerId + "', " +
+				"datetime('" + tunnelInfo.Created.ToString("s") + "'), " +
+				"datetime('" + tunnelInfo.LastModified.ToString("s") + "'), " +
+				"'" + (tunnelInfo.Enabled ? 1 : 0) + "', " +
+
+				"'" + tunnelInfo.Name + "', " +
+				"'" + tunnelInfo.Endpoint + "', " +
+				"'" + (tunnelInfo.UserEnabled ? 1 : 0) + "', " +
+				"'" + tunnelInfo.Password + "')";
+
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = commandString;
+				command.ExecuteNonQuery();
+			}
+		}
+
+		public void UpdateTunnelEndpoint(Int64 tunnelId, string endpoint) {
+			string commandString = "UPDATE tunnels SET endpoint='" + endpoint + "'" +
+			                       " WHERE id=" + tunnelId;
+
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = commandString;
+				command.ExecuteNonQuery();
+			}
+		}
+
+		public void UpdateTunnelUserEnabled(Int64 tunnelId, bool enabled) {
+			string commandString = "UPDATE tunnels SET userenabled='" + (enabled ? 1 : 0) + "'" +
+			                       " WHERE id=" + tunnelId;
+
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = commandString;
+				command.ExecuteNonQuery();
+			}
+		}
+
+		public TunnelInfo[] ListTunnels(Int64 userId) {
+			if (userId <= 0) {
+				return new TunnelInfo[] {};
+			}
+
+			List<TunnelInfo> tunnels = new List<TunnelInfo>();
+
+			DataTable dataTable = getDataTable("tunnels", "WHERE ownerid = '" + userId + "'");
+			foreach (DataRow dataRow in dataTable.Rows) {
+				tunnels.Add(dataRowToTunnelInfo(dataRow));
+			}
+
+			return tunnels.ToArray();
+		}
+
+		public TunnelInfo GetTunnelInfo(Int64 tunnelId) {
+			if (tunnelId <= 0) {
+				return null;
+			}
+
+			DataTable dataTable = getDataTable("tunnels", "WHERE id = '" + tunnelId + "'");
+			if (dataTable.Rows.Count == 0) {
+				return null;
+			}
+
+			return dataRowToTunnelInfo(dataTable.Rows[0]);
+		}
+
+		private TunnelInfo dataRowToTunnelInfo(DataRow dataRow) {
+			TunnelInfo tunnelInfo = new TunnelInfo();
+			tunnelInfo.TunnelId = (Int64) dataRow["id"];
+			tunnelInfo.OwnerId = (Int64) dataRow["ownerid"];
+			tunnelInfo.Created = (DateTime) dataRow["created"];
+			tunnelInfo.LastModified = (DateTime) dataRow["lastmodified"];
+			tunnelInfo.Enabled = (bool) dataRow["enabled"];
+
+			tunnelInfo.Name = (string) dataRow["name"];
+			tunnelInfo.Endpoint = (string) dataRow["endpoint"];
+			tunnelInfo.UserEnabled = (bool) dataRow["userenabled"];
+			tunnelInfo.Password = (string) dataRow["password"];
+
+			return tunnelInfo;
+		}
+
+
+
+
+
+		public void AddRouteInfo(RouteInfo routeInfo) {
+			routeInfo.Created = DateTime.UtcNow;
+			routeInfo.LastModified = DateTime.UtcNow;
+
+			string commandString = "INSERT INTO routes " +
+				" (ownerid, created, lastmodified, enabled, description, userenabled) VALUES (" +
+				"'" + routeInfo.OwnerId + "', " +
+				"datetime('" + routeInfo.Created.ToString("s") + "'), " +
+				"datetime('" + routeInfo.LastModified.ToString("s") + "'), " +
+				"'" + (routeInfo.Enabled ? 1 : 0) + "', " +
+
+				"'" + routeInfo.Description + "', " +
+				"'" + (routeInfo.UserEnabled ? 1 : 0) + "')";
+
+			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
+				command.CommandText = commandString;
+				command.ExecuteNonQuery();
+			}
+		}
+
+		public RouteInfo[] ListRoutes(Int64 userId) {
+			if (userId <= 0) {
+				return new RouteInfo[] {};
+			}
+
+			List<RouteInfo> routes = new List<RouteInfo>();
+
+			DataTable dataTable = getDataTable("routes", "WHERE ownerid = '" + userId + "'");
+			foreach (DataRow dataRow in dataTable.Rows) {
+				routes.Add(dataRowToRouteInfo(dataRow));
+			}
+
+			return routes.ToArray();
+		}
+
+		public RouteInfo GetRouteInfo(Int64 routeId) {
+			if (routeId <= 0) {
+				return null;
+			}
+
+			DataTable dataTable = getDataTable("routes", "WHERE id = '" + routeId + "'");
+			if (dataTable.Rows.Count == 0) {
+				return null;
+			}
+
+			return dataRowToRouteInfo(dataTable.Rows[0]);
+		}
+
+		private RouteInfo dataRowToRouteInfo(DataRow dataRow) {
+			RouteInfo routeInfo = new RouteInfo();
+			routeInfo.TunnelId = (Int64) dataRow["id"];
+			routeInfo.OwnerId = (Int64) dataRow["ownerid"];
+			routeInfo.Created = (DateTime) dataRow["created"];
+			routeInfo.LastModified = (DateTime) dataRow["lastmodified"];
+			routeInfo.Enabled = (bool) dataRow["enabled"];
+
+			routeInfo.Description = (string) dataRow["description"];
+			routeInfo.UserEnabled = (bool) dataRow["userenabled"];
+
+			return routeInfo;
+		}
+
+
+
+
+
 		private DataTable getDataTable(string tableName, string whereString) {
 			string commandString = "SELECT * FROM " + tableName;
 			if (whereString != null) {
@@ -132,19 +321,6 @@ namespace Nabla.Database {
 			}
 
 			return dataTable;
-		}
-
-		private UserInfo dataRowToUserInfo(DataRow dataRow) {
-			UserInfo userInfo = new UserInfo();
-			userInfo.UserId = (Int64) dataRow["id"];
-			userInfo.Enabled = (bool) dataRow["enabled"];
-
-			userInfo.UserName = (string) dataRow["username"];
-			userInfo.Password = "";
-			userInfo.TunnelPassword = (string) dataRow["tunnel_password"];
-			userInfo.FullName = (string) dataRow["fullname"];
-
-			return userInfo;
 		}
 
 		private string SHA256WithSalt(string key, byte[] saltBytes) {
