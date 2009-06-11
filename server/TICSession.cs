@@ -56,12 +56,12 @@ namespace Nabla {
 		}
 
 		private string _serviceName;
-		private TICDatabase _db;
+		private UserDatabase _db;
 		private SessionInfo _sessionInfo;
 		private bool _finished = false;
 
 		public TICSession(string serviceName, IPAddress source, IPAddress local) {
-			_db = new TICDatabase("nabla.db");
+			_db = new UserDatabase("nabla.db");
 			_sessionInfo = new SessionInfo();
 			_sessionInfo.SourceAddress = source;
 			_sessionInfo.LocalAddress = local;
@@ -165,14 +165,14 @@ namespace Nabla {
 					return "400 Challenge authentication type differs";
 				}
 
-				TICUserInfo userInfo = _db.GetUserInfo(_sessionInfo.UserName);
+				UserInfo userInfo = _db.GetUserInfo(_sessionInfo.UserName);
 				if (userInfo == null) {
 					_sessionInfo.State = SessionState.Initial;
 					return "400 User " + _sessionInfo.UserName + " does not exist in the DB.";
 				}
 	
 				bool passwordMatch;
-				string passwordHash = userInfo.Password;
+				string passwordHash = userInfo.TunnelPassword;
 				MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
 				if (words[1].Equals("clear")) {
 					byte[] pwBytes = Encoding.UTF8.GetBytes(words[2]);
@@ -277,16 +277,15 @@ namespace Nabla {
 
 		private string handleTunnelCommand(string[] words) {
 			if (words[0].Equals("list")) {
-				TICTunnelInfo[] tunnels = _db.ListTunnels(_sessionInfo.UserId);
+				TunnelInfo[] tunnels = _db.ListTunnels(_sessionInfo.UserId);
 
 				string ret = "201 Listing tunnels\n";
-				foreach (TICTunnelInfo t in tunnels) {
+				foreach (TunnelInfo t in tunnels) {
 					/* XXX: Get IPv6 endpoint from SessionManager */
 					IPAddress ipv6Endpoint = IPAddress.Parse("2001::1");
-					string popId = "nabla";
 
-					ret += String.Format("T{0} {1} {2} {3}\n",
-						t.TunnelId, ipv6Endpoint, t.IPv4Endpoint, popId);
+					ret += String.Format("T{0} {1} {2} nabla\n",
+						t.TunnelId, ipv6Endpoint, t.Endpoint);
 				}
 				ret += "202 <tunnel_id> <ipv6_endpoint> <ipv4_endpoint> <pop_name>";
 				return ret;
@@ -306,7 +305,7 @@ namespace Nabla {
 					return "400 Given tunnel id '" + words[1] + "' is not valid";
 				}
 
-				TICTunnelInfo tunnelInfo = _db.GetTunnelInfo(tunnelId);
+				TunnelInfo tunnelInfo = _db.GetTunnelInfo(tunnelId);
 				if (tunnelInfo == null) {
 					return "400 Unknown tunnel endpoint T" + tunnelId;
 				}
@@ -315,18 +314,27 @@ namespace Nabla {
 					return "400 T" + tunnelId + " is not one of your tunnels";
 				}
 
-				/* XXX: IPv6Endpoint, IPv6POP and HeartbeatInterval from SessionManager */
-				tunnelInfo.IPv6Endpoint = IPAddress.Parse("2001::1");
-				tunnelInfo.IPv6POP = IPAddress.Parse("2001::2");
-				tunnelInfo.HeartbeatInterval = 3600;
+				/* Only these values are from the database */
+				TICTunnelInfo ticTunnelInfo = new TICTunnelInfo(tunnelInfo.TunnelId);
+				ticTunnelInfo.TunnelName = tunnelInfo.Name;
+				ticTunnelInfo.IPv4Endpoint = tunnelInfo.Endpoint;
+				ticTunnelInfo.UserEnabled = tunnelInfo.UserEnabled;
+				ticTunnelInfo.AdminEnabled = tunnelInfo.Enabled;
+				ticTunnelInfo.Password = tunnelInfo.Password;
 
-				tunnelInfo.IPv6PrefixLength = 64;
-				tunnelInfo.TunnelMTU = 1280;
-				tunnelInfo.POPId = "nabla";
-				tunnelInfo.IPv4POP = _sessionInfo.LocalAddress;
+				/* XXX: IPv6Endpoint, IPv6POP and HeartbeatInterval from SessionManager */
+				ticTunnelInfo.IPv6Endpoint = IPAddress.Parse("2001::1");
+				ticTunnelInfo.IPv6POP = IPAddress.Parse("2001::2");
+				ticTunnelInfo.HeartbeatInterval = 3600;
+
+				/* Some constants that don't need to change */
+				ticTunnelInfo.IPv6PrefixLength = 64;
+				ticTunnelInfo.TunnelMTU = 1280;
+				ticTunnelInfo.POPId = "nabla";
+				ticTunnelInfo.IPv4POP = _sessionInfo.LocalAddress;
 
 				string ret = "201 Showing tunnel information for T" + tunnelId + "\n";
-				ret += tunnelInfo.ToString();
+				ret += ticTunnelInfo.ToString();
 				ret += "202 Done";
 
 				return ret;
@@ -346,7 +354,7 @@ namespace Nabla {
 					return "400 Given tunnel id '" + words[1] + "' is not valid";
 				}
 
-				TICTunnelInfo tunnelInfo = _db.GetTunnelInfo(tunnelId);
+				TunnelInfo tunnelInfo = _db.GetTunnelInfo(tunnelId);
 				if (tunnelInfo == null) {
 					return "400 Unknown tunnel endpoint T" + tunnelId;
 				}
@@ -373,7 +381,7 @@ namespace Nabla {
 						}
 					}
 
-					_db.UpdateTunnelIPv4Endpoint(tunnelId, words[3]);
+					_db.UpdateTunnelEndpoint(tunnelId, words[3]);
 					return "200 Endpoint of T" + tunnelId + " changed to " + words[3];
 				} else if (words[2].Equals("state")) {
 					bool enabled;
@@ -422,12 +430,16 @@ namespace Nabla {
 
 		private string handleRouteCommand(string[] words) {
 			if (words[0].Equals("list")) {
-				TICRouteInfo[] routes = _db.ListRoutes(_sessionInfo.UserId);
+				RouteInfo[] routes = _db.ListRoutes(_sessionInfo.UserId);
 
 				string ret = "201 Listing routes\n";
-				foreach (TICRouteInfo r in routes) {
+				foreach (RouteInfo r in routes) {
+					/* XXX: IPv6Prefix and IPv6PrefixLength SessionManager */
+					IPAddress ipv6Prefix = IPAddress.Parse("2001::1");
+					int ipv6PrefixLength = 64;
+
 					ret += String.Format("R{0} T{1} {2}/{3}\n",
-						r.RouteId, r.TunnelId, r.IPv6Prefix, r.IPv6PrefixLength);
+						r.RouteId, r.TunnelId, ipv6Prefix, ipv6PrefixLength);
 				}
 				ret += "202 <route_id> <tunnel_id> <route_prefix>";
 				return ret;
@@ -447,18 +459,29 @@ namespace Nabla {
 					return "400 Given route id '" + words[1] + "' is not valid";
 				}
 
-				TICRouteInfo routeInfo = _db.GetRouteInfo(routeId);
+				RouteInfo routeInfo = _db.GetRouteInfo(routeId);
 				if (routeInfo == null) {
 					return "400 Unknown route R" + routeId;
 				}
 
-				/* XXX: Check that the owner is correct */
 				if (routeInfo.OwnerId != _sessionInfo.UserId) {
 					return "400 T" + routeId + " is not your route";
 				}
 
+				/* Only these values are from the database */
+				TICRouteInfo ticRouteInfo = new TICRouteInfo(routeInfo.RouteId);
+				ticRouteInfo.Description = routeInfo.Description;
+				ticRouteInfo.Created = routeInfo.Created;
+				ticRouteInfo.LastModified = routeInfo.LastModified;
+				ticRouteInfo.UserEnabled = routeInfo.UserEnabled;
+				ticRouteInfo.AdminEnabled = routeInfo.Enabled;
+
+				/* XXX: IPv6Prefix and IPv6PrefixLength from SessionManager */
+				ticRouteInfo.IPv6Prefix = IPAddress.Parse("2001::1");
+				ticRouteInfo.IPv6PrefixLength = 64;
+
 				string ret = "201 Showing route information for R" + routeId + "\n";
-				ret += routeInfo.ToString();
+				ret += ticRouteInfo.ToString();
 				ret += "202 Done";
 
 				return ret;
@@ -469,12 +492,8 @@ namespace Nabla {
 
 		private string handlePopCommand(string[] words) {
 			if (words[0].Equals("list")) {
-				TICPopInfo[] pops = _db.ListPops();
-
 				string ret = "201 Listing PoPs\n";
-				foreach (TICPopInfo p in pops) {
-					ret += p.POPId + "\n";
-				}
+				ret += "nabla\n";
 				ret += "202 <pop_name>";
 				return ret;
 			} else if (words[0].Equals("show")) {
@@ -482,10 +501,23 @@ namespace Nabla {
 					return "400 Show requires a pop id";
 				}
 
-				TICPopInfo popInfo = _db.GetPopInfo(words[1]);
-				if (popInfo == null) {
+				if (!words[1].Equals("nabla")) {
 					return "400 Unknown PoP '" + words[1] + "'";
 				}
+
+				TICPopInfo popInfo = new TICPopInfo(words[1]);
+				popInfo.City = "Unknown";
+				popInfo.Country = "Unknown";
+				popInfo.IPv4 = IPAddress.Parse("127.0.0.1");
+				popInfo.IPv6 = IPAddress.Parse("::");
+				popInfo.HeartbeatSupport = true;
+				popInfo.TincSupport = false;
+				popInfo.MulticastSupport = "N";
+				popInfo.ISPShort = "Nabla";
+				popInfo.ISPName = "Nabla - Automatic IPv6 Tunneling and Connectivity";
+				popInfo.ISPWebsite = "http://code.google.com/p/nabla/";
+				popInfo.ISPASNumber = 0;
+				popInfo.ISPLIRId = "nabla";
 
 				string ret = "201 Showing PoP information for " + words[1] + "\n";
 				ret += popInfo.ToString();

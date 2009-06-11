@@ -19,38 +19,8 @@
 using System;
 using System.Net;
 
-namespace Nabla.Database {
-	public class UserInfo {
-		public Int64 UserId;
-		public bool Enabled;
-
-		public string UserName;
-		public string Password;
-		public string TunnelPassword;
-		public string FullName;
-
-		public override string ToString() {
-			string ret = "";
-			ret += "UserId: " + UserId + "\n";
-			ret += "Enabled: " + Enabled + "\n";
-
-			ret += "UserName: " + UserName + "\n";
-			ret += "Password: " + Password + "\n";
-			ret += "TunnelPassword: " + TunnelPassword + "\n";
-			ret += "FullName: " + FullName;
-			return ret;
-		}
-	}
-
-	public class TICUserInfo {
-		public Int64 UserId;
-		public string UserName;
-		public string Password;
-		public string FullName;
-	}
-
+namespace Nabla {
 	public class TICTunnelInfo {
-		public Int64 OwnerId;
 		public Int64 TunnelId;
 
 		public IPAddress IPv6Endpoint;
@@ -69,6 +39,10 @@ namespace Nabla.Database {
 
 		public string Password;
 		public Int64 HeartbeatInterval;
+
+		public TICTunnelInfo(Int64 id) {
+			TunnelId = id;
+		}
 
 		public override string ToString() {
 			string ret = "";
@@ -102,9 +76,8 @@ namespace Nabla.Database {
 	}
 
 	public class TICRouteInfo {
-		public Int64 OwnerId;
-		public Int64 TunnelId;
 		public Int64 RouteId;
+
 		public IPAddress IPv6Prefix;
 		public Int64 IPv6PrefixLength;
 		public string Description;
@@ -112,6 +85,10 @@ namespace Nabla.Database {
 		public DateTime LastModified;
 		public bool UserEnabled;
 		public bool AdminEnabled;
+
+		public TICRouteInfo(Int64 routeId) {
+			RouteId = routeId;
+		}
 
 		public override string ToString() {
 			string ret = "";
@@ -130,6 +107,7 @@ namespace Nabla.Database {
 
 	public class TICPopInfo {
 		public string POPId;
+
 		public string City;
 		public string Country;
 		public IPAddress IPv4;
@@ -142,6 +120,10 @@ namespace Nabla.Database {
 		public string ISPWebsite;
 		public Int64 ISPASNumber;
 		public string ISPLIRId;
+
+		public TICPopInfo(string id) {
+			POPId = id;
+		}
 
 		public override string ToString() {
 			string ret = "";
