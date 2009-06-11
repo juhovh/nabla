@@ -26,6 +26,7 @@ namespace Nabla {
 		AyiyaIPv4inIPv4,
 		AyiyaIPv4inIPv6,
 		AyiyaIPv6inIPv4,
-		AyiyaIPv6inIPv6
+		AyiyaIPv6inIPv6,
+		IPv6inUDP
 	};
 }
