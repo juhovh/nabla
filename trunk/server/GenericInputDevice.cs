@@ -24,48 +24,47 @@ using System.Net.Sockets;
 using Nabla.Sockets;
 
 namespace Nabla {
-	public delegate void IntDeviceCallback(TunnelType type, IPEndPoint source, byte[] data);
+	public enum GenericInputType {
+		Ayiya,
+		Heartbeat,
+		IPv4inIPv4,
+		IPv4inIPv6,
+		IPv6inIPv4,
+		IPv6inIPv6
+	}
 
-	public class IntDevice {
+	public class GenericInputDevice : InputDevice {
 		private const int waitms = 100;
 
 		private Thread _thread;
 		private volatile bool _running;
 
 		private SessionManager _sessionManager;
-		private IntDeviceCallback _callback;
 
 		private Socket _udpSocket = null;
 		private RawSocket _rawSocket = null;
 
-		public readonly TunnelType TunnelType;
+		private GenericInputType _type;
+		private List<TunnelType> _tunnelTypes = new List<TunnelType>();
 
-		public IntDevice(SessionManager sessionManager, string deviceName, TunnelType type, IntDeviceCallback cb) {
-			_sessionManager = sessionManager;
-			TunnelType = type;
-			_callback = cb;
+		public GenericInputDevice(string deviceName, GenericInputType type) {
+			_type = type;
 
 			AddressFamily addressFamily = AddressFamily.Unknown;
 			int protocol = 0;
 
 			switch (type) {
-			case TunnelType.AyiyaIPv4inIPv4:
-			case TunnelType.AyiyaIPv4inIPv6:
-			case TunnelType.AyiyaIPv6inIPv4:
-			case TunnelType.AyiyaIPv6inIPv6:
-				if (type == TunnelType.AyiyaIPv4inIPv4 || type == TunnelType.AyiyaIPv6inIPv4) {
-					_udpSocket = new Socket(AddressFamily.InterNetwork,
-								SocketType.Dgram,
-								ProtocolType.Udp);
-					_udpSocket.Bind(new IPEndPoint(IPAddress.Any, 5072));
-				} else {
-					_udpSocket = new Socket(AddressFamily.InterNetworkV6,
-								SocketType.Dgram,
-								ProtocolType.Udp);
-					_udpSocket.Bind(new IPEndPoint(IPAddress.IPv6Any, 5072));
-				}
+			case GenericInputType.Ayiya:
+				_udpSocket = new Socket(AddressFamily.InterNetworkV6,
+				                        SocketType.Dgram,
+				                        ProtocolType.Udp);
+				_udpSocket.Bind(new IPEndPoint(IPAddress.IPv6Any, 5072));
+				_tunnelTypes.Add(TunnelType.AyiyaIPv4inIPv4);
+				_tunnelTypes.Add(TunnelType.AyiyaIPv4inIPv6);
+				_tunnelTypes.Add(TunnelType.AyiyaIPv6inIPv4);
+				_tunnelTypes.Add(TunnelType.AyiyaIPv6inIPv6);
 				break;
-			case TunnelType.Heartbeat:
+			case GenericInputType.Heartbeat:
 				/* We still need a raw socket for Heartbeat */
 				addressFamily = AddressFamily.InterNetwork;
 				protocol = 41;
@@ -74,25 +73,30 @@ namespace Nabla {
 				                        SocketType.Dgram,
 				                        ProtocolType.Udp);
 				_udpSocket.Bind(new IPEndPoint(IPAddress.Any, 3740));
+				_tunnelTypes.Add(TunnelType.Heartbeat);
 				break;
-			case TunnelType.IPv4inIPv4:
+			case GenericInputType.IPv4inIPv4:
 				addressFamily = AddressFamily.InterNetwork;
 				protocol = 4;
+				_tunnelTypes.Add(TunnelType.IPv4inIPv4);
 				break;
-			case TunnelType.IPv4inIPv6:
+			case GenericInputType.IPv4inIPv6:
 				addressFamily = AddressFamily.InterNetworkV6;
 				protocol = 4;
+				_tunnelTypes.Add(TunnelType.IPv4inIPv6);
 				break;
-			case TunnelType.IPv6inIPv4:
+			case GenericInputType.IPv6inIPv4:
 				addressFamily = AddressFamily.InterNetwork;
 				protocol = 41;
+				_tunnelTypes.Add(TunnelType.IPv6inIPv4);
 				break;
-			case TunnelType.IPv6inIPv6:
+			case GenericInputType.IPv6inIPv6:
 				addressFamily = AddressFamily.InterNetworkV6;
 				protocol = 41;
+				_tunnelTypes.Add(TunnelType.IPv6inIPv6);
 				break;
 			default:
-				throw new Exception("Unsupported tunnel type: " + type);
+				throw new Exception("Unsupported input type: " + type);
 			}
 
 			if (addressFamily != AddressFamily.Unknown) {
@@ -100,6 +104,14 @@ namespace Nabla {
 			}
 
 			_thread = new Thread(new ThreadStart(this.threadLoop));
+		}
+
+		public void SetSessionManager(SessionManager sessionManager) {
+			_sessionManager = sessionManager;
+		}
+
+		public TunnelType[] GetSupportedTypes() {
+			return _tunnelTypes.ToArray();
 		}
 
 		public void Start() {
@@ -120,36 +132,46 @@ namespace Nabla {
 			byte[] data = new byte[2048];
 
 			while (_running) {
-				if (TunnelType == TunnelType.AyiyaIPv4inIPv4 ||
-				    TunnelType == TunnelType.AyiyaIPv4inIPv6 ||
-				    TunnelType == TunnelType.AyiyaIPv6inIPv4 ||
-				    TunnelType == TunnelType.AyiyaIPv6inIPv6) {
+				if (_type == GenericInputType.Ayiya) {
 					while (_udpSocket.Poll(waitms*1000, SelectMode.SelectRead)) {
-						IPEndPoint endPoint;
-						if (TunnelType == TunnelType.AyiyaIPv4inIPv4 ||
-						    TunnelType == TunnelType.AyiyaIPv6inIPv4) {
-							endPoint = new IPEndPoint(IPAddress.Any, 0);
-						} else {
-							endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
-						}
-
-						EndPoint sender = (EndPoint) endPoint;
+						EndPoint sender = (EndPoint) new IPEndPoint(IPAddress.IPv6Any, 0);
 						int datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,
 						                                     SocketFlags.None,
 						                                     ref sender);
 						Console.WriteLine("Received an AYIYA packet from {0}", sender);
+						IPEndPoint endPoint = (IPEndPoint) sender;
 
 						if (datalen < 8 || datalen < (8 + (data[0] >> 4)*4 + (data[1] >> 4)*4)) {
 							Console.WriteLine("Packet length {0} invalid", datalen);
 							continue;
 						}
 
-						/* If not from a valid session, ignore the packet */
-						if (!_sessionManager.UpdateSession(TunnelType, endPoint, data)) {
+						if (data[4] != 4 && data[4] != 41) {
+							Console.WriteLine("AYIYA next header unknown: " + data[4]);
 							continue;
 						}
 
-						if (!_sessionManager.SessionAlive(TunnelType, endPoint))
+						TunnelType tunnelType;
+						if (endPoint.Address.AddressFamily == AddressFamily.InterNetwork) {
+							if (data[4] == 4) {
+								tunnelType = TunnelType.AyiyaIPv4inIPv4;
+							} else {
+								tunnelType = TunnelType.AyiyaIPv6inIPv4;
+							}
+						} else {
+							if (data[4] == 4) {
+								tunnelType = TunnelType.AyiyaIPv4inIPv6;
+							} else {
+								tunnelType = TunnelType.AyiyaIPv6inIPv6;
+							}
+						}
+
+						/* If not from a valid session, ignore the packet */
+						if (!_sessionManager.UpdateSession(tunnelType, endPoint, data)) {
+							continue;
+						}
+
+						if (!_sessionManager.SessionAlive(tunnelType, endPoint))
 							continue;
 
 						/* Remove the AYIYA header from the packet */
@@ -157,16 +179,15 @@ namespace Nabla {
 						byte[] outdata = new byte[datalen-hlen];
 						Array.Copy(data, hlen, outdata, 0, outdata.Length);
 
-						_callback(TunnelType, endPoint, outdata);
+						_sessionManager.ProcessPacket(tunnelType, endPoint, outdata);
 					}
 				} else {
 					IPEndPoint endPoint;
 					int datalen;
 
-					if (TunnelType == TunnelType.Heartbeat) {
+					if (_type == GenericInputType.Heartbeat) {
 						while (_udpSocket.Poll(0, SelectMode.SelectRead)) {
-							endPoint = new IPEndPoint(IPAddress.Any, 0);
-							EndPoint sender = (EndPoint) endPoint;
+							EndPoint sender = (EndPoint) new IPEndPoint(IPAddress.Any, 0);
 							datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,
 							                                 SocketFlags.None,
 							                                 ref sender);
@@ -179,7 +200,7 @@ namespace Nabla {
 							data[datalen] = 0;
 
 							/* Possibly update the session source IP if changed */
-							if (!_sessionManager.UpdateSession(TunnelType, endPoint, data)) {
+							if (!_sessionManager.UpdateSession(TunnelType.Heartbeat, endPoint, data)) {
 								Console.WriteLine("Heartbeat packet invalid, discarded");
 							}
 						}
@@ -188,29 +209,38 @@ namespace Nabla {
 					if (!_rawSocket.WaitForReadable())
 						continue;
 
-					switch (TunnelType) {
-					case TunnelType.IPv4inIPv4:
-					case TunnelType.IPv6inIPv4:
-					case TunnelType.Heartbeat:
-						endPoint = new IPEndPoint(IPAddress.Any, 0);
+					TunnelType tunnelType;
+					switch (_type) {
+					case GenericInputType.IPv4inIPv4:
+						tunnelType = TunnelType.IPv4inIPv4;
 						break;
-					case TunnelType.IPv4inIPv6:
-					case TunnelType.IPv6inIPv6:
-						endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
+					case GenericInputType.IPv6inIPv4:
+						tunnelType = TunnelType.IPv6inIPv4;
+						break;
+					case GenericInputType.IPv4inIPv6:
+						tunnelType = TunnelType.IPv4inIPv6;
+						break;
+					case GenericInputType.IPv6inIPv6:
+						tunnelType = TunnelType.IPv6inIPv6;
+						break;
+					case GenericInputType.Heartbeat:
+						tunnelType = TunnelType.Heartbeat;
 						break;
 					default:
-						throw new Exception("Unsupported tunnel type: " + TunnelType);
+						throw new Exception("Unsupported input type: " + _type);
 					}
+
+					endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);;
 					datalen = _rawSocket.ReceiveFrom(data, ref endPoint);
 					Console.WriteLine("Received a packet from {0}", endPoint);
 
-					if (!_sessionManager.SessionAlive(TunnelType, endPoint))
+					if (!_sessionManager.SessionAlive(tunnelType, endPoint))
 						continue;
 
 					byte[] outdata = new byte[datalen];
 					Array.Copy(data, 0, outdata, 0, datalen);
 
-					_callback(TunnelType, endPoint, outdata);
+					_sessionManager.ProcessPacket(tunnelType, endPoint, outdata);
 				}
 			}
 		}
