@@ -22,10 +22,24 @@ using System.Net;
 namespace Nabla.Database {
 	public class UserInfo {
 		public Int64 UserId;
+		public bool Enabled;
+
 		public string UserName;
 		public string Password;
 		public string TunnelPassword;
 		public string FullName;
+
+		public override string ToString() {
+			string ret = "";
+			ret += "UserId: " + UserId + "\n";
+			ret += "Enabled: " + Enabled + "\n";
+
+			ret += "UserName: " + UserName + "\n";
+			ret += "Password: " + Password + "\n";
+			ret += "TunnelPassword: " + TunnelPassword + "\n";
+			ret += "FullName: " + FullName;
+			return ret;
+		}
 	}
 
 	public class TICUserInfo {
