@@ -30,7 +30,7 @@ namespace Nabla {
 		private Object _runlock = new Object();
 		private bool _running;
 
-		private List<IntDevice> _intDevices = new List<IntDevice>();
+		private List<InputDevice> _inputDevices = new List<InputDevice>();
 		private List<ExtDevice> _extDevices = new List<ExtDevice>();
 
 		private Object _sessionlock = new Object();
@@ -48,20 +48,21 @@ namespace Nabla {
 			               new Dictionary<IPEndPoint, TunnelSession>());
 		}
 
-		public void AddIntDevice(string deviceName, TunnelType type) {
-			IntDeviceCallback callback = new IntDeviceCallback(intReceive);
+		public void AddInputDevice(InputDevice dev) {
 			lock (_runlock) {
 				if (_running) {
 					throw new Exception("Can't add devices while running, stop the manager first");
 				}
 
-				_intDevices.Add(new IntDevice(this, deviceName, type, callback));
+				dev.SetSessionManager(this);
+				_inputDevices.Add(dev);
 
 				lock (_sessionlock) {
-					/* If this TunnelType is not in sessions table, add it there */
-					if (!_sessions.ContainsKey(type)) {
-						_sessions.Add(type,
-							      new Dictionary<IPEndPoint, TunnelSession>());
+					foreach (TunnelType t in dev.GetSupportedTypes()) {
+						/* If this TunnelType is not in sessions table, add it there */
+						if (!_sessions.ContainsKey(t)) {
+							_sessions.Add(t, new Dictionary<IPEndPoint, TunnelSession>());
+						}
 					}
 				}
 			}
@@ -356,7 +357,7 @@ namespace Nabla {
 					return;
 				}
 
-				foreach (IntDevice dev in _intDevices) {
+				foreach (InputDevice dev in _inputDevices) {
 					dev.Start();
 				}
 				foreach (ExtDevice dev in _extDevices) {
@@ -372,7 +373,7 @@ namespace Nabla {
 					return;
 				}
 
-				foreach (IntDevice dev in _intDevices) {
+				foreach (InputDevice dev in _inputDevices) {
 					dev.Stop();
 				}
 				foreach (ExtDevice dev in _extDevices) {
@@ -382,7 +383,7 @@ namespace Nabla {
 			}
 		}
 
-		private void intReceive(TunnelType type, IPEndPoint source, byte[] data) {
+		public void ProcessPacket(TunnelType type, IPEndPoint source, byte[] data) {
 			foreach (ExtDevice dev in _extDevices) {
 				dev.SendPacket(source, data);
 			}
@@ -400,9 +401,12 @@ namespace Nabla {
 				}
 			}
 
-			foreach (IntDevice dev in _intDevices) {
-				if (dev.TunnelType == session.TunnelType) {
-					dev.SendPacket(destination, data);
+			foreach (InputDevice dev in _inputDevices) {
+				foreach (TunnelType t in dev.GetSupportedTypes()) {
+					if (t == session.TunnelType) {
+						dev.SendPacket(destination, data);
+						break;
+					}
 				}
 			}
 		}

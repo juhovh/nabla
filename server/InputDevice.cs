@@ -16,33 +16,14 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-using System;
 using System.Net;
-using System.Threading;
 
 namespace Nabla {
-	public class Server {
-		private static void Main(string[] args) {
-			if (args.Length != 2) {
-				Console.WriteLine("Invalid number of arguments\n");
-				return;
-			}
-
-			SessionManager sessionManager = new SessionManager();
-			InputDevice dev = new GenericInputDevice(args[0], GenericInputType.IPv6inIPv4);
-			sessionManager.AddInputDevice(dev);
-			sessionManager.AddExtDevice(args[1]);
-
-			IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("192.168.1.123"), 1234);
-			TunnelSession session = new TunnelSession(TunnelType.IPv6inIPv4, endPoint);
-			session.Password = "salasana";
-			sessionManager.AddSession(session);
-
-			sessionManager.Start();
-
-			while (true) {
-				Thread.Sleep(1000);
-			}
-		}
+	public interface InputDevice {
+		void SetSessionManager(SessionManager sessionManager);
+		TunnelType[] GetSupportedTypes();
+		void Start();
+		void Stop();
+		void SendPacket(IPEndPoint destination, byte[] data);
 	}
 }
