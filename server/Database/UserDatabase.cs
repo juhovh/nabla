@@ -68,12 +68,12 @@ namespace Nabla.Database {
 			string tunnelPasswordHash = BitConverter.ToString(pwHashBytes).Replace("-", "").ToLower();
 
 			string commandString = "INSERT INTO users " +
-				" (username, password, tunnel_password, fullname, enabled) VALUES (" +
+				" (enabled, username, password, tunnel_password, fullname) VALUES (" +
+				"'" + (userInfo.Enabled ? 1 : 0) + "', " +
 				"'" + userInfo.UserName + "', " +
 				"'" + passwordHash + "', " +
 				"'" + tunnelPasswordHash + "', " +
-				"'" + userInfo.FullName + "'," +
-				"'False')";
+				"'" + userInfo.FullName + "')";
 
 			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
 				command.CommandText = commandString;

@@ -13,6 +13,7 @@ public class CreateDatabase {
 			userDB.CreateTables();
 
 			UserInfo userInfo = new UserInfo();
+			userInfo.Enabled = true;
 			userInfo.UserName = "juhovh";
 			userInfo.Password = "salasana";
 			userInfo.TunnelPassword = "sanasala";
@@ -20,7 +21,7 @@ public class CreateDatabase {
 			userDB.AddUserInfo(userInfo);
 
 			userInfo = userDB.GetUserInfo("juhovh");
-			Console.WriteLine("Got user info:\n" + userInfo);
+			Console.WriteLine("Got user info\n-------------\n" + userInfo);
 
 			Console.WriteLine("Password correct: " + userDB.ValidatePassword("juhovh", "salasana"));
 		}
