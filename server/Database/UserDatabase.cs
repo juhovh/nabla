@@ -37,20 +37,29 @@ namespace Nabla.Database {
 		public void CreateTables() {
 			string userString = "CREATE TABLE users (" +
 				"id integer primary key autoincrement" +
+				", enabled boolean" +
 				", username varchar(32)" +
 				", password varchar(64)" +
 				", tunnel_password varchar(32)" +
 				", fullname varchar(128))";
+			string tunnelString = "CREATE TABLE tunnels (" +
+				"id integer primary key autoincrement" +
+				", enabled boolean" +
+				", ownerid integer" + 
+				", name varchar(64)" + 
+				", endpoint varchar(39)" +
+				", user_enabled boolean" +
+				", password varchar(32))";
 
 			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
 				command.CommandText = userString;
+				command.ExecuteNonQuery();
+				command.CommandText = tunnelString;
 				command.ExecuteNonQuery();
 			}
 		}
 
 		public void AddUserInfo(UserInfo userInfo) {
-			string tableName = "users";
-
 			string passwordHash = SHA256WithSalt(userInfo.Password, null);
 
 			MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
@@ -58,12 +67,13 @@ namespace Nabla.Database {
 			byte[] pwHashBytes = md5.ComputeHash(pwBytes);
 			string tunnelPasswordHash = BitConverter.ToString(pwHashBytes).Replace("-", "").ToLower();
 
-			string commandString = "INSERT INTO " + tableName +
-				" (username, password, tunnel_password, fullname) VALUES (" +
+			string commandString = "INSERT INTO users " +
+				" (username, password, tunnel_password, fullname, enabled) VALUES (" +
 				"'" + userInfo.UserName + "', " +
 				"'" + passwordHash + "', " +
 				"'" + tunnelPasswordHash + "', " +
-				"'" + userInfo.FullName + "')";
+				"'" + userInfo.FullName + "'," +
+				"'False')";
 
 			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
 				command.CommandText = commandString;
@@ -127,6 +137,7 @@ namespace Nabla.Database {
 		private UserInfo dataRowToUserInfo(DataRow dataRow) {
 			UserInfo userInfo = new UserInfo();
 			userInfo.UserId = (Int64) dataRow["id"];
+			userInfo.Enabled = (bool) dataRow["enabled"];
 
 			userInfo.UserName = (string) dataRow["username"];
 			userInfo.Password = "";

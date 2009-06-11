@@ -11,7 +11,7 @@ public class ParallelDeviceTest {
 			return;
 		}
 
-		ParallelDevice device = new ParallelDevice(args[0]);
+		ParallelDevice device = new ParallelDevice(args[0], true, true);
 		device.AddSubnet(IPAddress.Parse("192.168.1.0"), 28);
 		device.AddSubnet(IPAddress.Parse("fec0::"), 10);
 		device.Start();

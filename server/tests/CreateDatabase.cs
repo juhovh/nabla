@@ -19,6 +19,9 @@ public class CreateDatabase {
 			userInfo.FullName = "Juho Vähä-Herttua";
 			userDB.AddUserInfo(userInfo);
 
+			userInfo = userDB.GetUserInfo("juhovh");
+			Console.WriteLine("Got user info:\n" + userInfo);
+
 			Console.WriteLine("Password correct: " + userDB.ValidatePassword("juhovh", "salasana"));
 		}
 
