@@ -31,7 +31,7 @@ namespace Nabla {
 		private bool _running;
 
 		private List<InputDevice> _inputDevices = new List<InputDevice>();
-		private List<ExtDevice> _extDevices = new List<ExtDevice>();
+		private List<OutputDevice> _outputDevices = new List<OutputDevice>();
 
 		private Object _sessionlock = new Object();
 		private List<TunnelSession> _uninitiatedSessions = new List<TunnelSession>();
@@ -68,14 +68,14 @@ namespace Nabla {
 			}
 		}
 
-		public void AddExtDevice(string deviceName) {
-			ExtDeviceCallback callback = new ExtDeviceCallback(extReceive);
+		public void AddOutputDevice(string deviceName, IPAddress ipv4, bool ipv6) {
+			OutputDeviceCallback callback = new OutputDeviceCallback(extReceive);
 			lock (_runlock) {
 				if (_running) {
 					throw new Exception("Can't add devices while running, stop the manager first");
 				}
 
-				_extDevices.Add(new ExtDevice(deviceName, callback));
+				_outputDevices.Add(new OutputDevice(deviceName, ipv4, ipv6, callback));
 			}
 		}
 
@@ -360,7 +360,7 @@ namespace Nabla {
 				foreach (InputDevice dev in _inputDevices) {
 					dev.Start();
 				}
-				foreach (ExtDevice dev in _extDevices) {
+				foreach (OutputDevice dev in _outputDevices) {
 					dev.Start();
 				}
 				_running = true;
@@ -376,7 +376,7 @@ namespace Nabla {
 				foreach (InputDevice dev in _inputDevices) {
 					dev.Stop();
 				}
-				foreach (ExtDevice dev in _extDevices) {
+				foreach (OutputDevice dev in _outputDevices) {
 					dev.Stop();
 				}
 				_running = false;
@@ -384,7 +384,7 @@ namespace Nabla {
 		}
 
 		public void ProcessPacket(TunnelType type, IPEndPoint source, byte[] data) {
-			foreach (ExtDevice dev in _extDevices) {
+			foreach (OutputDevice dev in _outputDevices) {
 				dev.SendPacket(source, data);
 			}
 		}

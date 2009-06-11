@@ -81,20 +81,34 @@ namespace Nabla {
 			}
 		}
 
+		private bool _enableIPv4;
+		private bool _enableIPv6;
+
 		public IPConfig IPv4Route;
 		public IPConfig IPv6Route;
 
-		public ParallelDevice(string deviceName) {
+		public ParallelDevice(string deviceName, bool enableIPv4, bool enableIPv6) {
 			_hwaddr = RawSocket.GetHardwareAddress(deviceName);
 			_socket = RawSocket.GetRawSocket(deviceName,
 			                                 AddressFamily.DataLink,
 			                                 0, 100);
 			_thread = new Thread(new ThreadStart(threadLoop));
+
+			_enableIPv4 = enableIPv4;
+			_enableIPv6 = enableIPv6;
 		}
 
 		public void Start() {
 			_running = true;
 			_thread.Start();
+
+			/* Start address autoconfiguration */
+			if (_enableIPv4) {
+				sendDHCPDiscover();
+			}
+			if (_enableIPv6) {
+				sendNDRouterSol();
+			}
 		}
 
 		public void Stop() {
@@ -243,10 +257,6 @@ namespace Nabla {
 
 		private void threadLoop() {
 			byte[] data = new byte[2048];
-
-			/* FIXME: This should be just temporarily here */
-			sendDHCPDiscover();
-			sendNDRouterSol();
 
 			while (_running) {
 				if (!_socket.WaitForReadable())

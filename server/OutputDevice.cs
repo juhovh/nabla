@@ -24,25 +24,35 @@ using System.Net.Sockets;
 using Nabla.Sockets;
 
 namespace Nabla {
-	public delegate void ExtDeviceCallback(AddressFamily family, IPEndPoint destination, byte[] data);
+	public delegate void OutputDeviceCallback(AddressFamily family, IPEndPoint destination, byte[] data);
 
-	public class ExtDevice {
+	public class OutputDevice {
 		private ParallelDevice _device;
 		private NATMapper _mapper = new NATMapper();
 		private Dictionary<IPAddress, IPEndPoint> _ipv6map = new Dictionary<IPAddress, IPEndPoint>();
-		private ExtDeviceCallback _callback;
+		private OutputDeviceCallback _callback;
 
-		public ExtDevice(string deviceName, ExtDeviceCallback cb) {
-			_device = new ParallelDevice(deviceName);
+		public OutputDevice(string deviceName, IPAddress ipv4, bool enableIPv6, OutputDeviceCallback cb) {
+			bool enableIPv4 = false;
+			if (ipv4.AddressFamily == AddressFamily.InterNetwork) {
+				enableIPv4 = true;
+			}
+
+			_device = new ParallelDevice(deviceName, enableIPv4, enableIPv6);
 			_device.ReceivePacketCallback = new ReceivePacketCallback(receivePacket);
 			_mapper.AddProtocol(ProtocolType.Tcp);
 			_mapper.AddProtocol(ProtocolType.Udp);
 			_mapper.AddProtocol(ProtocolType.Icmp);
 			_callback = cb;
 
-			/* FIXME: These values shouldn't be hardcoded */
-			_device.AddSubnet(IPAddress.Parse("192.168.1.16"), 28);
-			_mapper.Addresses += IPAddress.Parse("192.168.1.16");
+			if (enableIPv4) {
+				_device.AddSubnet(ipv4, 32);
+				_mapper.Addresses += ipv4;
+			}
+
+			if (enableIPv6) {
+				/* FIXME: Automatically add subnet ::xxxx:xxFF:FFyy:yyyy/104 */
+			}
 		}
 
 		public void Start() {
