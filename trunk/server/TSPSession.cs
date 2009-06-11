@@ -200,10 +200,10 @@ namespace Nabla {
 			/* XXX: Check that type is correct and call SessionManager */
 			/* XXX: Set the real keepalive interval and address */
 			string lifetime = "1440";
-			int interval = 30;
 			IPAddress clientAddress = IPAddress.Parse("2001::1");
 			IPAddress serverAddress = IPAddress.Parse("2001::1");
 			IPAddress keepaliveAddress = serverAddress;
+			int keepaliveInterval = 30;
 
 			XmlDocument response = new XmlDocument();
 			XmlElement tunnel = response.CreateElement("tunnel");
@@ -211,7 +211,7 @@ namespace Nabla {
 			XmlElement client = response.CreateElement("client");
 			XmlElement keepalive = response.CreateElement("keepalive");
 
-			keepalive.SetAttribute("interval", interval.ToString());
+			keepalive.SetAttribute("interval", keepaliveInterval.ToString());
 			keepalive.AppendChild(addressToElement(response, keepaliveAddress));
 
 			client.AppendChild(addressToElement(response, _sessionInfo.SourceAddress));
