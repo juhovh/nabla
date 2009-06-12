@@ -426,7 +426,7 @@ namespace Nabla {
 			}
 
 			foreach (TunnelSession ts in _uninitiatedSessions) {
-				if (type == ts.TunnelType && addr.Equals(ts.PrivateAddress)) {
+				if (type == ts.TunnelType && address.Equals(ts.PrivateAddress)) {
 					_uninitiatedSessions.Remove(ts);
 					return ts;
 				}
