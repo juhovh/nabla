@@ -40,19 +40,18 @@ namespace Nabla {
 				enableIPv4 = true;
 			}
 
-			_device = new ParallelDevice(deviceName, enableIPv4, enableIPv6);
+			_device = new ParallelDevice(deviceName);
 			_device.ReceivePacketCallback = new ReceivePacketCallback(receivePacket);
 			_mapper.AddProtocol(ProtocolType.Tcp);
 			_mapper.AddProtocol(ProtocolType.Udp);
 			_mapper.AddProtocol(ProtocolType.Icmp);
 			_callback = cb;
 
-			/* XXX: Is one second a good time to wait?
-			 *      Should device be stopped? */
-			_device.Start();
-			Thread.Sleep(1000);
+			DateTime confStart = DateTime.Now;
+			_device.AutoConfigureRoutes(enableIPv4, enableIPv6, 1000);
+			Console.WriteLine("Configure took timespan :" + (DateTime.Now - confStart));
 
-			if (enableIPv4 && _device.IPv4Route != null) {
+			if (_device.IPv4Route != null) {
 				if (_device.IPv4Route.AddressInSubnet(ipv4)) {
 					_device.AddSubnet(ipv4, 32);
 					_mapper.Addresses += ipv4;
@@ -60,7 +59,7 @@ namespace Nabla {
 				}
 			}
 
-			if (enableIPv6 && _device.IPv6Route != null) {
+			if (_device.IPv6Route != null) {
 				IPAddress ipv6 = _device.IPv6Route.Address;
 				byte[] ipv6Bytes = ipv6.GetAddressBytes();
 
