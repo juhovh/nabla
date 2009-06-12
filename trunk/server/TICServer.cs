@@ -27,13 +27,15 @@ namespace Nabla {
 		private Object _runlock = new Object();
 		private volatile bool _running = false;
 
+		private SessionManager _sessionManager;
 		private TcpListener _listener;
 		private Thread _thread;
 
 		/* Use the default port */
-		public TICServer() : this(3874) {}
+		public TICServer(SessionManager sessionManager) : this(sessionManager, 3874) {}
 
-		public TICServer(int port) {
+		public TICServer(SessionManager sessionManager, int port) {
+			_sessionManager = sessionManager;
 			_listener = new TcpListener(IPAddress.Any, port);
 			_thread = new Thread(new ThreadStart(listenerThread));
 		}
@@ -71,7 +73,8 @@ namespace Nabla {
 
 			IPEndPoint remoteEndPoint = (IPEndPoint) client.Client.RemoteEndPoint;
 			IPEndPoint localEndPoint = (IPEndPoint) client.Client.LocalEndPoint;
-			TICSession session = new TICSession(serviceName, remoteEndPoint.Address, localEndPoint.Address);
+			TICSession session = new TICSession(_sessionManager, serviceName,
+			                                    remoteEndPoint.Address, localEndPoint.Address);
 
 			StreamReader reader = new StreamReader(client.GetStream());
 			StreamWriter writer = new StreamWriter(client.GetStream());

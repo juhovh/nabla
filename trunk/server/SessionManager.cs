@@ -108,35 +108,20 @@ namespace Nabla {
 			}
 		}
 
-		private TunnelSession findSessionByPrivateAddress(TunnelType type, IPAddress address) {
-			foreach (TunnelSession ts in _sessions[type].Values) {
-				IPAddress gwaddr = ts.PrivateAddress;
-				if (gwaddr != null && gwaddr.Equals(address)) {
-					_sessions[ts.TunnelType].Remove(ts.EndPoint);
-					_rsessions[ts.AddressFamily].Remove(ts.EndPoint);
-					return ts;
-				}
+		public bool GetTunnelIPv4Endpoints(Int64 tunnelId, ref IPAddress client, ref IPAddress server) {
+			if (tunnelId > 0xffffff) {
+				return false;
 			}
 
-			foreach (TunnelSession ts in _uninitiatedSessions) {
-				if (type == ts.TunnelType && address.Equals(ts.PrivateAddress)) {
-					_uninitiatedSessions.Remove(ts);
-					return ts;
-				}
-			}
-
-			return null;
+			return true;
 		}
 
-		private TunnelSession findUninitiatedSession(TunnelType type, IPAddress addr) {
-			foreach (TunnelSession ts in _uninitiatedSessions) {
-				if (type == ts.TunnelType && addr.Equals(ts.EndPoint.Address)) {
-					_uninitiatedSessions.Remove(ts);
-					return ts;
-				}
+		public bool GetTunnelIPv6Endpoints(Int64 tunnelId, ref IPAddress client, ref IPAddress server) {
+			if (tunnelId > 0xffffff) {
+				return false;
 			}
 
-			return null;
+			return true;
 		}
 
 		public bool UpdateSession(TunnelType type, IPEndPoint source, byte[] data) {
@@ -409,6 +394,37 @@ namespace Nabla {
 					}
 				}
 			}
+		}
+
+		private TunnelSession findSessionByPrivateAddress(TunnelType type, IPAddress address) {
+			foreach (TunnelSession ts in _sessions[type].Values) {
+				IPAddress gwaddr = ts.PrivateAddress;
+				if (gwaddr != null && gwaddr.Equals(address)) {
+					_sessions[ts.TunnelType].Remove(ts.EndPoint);
+					_rsessions[ts.AddressFamily].Remove(ts.EndPoint);
+					return ts;
+				}
+			}
+
+			foreach (TunnelSession ts in _uninitiatedSessions) {
+				if (type == ts.TunnelType && address.Equals(ts.PrivateAddress)) {
+					_uninitiatedSessions.Remove(ts);
+					return ts;
+				}
+			}
+
+			return null;
+		}
+
+		private TunnelSession findUninitiatedSession(TunnelType type, IPAddress addr) {
+			foreach (TunnelSession ts in _uninitiatedSessions) {
+				if (type == ts.TunnelType && addr.Equals(ts.EndPoint.Address)) {
+					_uninitiatedSessions.Remove(ts);
+					return ts;
+				}
+			}
+
+			return null;
 		}
 	}
 }
