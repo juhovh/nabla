@@ -67,7 +67,7 @@ namespace Nabla {
 			ret += "Tunnel Name: " + TunnelName + "\n";
 			ret += "POP Id: " + POPId + "\n";
 			ret += "IPv4 Endpoint: " + IPv4Endpoint + "\n";
-			ret += "IPv4POP: " + IPv4POP + "\n";
+			ret += "IPv4 POP: " + IPv4POP + "\n";
 			ret += "UserState: " + (UserEnabled ? "enabled" : "disabled") + "\n";
 			ret += "AdminState: " + (AdminEnabled ? "enabled" : "disabled") + "\n";
 			ret += "Password: " + Password + "\n";
