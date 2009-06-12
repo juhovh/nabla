@@ -129,7 +129,7 @@ namespace Nabla {
 		public void SendPacket(TunnelSession session, byte[] data) {
 			if (_type == GenericInputType.Ayiya) {
 				/* FIXME: not necessarily IPv6 */
-				int datalen = 40 + data[length+4]*256 + data[length+5];
+				int datalen = 40 + data[4]*256 + data[5];
 
 				byte[] outdata = new byte[44 + datalen];
 				outdata[0] = 0x41;
