@@ -42,11 +42,15 @@ namespace Nabla {
 			= new Dictionary<IPAddress, byte[]>();
 
 		private Object _cblock = new Object();
-		private volatile ReceivePacketCallback _callback = null;
+		private ReceivePacketCallback _callback = null;
 
 		public ReceivePacketCallback ReceivePacketCallback {
 			get {
-				return _callback;
+				ReceivePacketCallback ret;
+				lock (_cblock) {
+					ret = _callback;
+				}
+				return ret;
 			}
 			set {
 				lock (_cblock) {
@@ -55,21 +59,83 @@ namespace Nabla {
 			}
 		}
 
-		private bool _enableIPv4;
-		private bool _enableIPv6;
+		private Object _confLock = new Object();
+		private IPConfig _ipv4Route;
+		private IPConfig _ipv6Route;
 
-		public IPConfig IPv4Route;
-		public IPConfig IPv6Route;
+		public IPConfig IPv4Route {
+			get {
+				lock (_confLock) {
+					return _ipv4Route;
+				}
+			}
+		}
+		public IPConfig IPv6Route {
+			get {
+				lock (_confLock) {
+					return _ipv6Route;
+				}
+			}
+		}
 
-		public ParallelDevice(string deviceName, bool enableIPv4, bool enableIPv6) {
+		public ParallelDevice(string deviceName) {
 			_hwaddr = RawSocket.GetHardwareAddress(deviceName);
 			_socket = RawSocket.GetRawSocket(deviceName,
 			                                 AddressFamily.DataLink,
 			                                 0, 100);
-			_thread = new Thread(new ThreadStart(threadLoop));
+		}
 
-			_enableIPv4 = enableIPv4;
-			_enableIPv6 = enableIPv6;
+		public bool AutoConfigureRoutes(bool configureIPv4, bool configureIPv6, int waitms) {
+			lock (_runlock) {
+				if (!_running) {
+					throw new Exception("Can't configure routes while running");
+				}
+
+				lock (_cblock) {
+					ReceivePacketCallback originalCallback = _callback;
+					_callback = null;
+
+					_running = true;
+					_thread = new Thread(new ThreadStart(threadLoop));
+					_thread.Start();
+
+					TimeSpan span = new TimeSpan(0, 0, 0, 0, waitms);
+					DateTime startTime = DateTime.Now;
+
+					bool success = false;
+					while (!success) {
+						lock (_confLock) {
+							if (configureIPv4) {
+								_ipv4Route = null;
+								sendDHCPDiscover();
+							}
+
+							if (configureIPv6) {
+								_ipv6Route = null;
+								sendNDRouterSol();
+							}
+
+							TimeSpan wait = (startTime + span) - DateTime.Now;
+							if (wait < TimeSpan.Zero)
+								break;
+
+							Monitor.Wait(_confLock, wait);
+
+							if ((configureIPv4 == (_ipv4Route != null)) &&
+							    (configureIPv6 == (_ipv6Route != null))) {
+								success = true;
+							}
+						}
+					}
+
+					_running = false;
+					_thread.Join();
+
+					_callback = originalCallback;
+
+					return success;
+				}
+			}
 		}
 
 		public void Start() {
@@ -78,15 +144,9 @@ namespace Nabla {
 					return;
 
 				_running = true;
-				_thread.Start();
 
-				/* Start address autoconfiguration */
-				if (_enableIPv4 && IPv4Route == null) {
-					sendDHCPDiscover();
-				}
-				if (_enableIPv6 && IPv6Route == null) {
-					sendNDRouterSol();
-				}
+				_thread = new Thread(new ThreadStart(threadLoop));
+				_thread.Start();
 			}
 		}
 
@@ -173,15 +233,17 @@ namespace Nabla {
 					hwaddr[i] = 0xff;
 				}
 			} else {
-				if (dest.AddressFamily == AddressFamily.InterNetwork) {
-					/* If a route is configured, check if it needs to be applied */
-					if (IPv4Route != null && !IPv4Route.AddressInSubnet(dest)) {
-						dest = IPv4Route.DefaultRoute;
-					}
-				} else {
-					/* If a route is configured, check if it needs to be applied */
-					if (IPv6Route != null && !IPv6Route.AddressInSubnet(dest)) {
-						dest = IPv6Route.DefaultRoute;
+				lock (_confLock) {
+					if (dest.AddressFamily == AddressFamily.InterNetwork) {
+						/* If a route is configured, check if it needs to be applied */
+						if (_ipv4Route != null && !_ipv4Route.AddressInSubnet(dest)) {
+							dest = _ipv4Route.DefaultRoute;
+						}
+					} else {
+						/* If a route is configured, check if it needs to be applied */
+						if (_ipv6Route != null && !_ipv6Route.AddressInSubnet(dest)) {
+							dest = _ipv6Route.DefaultRoute;
+						}
 					}
 				}
 
@@ -526,12 +588,15 @@ namespace Nabla {
 				}
 			}
 
-			if (IPv4Route == null && prefixlen >= 0) {
-				IPv4Route = new IPConfig(packet.YIADDR, prefixlen, router);
+			lock (_confLock) {
+				if (_ipv4Route == null && prefixlen >= 0) {
+					_ipv4Route = new IPConfig(packet.YIADDR, prefixlen, router);
+					Monitor.PulseAll(_confLock);
 
-				Console.WriteLine("Offered address: " + packet.YIADDR);
-				Console.WriteLine("Prefix length: " + prefixlen);
-				Console.WriteLine("Default router: " + router);
+					Console.WriteLine("Offered address: " + packet.YIADDR);
+					Console.WriteLine("Prefix length: " + prefixlen);
+					Console.WriteLine("Default router: " + router);
+				}
 			}
 		}
 
@@ -615,13 +680,16 @@ namespace Nabla {
 				}
 			}
 
-			Console.WriteLine("Got valid default router advertisement");
-			if (IPv6Route == null && prefix != null) {
-				IPv6Route = new IPConfig(prefix, prefixlen, router);
+			lock (_confLock) {
+				if (_ipv6Route == null && prefix != null) {
+					Console.WriteLine("Got valid default router advertisement");
+					_ipv6Route = new IPConfig(prefix, prefixlen, router);
+					Monitor.PulseAll(_confLock);
 
-				Console.WriteLine("Prefix address: " + prefix);
-				Console.WriteLine("Prefix length: " + prefixlen);
-				Console.WriteLine("Default router: " + router);
+					Console.WriteLine("Prefix address: " + prefix);
+					Console.WriteLine("Prefix length: " + prefixlen);
+					Console.WriteLine("Default router: " + router);
+				}
 			}
 		}
 
