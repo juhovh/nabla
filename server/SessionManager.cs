@@ -138,9 +138,9 @@ namespace Nabla {
 
 			server = tunnelPrefix;
 			byte[] clientBytes = tunnelPrefix.GetAddressBytes();
-			clientBytes[14] = (byte) (tunnelId >> 16);
-			clientBytes[15] = (byte) (tunnelId >> 8);
-			clientBytes[16] = (byte) (tunnelId);
+			clientBytes[13] = (byte) (tunnelId >> 16);
+			clientBytes[14] = (byte) (tunnelId >> 8);
+			clientBytes[15] = (byte) (tunnelId);
 			client = new IPAddress(clientBytes);
 
 			return true;
