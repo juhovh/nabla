@@ -60,6 +60,7 @@ namespace Nabla {
 		}
 
 		private Object _confLock = new Object();
+		private bool _configuring = false;
 		private IPConfig _ipv4Route;
 		private IPConfig _ipv6Route;
 
@@ -104,6 +105,8 @@ namespace Nabla {
 					_thread = new Thread(new ThreadStart(threadLoop));
 					_thread.Start();
 
+					_configuring = true;
+
 					if (configureIPv4) {
 						_ipv4Route = null;
 						sendDHCPDiscover();
@@ -126,6 +129,8 @@ namespace Nabla {
 							success = true;
 						}
 					}
+
+					_configuring = false;
 				}
 
 				_running = false;
@@ -595,7 +600,7 @@ namespace Nabla {
 			}
 
 			lock (_confLock) {
-				if (_ipv4Route == null && prefixlen >= 0) {
+				if (_configuring && _ipv4Route == null && prefixlen >= 0) {
 					_ipv4Route = new IPConfig(packet.YIADDR, prefixlen, router);
 					Monitor.PulseAll(_confLock);
 				}
@@ -690,7 +695,7 @@ namespace Nabla {
 			}
 
 			lock (_confLock) {
-				if (_ipv6Route == null && prefix != null) {
+				if (_configuring && _ipv6Route == null && prefix != null) {
 					_ipv6Route = new IPConfig(prefix, prefixlen, router);
 					Monitor.PulseAll(_confLock);
 				}
