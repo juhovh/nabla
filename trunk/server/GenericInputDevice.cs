@@ -141,8 +141,14 @@ namespace Nabla {
 						Console.WriteLine("Received an AYIYA packet from {0}", sender);
 						IPEndPoint endPoint = (IPEndPoint) sender;
 
-						if (datalen < 8 || datalen < (8 + (data[0] >> 4)*4 + (data[1] >> 4)*4)) {
+						if (datalen < 8) {
 							Console.WriteLine("Packet length {0} invalid", datalen);
+							continue;
+						}
+
+						int hlen = 8 + (data[0] >> 4)*4 + (data[1] >> 4)*4;
+						if (datalen < hlen) {
+							Console.WriteLine("AYIYA header length {0} invalid", datalen);
 							continue;
 						}
 
@@ -181,7 +187,6 @@ namespace Nabla {
 							continue;
 
 						/* Remove the AYIYA header from the packet */
-						int hlen = 4 + (data[0] >> 4)*4 + (data[1] >> 4)*4;
 						byte[] outdata = new byte[datalen-hlen];
 						Array.Copy(data, hlen, outdata, 0, outdata.Length);
 
