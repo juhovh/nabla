@@ -322,8 +322,8 @@ namespace Nabla {
 				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
 
 				/* Replace the hash with password hash */
-				byte[] theirHash = new byte[40];
-				Array.Copy(data, 32, theirHash, 0, 20);
+				byte[] theirHash = new byte[20];
+				Array.Copy(data, 8 + (data[0] >> 4)*4, theirHash, 0, 20);
 				Array.Copy(passwdHash, 0, data, 32, 20);
 
 				byte[] ourHash = sha1.ComputeHash(data, 0, length);
