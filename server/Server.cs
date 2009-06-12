@@ -39,10 +39,9 @@ namespace Nabla {
 
 			sessionManager.AddOutputDevice(args[1], IPAddress.Parse("192.168.1.16"), true);
 
-/*			IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("192.168.1.123"), 1234);
-			TunnelSession session = new TunnelSession(TunnelType.IPv6inIPv4, endPoint);
-			session.Password = "salasana";
-			sessionManager.AddSession(session);*/
+			IPAddress endpoint = IPAddress.Parse("2001:da8:215:1800:beef:ff:ff00:1");
+			TunnelSession session = new TunnelSession(TunnelType.AyiyaIPv6inIPv4, endpoint, "salasana");
+			sessionManager.AddSession(session);
 
 			sessionManager.Start();
 			TICServer ticServer = new TICServer(sessionManager);
