@@ -203,7 +203,7 @@ namespace Nabla {
 				throw new Exception("Invalid IP packet version: " + version);
 			}
 
-			if (!src.Equals(IPAddress.Any) && !addressInSubnets(src)) {
+			if (!addressInSubnets(src)) {
 				throw new Exception("Source address " + src + " not in range");
 			}
 
@@ -558,7 +558,16 @@ namespace Nabla {
 		private void sendDHCPDiscover() {
 			DHCPPacket packet = DHCPPacket.GetDiscoverPacket(_hwaddr);
 			byte[] dhcpBytes = packet.GetIPv4Bytes(IPAddress.Any, IPAddress.Broadcast);
-			SendPacket(dhcpBytes);
+
+			byte[] outbuf = new byte[14 + dhcpBytes.Length];
+			for (int i=0; i<6; i++)
+				outbuf[i] = 0xff;
+			Array.Copy(_hwaddr, 0, outbuf, 6, 6);
+			outbuf[12] = 0x08;
+			outbuf[13] = 0x00;
+			Array.Copy(dhcpBytes, 0, outbuf, 14, dhcpBytes.Length);
+
+			_socket.Send(outbuf);
 		}
 
 		private void handleDHCPReply(byte[] data, int dhcpidx, int datalen) {
