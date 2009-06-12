@@ -28,17 +28,25 @@ namespace Nabla {
 				return;
 			}
 
+			InputDevice dev;
 			SessionManager sessionManager = new SessionManager();
-			InputDevice dev = new GenericInputDevice(args[0], GenericInputType.IPv6inIPv4);
+			dev = new GenericInputDevice(args[0], GenericInputType.IPv6inIPv4);
 			sessionManager.AddInputDevice(dev);
+			dev = new GenericInputDevice(args[0], GenericInputType.Heartbeat);
+			sessionManager.AddInputDevice(dev);
+			dev = new GenericInputDevice(args[0], GenericInputType.Ayiya);
+			sessionManager.AddInputDevice(dev);
+
 			sessionManager.AddOutputDevice(args[1], IPAddress.Parse("192.168.1.16"), true);
 
-			IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("192.168.1.123"), 1234);
+/*			IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("192.168.1.123"), 1234);
 			TunnelSession session = new TunnelSession(TunnelType.IPv6inIPv4, endPoint);
 			session.Password = "salasana";
-			sessionManager.AddSession(session);
+			sessionManager.AddSession(session);*/
 
 			sessionManager.Start();
+			TICServer ticServer = new TICServer(sessionManager);
+			ticServer.Start();
 
 			while (true) {
 				Thread.Sleep(1000);
