@@ -323,8 +323,9 @@ namespace Nabla {
 
 				/* Replace the hash with password hash */
 				byte[] theirHash = new byte[20];
-				Array.Copy(data, 8 + (data[0] >> 4)*4, theirHash, 0, 20);
-				Array.Copy(passwdHash, 0, data, 32, 20);
+				int hashOffset = 8 + (data[0] >> 4)*4;
+				Array.Copy(data, hashOffset, theirHash, 0, 20);
+				Array.Copy(passwdHash, 0, data, hashOffset, 20);
 
 				byte[] ourHash = sha1.ComputeHash(data, 0, length);
 				if (!BitConverter.ToString(ourHash).Equals(BitConverter.ToString(theirHash))) {
