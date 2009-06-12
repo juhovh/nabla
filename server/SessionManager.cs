@@ -85,14 +85,6 @@ namespace Nabla {
 					throw new Exception("Session with unconfigured type: " + session.TunnelType);
 				}
 
-				if (_sessions[session.TunnelType].ContainsKey(session.EndPoint)) {
-					throw new Exception("Session with type " + session.TunnelType + " and EndPoint " + session.EndPoint + " already exists");
-				}
-
-				if (_rsessions[session.AddressFamily].ContainsKey(session.EndPoint)) {
-					throw new Exception("Session with family " + session.AddressFamily + " and EndPoint " + session.EndPoint + " already exists");
-				}
-
 				/* This should be a list of protocols with unknown EndPoint */
 				if (session.TunnelType == TunnelType.Heartbeat ||
 				    session.TunnelType == TunnelType.AyiyaIPv4inIPv4 ||
@@ -102,6 +94,18 @@ namespace Nabla {
 					/* EndPoint not known, wait for first packet */
 					_uninitiatedSessions.Add(session);
 				} else {
+					if (_sessions[session.TunnelType].ContainsKey(session.EndPoint)) {
+						throw new Exception("Session with type " + session.TunnelType +
+						                    " and EndPoint " + session.EndPoint +
+						                    " already exists");
+					}
+
+					if (_rsessions[session.AddressFamily].ContainsKey(session.EndPoint)) {
+						throw new Exception("Session with family " + session.AddressFamily +
+						                    " and EndPoint " + session.EndPoint +
+						                    " already exists");
+					}
+
 					_sessions[session.TunnelType][session.EndPoint] = session;
 					_rsessions[session.AddressFamily][session.EndPoint] = session;
 				}
@@ -157,10 +161,14 @@ namespace Nabla {
 				} catch (Exception) {
 					session = findUninitiatedSession(type, source.Address);
 					if (session != null) {
-						/* Found an uninited session, take into use */
-						session.EndPoint = source;
-						_sessions[session.TunnelType][session.EndPoint] = session;
-						_rsessions[session.AddressFamily][session.EndPoint] = session;
+						/* Found an uninited session, check it's not initiated */
+						if (!_sessions[session.TunnelType].ContainsKey(source) &&
+						    !_rsessions[session.AddressFamily].ContainsKey(source)) {
+							/* Initiate the uninitiated session */
+							session.EndPoint = source;
+							_sessions[session.TunnelType][session.EndPoint] = session;
+							_rsessions[session.AddressFamily][session.EndPoint] = session;
+						}
 					}
 				}
 			}
