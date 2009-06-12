@@ -48,8 +48,9 @@ namespace Nabla {
 			_callback = cb;
 
 			DateTime confStart = DateTime.Now;
-			_device.AutoConfigureRoutes(enableIPv4, enableIPv6, 1000);
-			Console.WriteLine("Configure took timespan :" + (DateTime.Now - confStart));
+			bool confSuccess = _device.AutoConfigureRoutes(enableIPv4, enableIPv6, 2000);
+			Console.WriteLine("Configure took timespan: " + (DateTime.Now - confStart));
+			Console.WriteLine("Configure success was: " + confSuccess);
 
 			if (_device.IPv4Route != null) {
 				if (_device.IPv4Route.AddressInSubnet(ipv4)) {

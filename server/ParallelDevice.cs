@@ -87,54 +87,53 @@ namespace Nabla {
 
 		public bool AutoConfigureRoutes(bool configureIPv4, bool configureIPv6, int waitms) {
 			lock (_runlock) {
-				if (!_running) {
+				if (_running) {
 					throw new Exception("Can't configure routes while running");
 				}
 
-				lock (_cblock) {
-					ReceivePacketCallback originalCallback = _callback;
-					_callback = null;
+				ReceivePacketCallback originalCallback;
+				originalCallback = _callback;
+				_callback = null;
 
+				TimeSpan span = new TimeSpan(0, 0, 0, 0, waitms);
+				DateTime startTime = DateTime.Now;
+
+				bool success = false;
+				lock (_confLock) {
 					_running = true;
 					_thread = new Thread(new ThreadStart(threadLoop));
 					_thread.Start();
 
-					TimeSpan span = new TimeSpan(0, 0, 0, 0, waitms);
-					DateTime startTime = DateTime.Now;
-
-					bool success = false;
-					while (!success) {
-						lock (_confLock) {
-							if (configureIPv4) {
-								_ipv4Route = null;
-								sendDHCPDiscover();
-							}
-
-							if (configureIPv6) {
-								_ipv6Route = null;
-								sendNDRouterSol();
-							}
-
-							TimeSpan wait = (startTime + span) - DateTime.Now;
-							if (wait < TimeSpan.Zero)
-								break;
-
-							Monitor.Wait(_confLock, wait);
-
-							if ((configureIPv4 == (_ipv4Route != null)) &&
-							    (configureIPv6 == (_ipv6Route != null))) {
-								success = true;
-							}
-						}
+					if (configureIPv4) {
+						_ipv4Route = null;
+						sendDHCPDiscover();
 					}
 
-					_running = false;
-					_thread.Join();
+					if (configureIPv6) {
+						_ipv6Route = null;
+						sendNDRouterSol();
+					}
 
-					_callback = originalCallback;
+					while (!success) {
+						TimeSpan wait = (startTime + span) - DateTime.Now;
+						if (wait <= TimeSpan.Zero)
+							break;
 
-					return success;
+						Monitor.Wait(_confLock, wait);
+
+						if ((configureIPv4 == (_ipv4Route != null)) &&
+						    (configureIPv6 == (_ipv6Route != null))) {
+							success = true;
+						}
+					}
 				}
+
+				_running = false;
+				_thread.Join();
+
+				_callback = originalCallback;
+
+				return success;
 			}
 		}
 
@@ -563,8 +562,6 @@ namespace Nabla {
 		}
 
 		private void handleDHCPReply(byte[] data, int dhcpidx, int datalen) {
-			Console.WriteLine("Received DHCP packet from server");
-
 			int prefixlen = -1;
 			IPAddress router = null;
 			DHCPPacket packet = DHCPPacket.Parse(data, dhcpidx, datalen-dhcpidx);
@@ -592,12 +589,15 @@ namespace Nabla {
 				if (_ipv4Route == null && prefixlen >= 0) {
 					_ipv4Route = new IPConfig(packet.YIADDR, prefixlen, router);
 					Monitor.PulseAll(_confLock);
-
-					Console.WriteLine("Offered address: " + packet.YIADDR);
-					Console.WriteLine("Prefix length: " + prefixlen);
-					Console.WriteLine("Default router: " + router);
 				}
 			}
+
+/*
+			Console.WriteLine("Got valid DHCP packet from server");
+			Console.WriteLine("Offered address: " + packet.YIADDR);
+			Console.WriteLine("Prefix length: " + prefixlen);
+			Console.WriteLine("Default router: " + router);
+*/
 		}
 
 		private void sendNDRouterSol() {
@@ -682,15 +682,17 @@ namespace Nabla {
 
 			lock (_confLock) {
 				if (_ipv6Route == null && prefix != null) {
-					Console.WriteLine("Got valid default router advertisement");
 					_ipv6Route = new IPConfig(prefix, prefixlen, router);
 					Monitor.PulseAll(_confLock);
-
-					Console.WriteLine("Prefix address: " + prefix);
-					Console.WriteLine("Prefix length: " + prefixlen);
-					Console.WriteLine("Default router: " + router);
 				}
 			}
+
+/*
+			Console.WriteLine("Got valid default router advertisement");
+			Console.WriteLine("Prefix address: " + prefix);
+			Console.WriteLine("Prefix length: " + prefixlen);
+			Console.WriteLine("Default router: " + router);
+*/
 		}
 
 		private void sendNDSol(IPAddress dest) {
