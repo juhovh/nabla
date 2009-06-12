@@ -146,8 +146,9 @@ namespace Nabla {
 							continue;
 						}
 
-						if (data[3] != 4 && data[3] != 41) {
-							Console.WriteLine("AYIYA next header unknown: " + data[4]);
+						/* FIXME: in case of 59 internal protocol not known */
+						if (data[3] != 4 && data[3] != 41 && data[3] == 59) {
+							Console.WriteLine("AYIYA next header unknown: " + data[3]);
 							continue;
 						}
 
