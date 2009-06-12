@@ -113,6 +113,10 @@ namespace Nabla {
 				return false;
 			}
 
+			/* XXX: Should check from OutputDevice that these are ok */
+			client = IPAddress.Parse("10.123.45.2");
+			server = IPAddress.Parse("10.123.45.1");
+
 			return true;
 		}
 
@@ -120,6 +124,24 @@ namespace Nabla {
 			if (tunnelId > 0xffffff) {
 				return false;
 			}
+
+			IPAddress tunnelPrefix = null;
+			foreach (OutputDevice dev in _outputDevices) {
+				if (dev.IPv6TunnelPrefix != null) {
+					tunnelPrefix = dev.IPv6TunnelPrefix;
+				}
+			}
+
+			if (tunnelPrefix == null) {
+				return false;
+			}
+
+			server = tunnelPrefix;
+			byte[] clientBytes = tunnelPrefix.GetAddressBytes();
+			clientBytes[14] = (byte) (tunnelId >> 16);
+			clientBytes[15] = (byte) (tunnelId >> 8);
+			clientBytes[16] = (byte) (tunnelId);
+			client = new IPAddress(clientBytes);
 
 			return true;
 		}
