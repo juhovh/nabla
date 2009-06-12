@@ -356,6 +356,11 @@ namespace Nabla {
 		}
 
 		private bool addressInSubnets(IPAddress addr) {
+			/* Count link local addresses as always being in the subnet */
+			if (addr.IsIPv6LinkLocal) {
+				return true;
+			}
+
 			foreach (IPConfig config in _subnets.Values) {
 				if (config.AddressInSubnet(addr)) {
 					return true;
