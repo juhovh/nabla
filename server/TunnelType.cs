@@ -18,15 +18,14 @@
 
 namespace Nabla {
 	public enum TunnelType {
+		Unknown,
 		IPv4inIPv4,
 		IPv4inIPv6,
 		IPv6inIPv4,
 		IPv6inIPv6,
 		Heartbeat,
-		AyiyaIPv4inIPv4,
-		AyiyaIPv4inIPv6,
-		AyiyaIPv6inIPv4,
-		AyiyaIPv6inIPv6,
+		AyiyaIPv4,
+		AyiyaIPv6,
 		IPv6inUDP
 	};
 }

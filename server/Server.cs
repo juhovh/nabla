@@ -40,7 +40,7 @@ namespace Nabla {
 			sessionManager.AddOutputDevice(args[1], IPAddress.Parse("192.168.1.16"), true);
 
 			IPAddress endpoint = IPAddress.Parse("2001:da8:215:1800:beef:ff:ff00:1");
-			TunnelSession session = new TunnelSession(TunnelType.AyiyaIPv6inIPv4, endpoint, "salasana");
+			TunnelSession session = new TunnelSession(TunnelType.AyiyaIPv6, endpoint, "salasana");
 			sessionManager.AddSession(session);
 
 			sessionManager.Start();
