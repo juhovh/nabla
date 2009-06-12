@@ -31,7 +31,7 @@ public class CreateDatabase {
 			tunnelInfo.Enabled = true;
 			tunnelInfo.Name = "My first tunnel";
 			tunnelInfo.Endpoint = "ayiya";
-			tunnelInfo.UserEnabled = false;
+			tunnelInfo.UserEnabled = true;
 			tunnelInfo.Password = "salasana";
 			userDB.AddTunnelInfo(tunnelInfo);
 
