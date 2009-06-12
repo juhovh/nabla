@@ -436,19 +436,12 @@ namespace Nabla {
 				}
 			}
 
-			foreach (TunnelSession ts in _uninitiatedSessions) {
-				if (type == ts.TunnelType && address.Equals(ts.PrivateAddress)) {
-					_uninitiatedSessions.Remove(ts);
-					return ts;
-				}
-			}
-
 			return null;
 		}
 
 		private TunnelSession findUninitiatedSession(TunnelType type, IPAddress addr) {
 			foreach (TunnelSession ts in _uninitiatedSessions) {
-				if (type == ts.TunnelType && addr.Equals(ts.EndPoint.Address)) {
+				if (type == ts.TunnelType && addr.Equals(ts.PrivateAddress)) {
 					_uninitiatedSessions.Remove(ts);
 					return ts;
 				}
