@@ -24,6 +24,6 @@ namespace Nabla {
 		TunnelType[] GetSupportedTypes();
 		void Start();
 		void Stop();
-		void SendPacket(IPEndPoint destination, byte[] data);
+		void SendPacket(TunnelSession session, byte[] data);
 	}
 }

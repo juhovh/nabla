@@ -21,6 +21,8 @@ using System.Threading;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
+using System.Security.Cryptography;
 using Nabla.Sockets;
 
 namespace Nabla {
@@ -124,11 +126,34 @@ namespace Nabla {
 			_thread.Join();
 		}
 
-		public void SendPacket(IPEndPoint destination, byte[] data) {
+		public void SendPacket(TunnelSession session, byte[] data) {
 			if (_type == GenericInputType.Ayiya) {
-				_udpSocket.SendTo(data, destination);
+				byte[] outdata = new byte[44 + data.Length];
+				outdata[0] = 0x41;
+				outdata[1] = 0x52;
+				outdata[2] = 0x11;
+				outdata[3] = 41;
+
+				UInt32 epochnow = (UInt32) (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+				outdata[4] = (byte) (epochnow >> 24);
+				outdata[5] = (byte) (epochnow >> 16);
+				outdata[6] = (byte) (epochnow >> 8);
+				outdata[7] = (byte) (epochnow);
+				Array.Copy(session.PrivateAddress.GetAddressBytes(), 0, outdata, 8, 16);
+
+				SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
+				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
+
+				int hashOffset = 8 + (outdata[0] >> 4)*4;
+				Array.Copy(passwdHash, 0, outdata, hashOffset, 20);
+				Array.Copy(data, 0, outdata, 44, data.Length);
+
+				byte[] ourHash = sha1.ComputeHash(outdata, 0, outdata.Length);
+				Array.Copy(ourHash, 0, outdata, hashOffset, 20);
+
+				_udpSocket.SendTo(outdata, session.EndPoint);
 			} else {
-				_rawSocket.SendTo(data, destination);
+				_rawSocket.SendTo(data, session.EndPoint);
 			}
 		}
 
