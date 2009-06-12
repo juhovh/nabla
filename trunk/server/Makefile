@@ -3,7 +3,7 @@ all:
 	cp ../lib/*.dll .
 	gmcs -t:library -out:Nabla.Sockets.dll Sockets/RawSocket.cs Sockets/RawSocketNative.cs Sockets/RawSocketPcap.cs
 	gmcs -out:RawSocketTest.exe -r:Nabla.Sockets tests/RawSocketTest.cs
-	gmcs -out:ParallelDeviceTest.exe -r:Nabla.Sockets tests/ParallelDeviceTest.cs ParallelDevice.cs DHCPPacket.cs
+	gmcs -out:ParallelDeviceTest.exe -r:Nabla.Sockets tests/ParallelDeviceTest.cs ParallelDevice.cs DHCPPacket.cs IPConfig.cs
 	gmcs -out:TICServerTest.exe -r:System.Data,System.Data.SQLite tests/TICServerTest.cs TICServer.cs TICSession.cs TICObjects.cs Database/*.cs
 	gmcs -out:TSPServerTest.exe -r:System.Data,System.Data.SQLite tests/TSPServerTest.cs TSPServer.cs TSPSession.cs Database/UserDatabase.cs Database/UserDatabaseObjects.cs
 	gmcs -out:CreateDatabase.exe -r:System.Data,System.Data.SQLite tests/CreateDatabase.cs Database/*.cs
