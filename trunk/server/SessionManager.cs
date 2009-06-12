@@ -159,17 +159,6 @@ namespace Nabla {
 				try {
 					session = _sessions[type][source];
 				} catch (Exception) {
-					session = findUninitiatedSession(type, source.Address);
-					if (session != null) {
-						/* Found an uninited session, check it's not initiated */
-						if (!_sessions[session.TunnelType].ContainsKey(source) &&
-						    !_rsessions[session.AddressFamily].ContainsKey(source)) {
-							/* Initiate the uninitiated session */
-							session.EndPoint = source;
-							_sessions[session.TunnelType][session.EndPoint] = session;
-							_rsessions[session.AddressFamily][session.EndPoint] = session;
-						}
-					}
 				}
 			}
 
@@ -436,10 +425,6 @@ namespace Nabla {
 				}
 			}
 
-			return null;
-		}
-
-		private TunnelSession findUninitiatedSession(TunnelType type, IPAddress addr) {
 			foreach (TunnelSession ts in _uninitiatedSessions) {
 				if (type == ts.TunnelType && addr.Equals(ts.PrivateAddress)) {
 					_uninitiatedSessions.Remove(ts);
