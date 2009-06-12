@@ -264,7 +264,7 @@ namespace Nabla {
 				}
 
 				/* Start with the size of AYIYA header */
-				int length = 4 + (data[0] >> 4)*4 + (data[1] >> 4)*4;
+				int length = 8 + (data[0] >> 4)*4 + (data[1] >> 4)*4;
 				if (data[3] == 4) { /* IPPROTO_IPIP */
 					if (type != TunnelType.AyiyaIPv4inIPv4 &&
 					    type != TunnelType.AyiyaIPv4inIPv6) {
