@@ -45,13 +45,32 @@ namespace Nabla {
 			_mapper.AddProtocol(ProtocolType.Icmp);
 			_callback = cb;
 
-			if (enableIPv4) {
+			/* XXX: Is one second a good time to wait?
+			 *      Should device be stopped? */
+			_device.Start();
+			Thread.Sleep(1000);
+
+			if (enableIPv4 && _device.IPv4Route != null) {
 				_device.AddSubnet(ipv4, 32);
 				_mapper.Addresses += ipv4;
+				Console.WriteLine("Added IPv4 address: {0}", ipv4);
 			}
 
-			if (enableIPv6) {
-				/* FIXME: Automatically add subnet ::xxxx:xxFF:FFyy:yyyy/104 */
+			if (enableIPv6 && _device.IPv6Route != null) {
+				IPAddress ipv6 = _device.IPv6Route.Address;
+				byte[] ipv6Bytes = ipv6.GetAddressBytes();
+
+				/* This ID should be specific to this instance */
+				ipv6Bytes[8]  = 0xbe;
+				ipv6Bytes[9]  = 0xef;
+				ipv6Bytes[10] = 0x00;
+
+				ipv6Bytes[11] = 0xff;
+				ipv6Bytes[12] = 0xff;
+				ipv6 = new IPAddress(ipv6Bytes);
+
+				_device.AddSubnet(ipv6, 104);
+				Console.WriteLine("Added IPv6 subnet: {0}/{1}", ipv6, 104);
 			}
 		}
 
