@@ -24,34 +24,6 @@ using System.Collections.Generic;
 using Nabla.Sockets;
 
 namespace Nabla {
-	public class IPConfig {
-		public readonly IPAddress Address;
-		public readonly int PrefixLength;
-		public readonly IPAddress DefaultRoute;
-
-		public IPConfig(IPAddress addr, int prefixlen, IPAddress route) {
-			if (addr.AddressFamily == AddressFamily.InterNetwork) {
-				if (prefixlen < 0 || prefixlen > 32) {
-					throw new Exception("Subnet prefix length " + prefixlen + " invalid for family " + addr.AddressFamily);
-				}
-			} else if (addr.AddressFamily == AddressFamily.InterNetworkV6) {
-				if (prefixlen < 0 || prefixlen > 128) {
-					throw new Exception("Subnet prefix length " + prefixlen + " invalid for family " + addr.AddressFamily);
-				}
-			} else {
-				throw new Exception("Unknown address family " + addr.AddressFamily);
-			}
-
-			if (addr != null && route != null && addr.AddressFamily != route.AddressFamily) {
-				throw new Exception("Address families of the the address and route don't match");
-			}
-
-			Address = addr;
-			PrefixLength = prefixlen;
-			DefaultRoute = route;
-		}
-	}
-
 	public delegate void ReceivePacketCallback(byte[] data);
 
 	public class ParallelDevice {
@@ -203,12 +175,12 @@ namespace Nabla {
 			} else {
 				if (dest.AddressFamily == AddressFamily.InterNetwork) {
 					/* If a route is configured, check if it needs to be applied */
-					if (IPv4Route != null && !addressInSubnet(dest, IPv4Route)) {
+					if (IPv4Route != null && !IPv4Route.AddressInSubnet(dest)) {
 						dest = IPv4Route.DefaultRoute;
 					}
 				} else {
 					/* If a route is configured, check if it needs to be applied */
-					if (IPv6Route != null && !addressInSubnet(dest, IPv6Route)) {
+					if (IPv6Route != null && !IPv6Route.AddressInSubnet(dest)) {
 						dest = IPv4Route.DefaultRoute;
 					}
 				}
@@ -383,36 +355,9 @@ namespace Nabla {
 			}
 		}
 
-		private bool addressInSubnet(IPAddress addr, IPConfig config) {
-			if (addr.AddressFamily != config.Address.AddressFamily) {
-				return false;
-			}
-
-			byte[] b1 = addr.GetAddressBytes();
-			byte[] b2 = config.Address.GetAddressBytes();
-			int prefixlen = config.PrefixLength;
-
-			for (int i=0; i <= (prefixlen-1)/8; i++) {
-				if (i < prefixlen/8) {
-					/* Full bytes compared */
-					if (b1[i] != b2[i]) {
-						return false;
-					}
-				} else {
-					/* number of discarded bits */
-					int disc = 8 - (prefixlen % 8);
-					if ((b1[i] >> disc) != (b2[i] >> disc)) {
-						return false;
-					}
-				}
-			}
-
-			return true;
-		}
-
 		private bool addressInSubnets(IPAddress addr) {
 			foreach (IPConfig config in _subnets.Values) {
-				if (addressInSubnet(addr, config)) {
+				if (config.AddressInSubnet(addr)) {
 					return true;
 				}
 			}

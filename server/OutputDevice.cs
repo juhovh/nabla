@@ -51,9 +51,11 @@ namespace Nabla {
 			Thread.Sleep(1000);
 
 			if (enableIPv4 && _device.IPv4Route != null) {
-				_device.AddSubnet(ipv4, 32);
-				_mapper.Addresses += ipv4;
-				Console.WriteLine("Added IPv4 address: {0}", ipv4);
+				if (_device.IPv4Route.AddressInSubnet(ipv4)) {
+					_device.AddSubnet(ipv4, 32);
+					_mapper.Addresses += ipv4;
+					Console.WriteLine("Added IPv4 address: {0}", ipv4);
+				}
 			}
 
 			if (enableIPv6 && _device.IPv6Route != null) {
