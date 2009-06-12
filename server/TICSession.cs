@@ -55,12 +55,17 @@ namespace Nabla {
 			public Int64 UserId;
 		}
 
+		private SessionManager _sessionManager;
 		private string _serviceName;
 		private UserDatabase _db;
 		private SessionInfo _sessionInfo;
 		private bool _finished = false;
 
-		public TICSession(string serviceName, IPAddress source, IPAddress local) {
+		public TICSession(SessionManager sessionManager, string serviceName,
+		                  IPAddress source, IPAddress local) {
+			_sessionManager = sessionManager;
+			_serviceName = serviceName;
+
 			_db = new UserDatabase("nabla.db");
 			_sessionInfo = new SessionInfo();
 			_sessionInfo.SourceAddress = source;
@@ -286,8 +291,12 @@ namespace Nabla {
 						continue;
 					}
 
-					/* XXX: Get IPv6 endpoint from SessionManager */
-					IPAddress ipv6Endpoint = IPAddress.Parse("2001::1");
+					/* Get IPv6 endpoint from SessionManager */
+					IPAddress ipv6Endpoint = null, ipv6POP = null;
+					if (!_sessionManager.GetTunnelIPv6Endpoints(t.TunnelId, ref ipv6Endpoint, ref ipv6POP)) {
+						/* No known endpoints for this tunnel, maybe IPv6 not enabled? */
+						continue;
+					}
 
 					ret += String.Format("T{0} {1} {2} nabla\n",
 						t.TunnelId, ipv6Endpoint, t.Endpoint);
@@ -327,16 +336,21 @@ namespace Nabla {
 				ticTunnelInfo.AdminEnabled = tunnelInfo.Enabled;
 				ticTunnelInfo.Password = tunnelInfo.Password;
 
-				/* XXX: IPv6Endpoint, IPv6POP and HeartbeatInterval from SessionManager */
-				ticTunnelInfo.IPv6Endpoint = IPAddress.Parse("2001::1");
-				ticTunnelInfo.IPv6POP = IPAddress.Parse("2001::2");
-				ticTunnelInfo.HeartbeatInterval = 3600;
+				/* Get IPv6Endpoint and IPv6POP from SessionManager */
+				IPAddress ipv6Endpoint = null, ipv6POP = null;
+				if (!_sessionManager.GetTunnelIPv6Endpoints(tunnelId, ref ipv6Endpoint, ref ipv6POP)) {
+					/* No known endpoints for this tunnel, maybe IPv6 not enabled? */
+					return "400 Error in tunnel T" + tunnelId + " configuration";
+				}
+				ticTunnelInfo.IPv6Endpoint = ipv6Endpoint;
+				ticTunnelInfo.IPv6POP = ipv6POP;
 
 				/* Some constants that don't need to change */
 				ticTunnelInfo.IPv6PrefixLength = 64;
 				ticTunnelInfo.TunnelMTU = 1280;
 				ticTunnelInfo.POPId = "nabla";
 				ticTunnelInfo.IPv4POP = _sessionInfo.LocalAddress;
+				ticTunnelInfo.HeartbeatInterval = 3600;
 
 				string ret = "201 Showing tunnel information for T" + tunnelId + "\n";
 				ret += ticTunnelInfo.ToString();
