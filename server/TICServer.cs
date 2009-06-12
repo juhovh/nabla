@@ -85,7 +85,12 @@ namespace Nabla {
 			writer.Flush();
 
 			while (!session.Finished()) {
-				string line = reader.ReadLine().Trim();
+				string line = reader.ReadLine();
+				if (line == null) {
+					break;
+				} else {
+					line = line.Trim();
+				}
 
 				string response = session.HandleCommand(line);
 				writer.Write(response);
