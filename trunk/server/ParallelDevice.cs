@@ -181,7 +181,7 @@ namespace Nabla {
 				} else {
 					/* If a route is configured, check if it needs to be applied */
 					if (IPv6Route != null && !IPv6Route.AddressInSubnet(dest)) {
-						dest = IPv4Route.DefaultRoute;
+						dest = IPv6Route.DefaultRoute;
 					}
 				}
 
