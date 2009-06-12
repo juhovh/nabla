@@ -146,20 +146,24 @@ namespace Nabla {
 							continue;
 						}
 
-						if (data[4] != 4 && data[4] != 41) {
+						if (data[3] != 4 && data[3] != 41) {
 							Console.WriteLine("AYIYA next header unknown: " + data[4]);
 							continue;
 						}
 
+						byte[] sourceBytes = endPoint.Address.GetAddressBytes();
+						sourceBytes[12] = sourceBytes[13] = sourceBytes[14] = sourceBytes[15] = 0;
+						bool sourceIsIPv4 = IPAddress.Parse("::ffff:0").Equals(new IPAddress(sourceBytes));
+
 						TunnelType tunnelType;
-						if (endPoint.Address.AddressFamily == AddressFamily.InterNetwork) {
-							if (data[4] == 4) {
+						if (sourceIsIPv4) {
+							if (data[3] == 4) {
 								tunnelType = TunnelType.AyiyaIPv4inIPv4;
 							} else {
 								tunnelType = TunnelType.AyiyaIPv6inIPv4;
 							}
 						} else {
-							if (data[4] == 4) {
+							if (data[3] == 4) {
 								tunnelType = TunnelType.AyiyaIPv4inIPv6;
 							} else {
 								tunnelType = TunnelType.AyiyaIPv6inIPv6;
