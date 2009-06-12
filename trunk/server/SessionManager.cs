@@ -25,8 +25,6 @@ using System.Security.Cryptography;
 
 namespace Nabla {
 	public class SessionManager {
-		private const int CLOCK_OFF = 120;
-
 		private Object _runlock = new Object();
 		private bool _running;
 
@@ -85,15 +83,10 @@ namespace Nabla {
 					throw new Exception("Session with unconfigured type: " + session.TunnelType);
 				}
 
-				/* This should be a list of protocols with unknown EndPoint */
-				if (session.TunnelType == TunnelType.Heartbeat ||
-				    session.TunnelType == TunnelType.AyiyaIPv4inIPv4 ||
-				    session.TunnelType == TunnelType.AyiyaIPv4inIPv6 ||
-				    session.TunnelType == TunnelType.AyiyaIPv6inIPv4 ||
-				    session.TunnelType == TunnelType.AyiyaIPv6inIPv6) {
+				if (session.EndPoint == null && session.PrivateAddress != null) {
 					/* EndPoint not known, wait for first packet */
 					_uninitiatedSessions.Add(session);
-				} else {
+				} else if (session.EndPoint != null) {
 					if (_sessions[session.TunnelType].ContainsKey(session.EndPoint)) {
 						throw new Exception("Session with type " + session.TunnelType +
 						                    " and EndPoint " + session.EndPoint +
@@ -108,8 +101,41 @@ namespace Nabla {
 
 					_sessions[session.TunnelType][session.EndPoint] = session;
 					_rsessions[session.AddressFamily][session.EndPoint] = session;
+				} else {
+					throw new Exception("Session without EndPoint and PrivateAddress");
 				}
 			}
+		}
+
+		public TunnelSession GetSession(TunnelType type, IPEndPoint source, IPAddress address) {
+			lock (_sessionlock) {
+				if (_sessions[type].ContainsKey(source)) {
+					return _sessions[type][source];
+				}
+
+				if (address == null) {
+					/* Unable to fetch by address */
+					return null;
+				}
+
+				foreach (TunnelSession ts in _sessions[type].Values) {
+					IPAddress gwaddr = ts.PrivateAddress;
+					if (gwaddr != null && gwaddr.Equals(address)) {
+						_sessions[ts.TunnelType].Remove(ts.EndPoint);
+						_rsessions[ts.AddressFamily].Remove(ts.EndPoint);
+						return ts;
+					}
+				}
+
+				foreach (TunnelSession ts in _uninitiatedSessions) {
+					if (type == ts.TunnelType && address.Equals(ts.PrivateAddress)) {
+						_uninitiatedSessions.Remove(ts);
+						return ts;
+					}
+				}
+			}
+
+			return null;
 		}
 
 		public bool GetTunnelIPv4Endpoints(Int64 tunnelId, ref IPAddress client, ref IPAddress server) {
@@ -150,191 +176,14 @@ namespace Nabla {
 			return true;
 		}
 
-		public bool UpdateSession(TunnelType type, IPEndPoint source, byte[] data) {
-			TunnelSession session = null;
-			lock (_sessionlock) {
-				if (!_sessions.ContainsKey(type))
-					return false;
+		public bool UpdateSession(TunnelSession session, IPEndPoint source) {
+			try {
+				session.EndPoint = source;
+				AddSession(session);
+				return true;
+			} catch (Exception) {}
 
-				try {
-					session = _sessions[type][source];
-				} catch (Exception) {
-				}
-			}
-
-			if (type == TunnelType.Heartbeat) {
-				int strlen = data.Length;
-				for (int i=0; i<data.Length; i++) {
-					if (data[i] == 0) {
-						strlen = i;
-						break;
-					} else if (data[i] < 32 || data[i] > 126) {
-						Console.WriteLine("Heartbeat packet contains non-ascii characters");
-						return false;
-					}
-				}
-				string str = Encoding.ASCII.GetString(data, 0, strlen);
-				if (!str.StartsWith("HEARTBEAT TUNNEL ")) {
-					Console.WriteLine("Heartbeat string not found");
-					return false;
-				}
-
-				IPAddress identifier = null;
-				IPAddress sourceaddr = null;
-				UInt32 epochtime = 0;
-				
-				string[] words = str.Split(' ');
-				try {
-					identifier = IPAddress.Parse(words[2]);
-					if (words[3].Equals("sender")) {
-						sourceaddr = source.Address;
-					} else {
-						sourceaddr = IPAddress.Parse(words[3]);
-					}
-					epochtime = UInt32.Parse(words[4]);
-				} catch (Exception) {
-					return false;
-				}
-
-				Console.WriteLine("Identifier: {0} Source: {1} Epochtime: {2}", identifier, sourceaddr, epochtime);
-
-				/* Check for epoch time correctness */
-				UInt32 epochnow = (UInt32) (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
-				int epochdiff = (int) (epochnow - epochtime);
-				if (epochdiff < 0)
-					epochdiff = -epochdiff;
-				if (epochdiff > CLOCK_OFF) {
-					Console.WriteLine("The clock is too much off ({0} seconds)", epochdiff);
-					return false;
-				}
-
-				/* Session not found, check if EndPoint has changed */
-				if (session == null) {
-					lock (_sessionlock) {
-						if (_sessions[type].ContainsKey(source)) {
-							/* Weird, did someone add it? */
-							session = _sessions[type][source];
-						} else {
-							session = findSessionByPrivateAddress(type, identifier);
-							if (session != null) {
-								session.EndPoint = source;
-								_sessions[session.TunnelType].Add(source, session);
-								_rsessions[session.AddressFamily].Add(source, session);
-							}
-						}
-					}
-
-					if (session == null) {
-						/* Simply invalid or timed out session */
-						return false;
-					}
-				}
-
-				MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
-				byte[] passwdHash = md5.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
-				
-				string theirHashStr = str.Substring(str.Length-32, 32);
-				str = str.Substring(0, str.Length-32);
-				str += BitConverter.ToString(passwdHash).Replace("-", "").ToLower();
-				
-				byte[] ourHash = md5.ComputeHash(Encoding.ASCII.GetBytes(str));
-				string ourHashStr = BitConverter.ToString(ourHash).Replace("-", "").ToLower();
-
-				if (!theirHashStr.Equals(ourHashStr)) {
-					Console.WriteLine("Incorrect Heartbeat hash");
-					return false;
-				}
-			} else {
-				if ((data[0] != 0x11 && data[0] != 0x41) || // IDlen = 1 | 4, IDtype = int
-				     data[1] != 0x52 || // siglen = 5, method = SHA1
-				    // auth = sharedsecret, opcode = noop | forward | echo response
-				    (data[2] != 0x10 && data[2] != 0x11 && data[2] != 0x14)) {
-					return false;
-				}
-
-				/* Start with the size of AYIYA header */
-				int length = 8 + (data[0] >> 4)*4 + (data[1] >> 4)*4;
-				if (data[3] == 4) { /* IPPROTO_IPIP */
-					if (type != TunnelType.AyiyaIPv4inIPv4 &&
-					    type != TunnelType.AyiyaIPv4inIPv6) {
-						return false;
-					}
-
-					/* In case of IPv4, add the header and payload lengths */
-					length += (data[length] & 0x0f)*4 + data[length+2]*256 + data[length+3];
-				} else if (data[3] == 41) { /* IPPROTO_IPV6 */
-					if (type != TunnelType.AyiyaIPv6inIPv4 &&
-					    type != TunnelType.AyiyaIPv6inIPv6) {
-						return false;
-					}
-
-					/* In case of IPv6, add the header and payload lengths */
-					length += 40 + data[length+4]*256 + data[length+5];
-				} else if (data[3] == 59) { /* IPPROTO_NONE */
-					/* In case of no content, opcode should be nop or echo response */
-					if ((data[2] & 0x0f) != 0 || (data[2] & 0x0f) != 4) {
-						return false;
-					}
-				} else {
-					Console.WriteLine("Invalid next header in AYIYA packet: " + data[3]);
-					return false;
-				}
-
-				/* Check for epoch time correctness */
-				UInt32 epochtime = (UInt32) ((data[4] << 24) | (data[5] << 16) | (data[6] << 8) | data[7]);
-				UInt32 epochnow = (UInt32) (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
-				int epochdiff = (int) (epochnow - epochtime);
-				if (epochdiff < 0)
-					epochdiff = -epochdiff;
-				if (epochdiff > CLOCK_OFF) {
-					Console.WriteLine("The clock is too much off ({0} seconds)", epochdiff);
-					return false;
-				}
-
-				/* Extract the identifier part from AYIYA header */
-				byte[] ipaddr = new byte[((data[0] >> 4) == 1) ? 4 : 16];
-				Array.Copy(data, 8, ipaddr, 0, ipaddr.Length);
-				IPAddress identifier = new IPAddress(ipaddr);
-
-				/* Session not found, check if EndPoint has changed */
-				if (session == null) {
-					lock (_sessionlock) {
-						if (_sessions[type].ContainsKey(source)) {
-							/* Weird, did someone add it? */
-							session = _sessions[type][source];
-						} else {
-							session = findSessionByPrivateAddress(type, identifier);
-							if (session != null) {
-								session.EndPoint = source;
-								_sessions[session.TunnelType].Add(source, session);
-								_rsessions[session.AddressFamily].Add(source, session);
-							}
-						}
-					}
-
-					if (session == null) {
-						/* Simply invalid or timed out session */
-						return false;
-					}
-				}
-
-				SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
-				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
-
-				/* Replace the hash with password hash */
-				byte[] theirHash = new byte[20];
-				int hashOffset = 8 + (data[0] >> 4)*4;
-				Array.Copy(data, hashOffset, theirHash, 0, 20);
-				Array.Copy(passwdHash, 0, data, hashOffset, 20);
-
-				byte[] ourHash = sha1.ComputeHash(data, 0, length);
-				if (!BitConverter.ToString(ourHash).Equals(BitConverter.ToString(theirHash))) {
-					Console.WriteLine("Incorrect AYIYA hash");
-					return false;
-				}
-			}
-
-			return true;
+			return false;
 		}
 
 		public bool SessionAlive(TunnelType type, IPEndPoint source) {
@@ -420,24 +269,5 @@ namespace Nabla {
 			}
 		}
 
-		private TunnelSession findSessionByPrivateAddress(TunnelType type, IPAddress address) {
-			foreach (TunnelSession ts in _sessions[type].Values) {
-				IPAddress gwaddr = ts.PrivateAddress;
-				if (gwaddr != null && gwaddr.Equals(address)) {
-					_sessions[ts.TunnelType].Remove(ts.EndPoint);
-					_rsessions[ts.AddressFamily].Remove(ts.EndPoint);
-					return ts;
-				}
-			}
-
-			foreach (TunnelSession ts in _uninitiatedSessions) {
-				if (type == ts.TunnelType && address.Equals(ts.PrivateAddress)) {
-					_uninitiatedSessions.Remove(ts);
-					return ts;
-				}
-			}
-
-			return null;
-		}
 	}
 }

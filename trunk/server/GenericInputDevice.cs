@@ -36,6 +36,7 @@ namespace Nabla {
 	}
 
 	public class GenericInputDevice : InputDevice {
+		private const int CLOCK_OFF = 120;
 		private const int waitms = 100;
 
 		private Thread _thread;
@@ -61,10 +62,8 @@ namespace Nabla {
 				                        SocketType.Dgram,
 				                        ProtocolType.Udp);
 				_udpSocket.Bind(new IPEndPoint(IPAddress.IPv6Any, 5072));
-				_tunnelTypes.Add(TunnelType.AyiyaIPv4inIPv4);
-				_tunnelTypes.Add(TunnelType.AyiyaIPv4inIPv6);
-				_tunnelTypes.Add(TunnelType.AyiyaIPv6inIPv4);
-				_tunnelTypes.Add(TunnelType.AyiyaIPv6inIPv6);
+				_tunnelTypes.Add(TunnelType.AyiyaIPv4);
+				_tunnelTypes.Add(TunnelType.AyiyaIPv6);
 				break;
 			case GenericInputType.Heartbeat:
 				/* We still need a raw socket for Heartbeat */
@@ -180,51 +179,7 @@ namespace Nabla {
 							continue;
 						}
 
-						int hlen = 8 + (data[0] >> 4)*4 + (data[1] >> 4)*4;
-						if (datalen < hlen) {
-							Console.WriteLine("AYIYA header length {0} invalid", datalen);
-							continue;
-						}
-
-						/* FIXME: in case of 59 internal protocol not known */
-						if (data[3] != 4 && data[3] != 41 && data[3] == 59) {
-							Console.WriteLine("AYIYA next header unknown: " + data[3]);
-							continue;
-						}
-
-						/* XXX: Ugly way to detect if the source is IPv4 */
-						byte[] sourceBytes = endPoint.Address.GetAddressBytes();
-						sourceBytes[12] = sourceBytes[13] = sourceBytes[14] = sourceBytes[15] = 0;
-						bool sourceIsIPv4 = IPAddress.Parse("::ffff:0.0.0.0").Equals(new IPAddress(sourceBytes));
-
-						TunnelType tunnelType;
-						if (sourceIsIPv4) {
-							if (data[3] == 4) {
-								tunnelType = TunnelType.AyiyaIPv4inIPv4;
-							} else {
-								tunnelType = TunnelType.AyiyaIPv6inIPv4;
-							}
-						} else {
-							if (data[3] == 4) {
-								tunnelType = TunnelType.AyiyaIPv4inIPv6;
-							} else {
-								tunnelType = TunnelType.AyiyaIPv6inIPv6;
-							}
-						}
-
-						/* If not from a valid session, ignore the packet */
-						if (!_sessionManager.UpdateSession(tunnelType, endPoint, data)) {
-							continue;
-						}
-
-						if (!_sessionManager.SessionAlive(tunnelType, endPoint))
-							continue;
-
-						/* Remove the AYIYA header from the packet */
-						byte[] outdata = new byte[datalen-hlen];
-						Array.Copy(data, hlen, outdata, 0, outdata.Length);
-
-						_sessionManager.ProcessPacket(tunnelType, endPoint, outdata);
+						handleAyiyaPacket(endPoint, data, datalen);
 					}
 				} else {
 					IPEndPoint endPoint;
@@ -241,13 +196,7 @@ namespace Nabla {
 							/* Nullify the port of the end point, otherwise it won't be found */
 							endPoint = new IPEndPoint(((IPEndPoint) sender).Address, 0);
 
-							/* Make sure that the heartbeat packet is null-terminated */
-							data[datalen] = 0;
-
-							/* Possibly update the session source IP if changed */
-							if (!_sessionManager.UpdateSession(TunnelType.Heartbeat, endPoint, data)) {
-								Console.WriteLine("Heartbeat packet invalid, discarded");
-							}
+							handleHeartbeatPacket(endPoint, data, datalen);
 						}
 					}
 
@@ -288,6 +237,179 @@ namespace Nabla {
 					_sessionManager.ProcessPacket(tunnelType, endPoint, outdata);
 				}
 			}
+		}
+
+		private void handleHeartbeatPacket(IPEndPoint source, byte[] data, int datalen) {
+			int strlen = datalen;
+			for (int i=0; i<datalen; i++) {
+				if (data[i] == 0) {
+					strlen = i;
+					break;
+				} else if (data[i] < 32 || data[i] > 126) {
+					Console.WriteLine("Heartbeat packet contains non-ascii characters");
+					return;
+				}
+			}
+
+			string str = Encoding.ASCII.GetString(data, 0, strlen);
+			if (!str.StartsWith("HEARTBEAT TUNNEL ")) { 
+				Console.WriteLine("Heartbeat string not found");
+				return;
+			}
+
+			IPAddress identifier = null;
+			IPAddress sourceaddr = null;
+			UInt32 epochtime = 0;
+
+			string[] words = str.Split(' ');
+			try {   
+				identifier = IPAddress.Parse(words[2]);
+				if (words[3].Equals("sender")) {
+					sourceaddr = source.Address;
+				} else {
+					sourceaddr = IPAddress.Parse(words[3]);
+				}
+				epochtime = UInt32.Parse(words[4]);
+			} catch (Exception) {
+				Console.WriteLine("Error parsing heartbeat packet");
+				return;
+			}
+
+			Console.WriteLine("Identifier: {0} Source: {1} Epochtime: {2}", identifier, sourceaddr, epochtime);
+
+			/* Check for epoch time correctness */
+			UInt32 epochnow = (UInt32) (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;                     
+			int epochdiff = (int) (epochnow - epochtime);
+			if (epochdiff < 0)
+				epochdiff = -epochdiff;
+			if (epochdiff > CLOCK_OFF) {
+				Console.WriteLine("The clock is too much off ({0} seconds)", epochdiff);                                  
+				return;
+			}
+
+			TunnelSession session = _sessionManager.GetSession(TunnelType.Heartbeat, source, identifier);
+			if (session == null) {
+				/* Invalid or timed out session */
+				Console.WriteLine("Session for Heartbeat not found");
+				return;
+			}
+
+			MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
+			byte[] passwdHash = md5.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
+
+			string theirHashStr = str.Substring(str.Length-32, 32);
+			str = str.Substring(0, str.Length-32);
+			str += BitConverter.ToString(passwdHash).Replace("-", "").ToLower();
+
+			byte[] ourHash = md5.ComputeHash(Encoding.ASCII.GetBytes(str));
+			string ourHashStr = BitConverter.ToString(ourHash).Replace("-", "").ToLower();
+
+			if (!theirHashStr.Equals(ourHashStr)) {
+				Console.WriteLine("Incorrect Heartbeat hash");
+			}
+
+			_sessionManager.UpdateSession(session, source);
+		}
+
+		private void handleAyiyaPacket(IPEndPoint source, byte[] data, int datalen) {
+			if ((data[0] != 0x11 && data[0] != 0x41) || // IDlen = 1 | 4, IDtype = int
+			     data[1] != 0x52 || // siglen = 5, method = SHA1
+			    // auth = sharedsecret, opcode = noop | forward | echo response
+			    (data[2] != 0x10 && data[2] != 0x11 && data[2] != 0x14)) {
+				return;
+			}
+
+			/* Start with the size of AYIYA header */
+			int hlen = 8 + (data[0] >> 4)*4 + (data[1] >> 4)*4;
+			if (datalen < hlen) {
+				Console.WriteLine("AYIYA header length {0} invalid", datalen);
+				return;
+			}
+
+			int length = hlen;
+			TunnelType tunnelType = TunnelType.Unknown;
+			if (data[3] == 4) { /* IPPROTO_IPIP */
+				/* In case of IPv4, add the total length */
+				/* XXX: possible indexoutofbounds */
+				length += data[length+2]*256 + data[length+3];
+				tunnelType = TunnelType.AyiyaIPv4;
+			} else if (data[3] == 41) { /* IPPROTO_IPV6 */
+				/* In case of IPv6, add the header and payload lengths */
+				/* XXX: possible indexoutofbounds */
+				length += 40 + data[length+4]*256 + data[length+5];
+				tunnelType = TunnelType.AyiyaIPv6;
+			} else if (data[3] == 59) { /* IPPROTO_NONE */
+				/* In case of no content, opcode should be nop or echo response */
+				if ((data[2] & 0x0f) != 0 || (data[2] & 0x0f) != 4) {
+					return;
+				}
+			} else {
+				Console.WriteLine("Unknown next header in AYIYA packet: " + data[3]);
+				return;
+			}
+
+			/* Check for epoch time correctness */
+			UInt32 epochtime = (UInt32) ((data[4] << 24) | (data[5] << 16) | (data[6] << 8) | data[7]);
+			UInt32 epochnow = (UInt32) (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+			int epochdiff = (int) (epochnow - epochtime);
+			if (epochdiff < 0)
+				epochdiff = -epochdiff;
+			if (epochdiff > CLOCK_OFF) {
+				Console.WriteLine("The clock is too much off ({0} seconds)", epochdiff);
+				return;
+			}
+
+			/* Extract the identifier part from AYIYA header */
+			byte[] ipaddr = new byte[((data[0] >> 4) == 1) ? 4 : 16];
+			Array.Copy(data, 8, ipaddr, 0, ipaddr.Length);
+			IPAddress identifier = new IPAddress(ipaddr);
+
+			TunnelSession session;
+			if (tunnelType == TunnelType.Unknown) {
+				/* This is a packet with no protocol, try to determine the type */
+				session = _sessionManager.GetSession(TunnelType.AyiyaIPv4, source, identifier);
+				if (session != null) {
+					tunnelType = TunnelType.AyiyaIPv4;
+				} else {
+					session = _sessionManager.GetSession(TunnelType.AyiyaIPv6, source, identifier);
+					if (session != null) {
+						tunnelType = TunnelType.AyiyaIPv6;
+					}
+				}
+			} else {
+				session = _sessionManager.GetSession(tunnelType, source, identifier);
+			}
+			if (session == null) {
+				/* Invalid or timed out session */
+				Console.WriteLine("Session for AYIYA not found");
+				return;
+			}
+
+			SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
+			byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
+
+			/* Replace the hash with password hash */
+			byte[] theirHash = new byte[20];
+			int hashOffset = 8 + (data[0] >> 4)*4;
+			Array.Copy(data, hashOffset, theirHash, 0, 20);
+			Array.Copy(passwdHash, 0, data, hashOffset, 20);
+
+			byte[] ourHash = sha1.ComputeHash(data, 0, length);
+			if (!BitConverter.ToString(ourHash).Equals(BitConverter.ToString(theirHash))) {
+				Console.WriteLine("Incorrect AYIYA hash");
+				return;
+			}
+
+			_sessionManager.UpdateSession(session, source);
+
+			if (!_sessionManager.SessionAlive(tunnelType, source))
+				return;
+
+			/* Remove the AYIYA header from the packet */
+			byte[] outdata = new byte[datalen-hlen];
+			Array.Copy(data, hlen, outdata, 0, outdata.Length);
+
+			_sessionManager.ProcessPacket(tunnelType, source, outdata);
 		}
 	}
 }
