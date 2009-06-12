@@ -128,7 +128,10 @@ namespace Nabla {
 
 		public void SendPacket(TunnelSession session, byte[] data) {
 			if (_type == GenericInputType.Ayiya) {
-				byte[] outdata = new byte[44 + data.Length];
+				/* FIXME: not necessarily IPv6 */
+				int datalen = 40 + data[length+4]*256 + data[length+5];
+
+				byte[] outdata = new byte[44 + datalen];
 				outdata[0] = 0x41;
 				outdata[1] = 0x52;
 				outdata[2] = 0x11;
@@ -140,13 +143,15 @@ namespace Nabla {
 				outdata[6] = (byte) (epochnow >> 8);
 				outdata[7] = (byte) (epochnow);
 				Array.Copy(session.PrivateAddress.GetAddressBytes(), 0, outdata, 8, 16);
+				/* FIXME: needs POP address */
+				outdata[23] = 0;
 
 				SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
 				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
 
 				int hashOffset = 8 + (outdata[0] >> 4)*4;
 				Array.Copy(passwdHash, 0, outdata, hashOffset, 20);
-				Array.Copy(data, 0, outdata, 44, data.Length);
+				Array.Copy(data, 0, outdata, 44, datalen);
 
 				byte[] ourHash = sha1.ComputeHash(outdata, 0, outdata.Length);
 				Array.Copy(ourHash, 0, outdata, hashOffset, 20);
