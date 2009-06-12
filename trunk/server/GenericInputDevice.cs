@@ -306,6 +306,8 @@ namespace Nabla {
 
 			if (!theirHashStr.Equals(ourHashStr)) {
 				Console.WriteLine("Incorrect Heartbeat hash");
+				_sessionManager.UpdateSession(session, session.EndPoint);
+				return;
 			}
 
 			_sessionManager.UpdateSession(session, source);
@@ -340,7 +342,7 @@ namespace Nabla {
 				tunnelType = TunnelType.AyiyaIPv6;
 			} else if (data[3] == 59) { /* IPPROTO_NONE */
 				/* In case of no content, opcode should be nop or echo response */
-				if ((data[2] & 0x0f) != 0 || (data[2] & 0x0f) != 4) {
+				if ((data[2] & 0x0f) != 0 && (data[2] & 0x0f) != 4) {
 					return;
 				}
 			} else {
@@ -397,10 +399,15 @@ namespace Nabla {
 			byte[] ourHash = sha1.ComputeHash(data, 0, length);
 			if (!BitConverter.ToString(ourHash).Equals(BitConverter.ToString(theirHash))) {
 				Console.WriteLine("Incorrect AYIYA hash");
+				_sessionManager.UpdateSession(session, session.EndPoint);
 				return;
 			}
-
 			_sessionManager.UpdateSession(session, source);
+
+			/* In case of NOP act like it would be a heartbeat */
+			if ((data[2] & 0x0f) == 0) {
+				return;
+			}
 
 			if (!_sessionManager.SessionAlive(tunnelType, source))
 				return;
