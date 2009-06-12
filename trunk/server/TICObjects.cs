@@ -114,8 +114,8 @@ namespace Nabla {
 		public string Country;
 		public IPAddress IPv4;
 		public IPAddress IPv6;
-		public bool HeartbeatSupport;
-		public bool TincSupport;
+		public string HeartbeatSupport;
+		public string TincSupport;
 		public string MulticastSupport;
 		public string ISPShort;
 		public string ISPName;
@@ -135,8 +135,8 @@ namespace Nabla {
 			ret += "Country: " + Country + "\n";
 			ret += "IPv4: " + IPv4 + "\n";
 			ret += "IPv6: " + IPv6 + "\n";
-			ret += "Heartbeat Support: " + (HeartbeatSupport ? "Y" : "N") + "\n";
-			ret += "Tinc Support: " + (TincSupport ? "Y" : "N") + "\n";
+			ret += "Heartbeat Support: " + HeartbeatSupport + "\n";
+			ret += "Tinc Support: " + TincSupport + "\n";
 			ret += "Multicast Support: " + MulticastSupport + "\n";
 			ret += "ISP Short: " + ISPShort + "\n";
 			ret += "ISP Name: " + ISPName + "\n";

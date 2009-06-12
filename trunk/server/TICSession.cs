@@ -515,8 +515,8 @@ namespace Nabla {
 				popInfo.Country = "Unknown";
 				popInfo.IPv4 = IPAddress.Parse("127.0.0.1");
 				popInfo.IPv6 = IPAddress.Parse("::");
-				popInfo.HeartbeatSupport = true;
-				popInfo.TincSupport = false;
+				popInfo.HeartbeatSupport = "Y";
+				popInfo.TincSupport = "N";
 				popInfo.MulticastSupport = "N";
 				popInfo.ISPShort = "Nabla";
 				popInfo.ISPName = "Nabla - Automatic IPv6 Tunneling and Connectivity";
