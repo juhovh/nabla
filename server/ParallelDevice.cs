@@ -58,7 +58,9 @@ namespace Nabla {
 		private byte[] _hwaddr;
 		private RawSocket _socket;
 		private Thread _thread;
-		private volatile bool _running;
+
+		private Object _runlock = new Object();
+		private bool _running;
 
 		private Dictionary<IPAddress, IPConfig> _subnets
 			= new Dictionary<IPAddress, IPConfig>();
@@ -99,21 +101,32 @@ namespace Nabla {
 		}
 
 		public void Start() {
-			_running = true;
-			_thread.Start();
+			lock (_runlock) {
+				if (_running)
+					return;
 
-			/* Start address autoconfiguration */
-			if (_enableIPv4) {
-				sendDHCPDiscover();
-			}
-			if (_enableIPv6) {
-				sendNDRouterSol();
+				_running = true;
+				_thread.Start();
+
+				/* Start address autoconfiguration */
+				if (_enableIPv4 && IPv4Route == null) {
+					sendDHCPDiscover();
+				}
+				if (_enableIPv6 && IPv6Route == null) {
+					sendNDRouterSol();
+				}
 			}
 		}
 
 		public void Stop() {
-			_running = false;
-			_thread.Join();
+			lock (_runlock) {
+				if (!_running)
+					return;
+
+				_running = false;
+				_thread.Join();
+			}
+			Console.WriteLine("Parallel device stopped");
 		}
 
 		public void AddSubnet(IPAddress addr, int prefixlen) {
