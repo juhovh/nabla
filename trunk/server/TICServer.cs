@@ -85,11 +85,11 @@ namespace Nabla {
 			writer.Flush();
 
 			while (!session.Finished()) {
-				string line = reader.ReadLine();
-				if (line == null) {
+				string line = null;
+				try {
+					line = reader.ReadLine().Trim();
+				} catch (Exception) {
 					break;
-				} else {
-					line = line.Trim();
 				}
 
 				string response = session.HandleCommand(line);
