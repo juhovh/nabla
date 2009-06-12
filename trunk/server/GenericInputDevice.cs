@@ -125,7 +125,11 @@ namespace Nabla {
 		}
 
 		public void SendPacket(IPEndPoint destination, byte[] data) {
-			_rawSocket.Send(data);
+			if (_type == GenericInputType.Ayiya) {
+				_udpSocket.SendTo(data, destination);
+			} else {
+				_rawSocket.SendTo(data, destination);
+			}
 		}
 
 		private void threadLoop() {
