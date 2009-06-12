@@ -32,6 +32,8 @@ namespace Nabla {
 		private Dictionary<IPAddress, IPEndPoint> _ipv6map = new Dictionary<IPAddress, IPEndPoint>();
 		private OutputDeviceCallback _callback;
 
+		public IPAddress IPv6TunnelPrefix = null;
+
 		public OutputDevice(string deviceName, IPAddress ipv4, bool enableIPv6, OutputDeviceCallback cb) {
 			bool enableIPv4 = false;
 			if (ipv4.AddressFamily == AddressFamily.InterNetwork) {
@@ -72,6 +74,7 @@ namespace Nabla {
 				ipv6 = new IPAddress(ipv6Bytes);
 
 				_device.AddSubnet(ipv6, 104);
+				IPv6TunnelPrefix = ipv6;
 				Console.WriteLine("Added IPv6 subnet: {0}/{1}", ipv6, 104);
 			}
 		}
