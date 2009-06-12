@@ -413,7 +413,7 @@ namespace Nabla {
 			foreach (InputDevice dev in _inputDevices) {
 				foreach (TunnelType t in dev.GetSupportedTypes()) {
 					if (t == session.TunnelType) {
-						dev.SendPacket(destination, data);
+						dev.SendPacket(session, data);
 						break;
 					}
 				}
