@@ -151,9 +151,10 @@ namespace Nabla {
 							continue;
 						}
 
+						/* XXX: Ugly way to detect if the source is IPv4 */
 						byte[] sourceBytes = endPoint.Address.GetAddressBytes();
 						sourceBytes[12] = sourceBytes[13] = sourceBytes[14] = sourceBytes[15] = 0;
-						bool sourceIsIPv4 = IPAddress.Parse("::ffff:0").Equals(new IPAddress(sourceBytes));
+						bool sourceIsIPv4 = IPAddress.Parse("::ffff:0.0.0.0").Equals(new IPAddress(sourceBytes));
 
 						TunnelType tunnelType;
 						if (sourceIsIPv4) {
