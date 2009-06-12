@@ -390,7 +390,11 @@ namespace Nabla {
 
 		public void ProcessPacket(TunnelType type, IPEndPoint source, byte[] data) {
 			foreach (OutputDevice dev in _outputDevices) {
-				dev.SendPacket(source, data);
+				try {
+					dev.SendPacket(source, data);
+				} catch (Exception e) {
+					Console.WriteLine("Exception sending packet: " + e);
+				}
 			}
 		}
 
