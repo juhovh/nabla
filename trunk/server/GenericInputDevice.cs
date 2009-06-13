@@ -208,9 +208,6 @@ namespace Nabla {
 					case GenericInputType.IPv6inIPv6:
 						tunnelType = TunnelType.IPv6inIPv6;
 						break;
-					case GenericInputType.Heartbeat:
-						tunnelType = TunnelType.Heartbeat;
-						break;
 					default:
 						throw new Exception("Unsupported input type: " + _type);
 					}
@@ -225,6 +222,7 @@ namespace Nabla {
 						                                     endPoint, null);
 						if (session != null) {
 							/* Heartbeat session alive with this endpoint */
+							Console.WriteLine("IPv6inIPv4 packet to Heartbeat session");
 							tunnelType = TunnelType.Heartbeat;
 						}
 					}
