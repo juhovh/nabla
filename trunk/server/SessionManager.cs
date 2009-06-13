@@ -52,15 +52,20 @@ namespace Nabla {
 					throw new Exception("Can't add devices while running, stop the manager first");
 				}
 
-				dev.SetSessionManager(this);
-				_inputDevices.Add(dev);
-
 				lock (_sessionlock) {
+					bool missing = false;
+
+					dev.SetSessionManager(this);
 					foreach (TunnelType t in dev.GetSupportedTypes()) {
 						/* If this TunnelType is not in sessions table, add it there */
 						if (!_sessions.ContainsKey(t)) {
 							_sessions.Add(t, new Dictionary<IPEndPoint, TunnelSession>());
+							missing = true;
 						}
+					}
+
+					if (missing) {
+						_inputDevices.Add(dev);
 					}
 				}
 			}
@@ -104,6 +109,8 @@ namespace Nabla {
 				} else {
 					throw new Exception("Session without EndPoint and PrivateAddress");
 				}
+
+				Console.WriteLine("Added new session:\n" + session);
 			}
 		}
 
@@ -167,42 +174,59 @@ namespace Nabla {
 			return false;
 		}
 
-		public bool GetTunnelIPv4Endpoints(Int64 tunnelId, ref IPAddress client, ref IPAddress server) {
+		public IPAddress GetIPv4TunnelEndpoint(Int64 tunnelId) {
 			if (tunnelId > 0xffffff) {
-				return false;
+				return null;
 			}
 
-			/* XXX: Should check from OutputDevice that these are ok */
-			client = IPAddress.Parse("10.123.45.2");
-			server = IPAddress.Parse("10.123.45.1");
-
-			return true;
+			/* XXX: Should check from OutputDevice that this is ok */
+			return IPAddress.Parse("10.123.45.2");
 		}
 
-		public bool GetTunnelIPv6Endpoints(Int64 tunnelId, ref IPAddress client, ref IPAddress server) {
+		public IPAddress GetIPv4ServerEndpoint() {
+			/* XXX: Should check from OutputDevice that this is ok */
+			return IPAddress.Parse("10.123.45.1");
+		}
+
+		public IPAddress GetIPv6TunnelEndpoint(Int64 tunnelId) {
 			if (tunnelId > 0xffffff) {
-				return false;
+				return null;
 			}
 
 			IPAddress tunnelPrefix = null;
 			foreach (OutputDevice dev in _outputDevices) {
 				if (dev.IPv6TunnelPrefix != null) {
 					tunnelPrefix = dev.IPv6TunnelPrefix;
+					break;
 				}
 			}
 
 			if (tunnelPrefix == null) {
-				return false;
+				return null;
 			}
 
-			server = tunnelPrefix;
-			byte[] clientBytes = tunnelPrefix.GetAddressBytes();
-			clientBytes[13] = (byte) (tunnelId >> 16);
-			clientBytes[14] = (byte) (tunnelId >> 8);
-			clientBytes[15] = (byte) (tunnelId);
-			client = new IPAddress(clientBytes);
+			byte[] ipaddr = tunnelPrefix.GetAddressBytes();
+			ipaddr[13] = (byte) (tunnelId >> 16);
+			ipaddr[14] = (byte) (tunnelId >> 8);
+			ipaddr[15] = (byte) (tunnelId);
 
-			return true;
+			return new IPAddress(ipaddr);;
+		}
+
+		public IPAddress GetIPv6ServerEndpoint() {
+			IPAddress tunnelPrefix = null;
+			foreach (OutputDevice dev in _outputDevices) {
+				if (dev.IPv6TunnelPrefix != null) {
+					tunnelPrefix = dev.IPv6TunnelPrefix;
+					break;
+				}
+			}
+
+			if (tunnelPrefix == null) {
+				return null;
+			}
+
+			return tunnelPrefix;
 		}
 
 		public void Start() {

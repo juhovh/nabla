@@ -21,6 +21,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using Nabla.Database;
 
 namespace Nabla {
 	public class TICServer {
@@ -32,18 +33,50 @@ namespace Nabla {
 		private Thread _thread;
 
 		/* Use the default port */
-		public TICServer(SessionManager sessionManager) : this(sessionManager, 3874) {}
+		public TICServer(SessionManager sessionManager, string deviceName) :
+			this(sessionManager, deviceName, 3874) {}
 
-		public TICServer(SessionManager sessionManager, int port) {
+		public TICServer(SessionManager sessionManager, string deviceName, int port) {
+			InputDevice dev;
+			dev = new GenericInputDevice(deviceName, GenericInputType.IPv6inIPv4);
+			sessionManager.AddInputDevice(dev);
+			dev = new GenericInputDevice(deviceName, GenericInputType.Heartbeat);
+			sessionManager.AddInputDevice(dev);
+			dev = new GenericInputDevice(deviceName, GenericInputType.Ayiya);
+			sessionManager.AddInputDevice(dev);
+
+			using (UserDatabase db = new UserDatabase("nabla.db")) {
+				TunnelInfo[] tunnels = db.ListTunnels(0, "tic");
+				foreach (TunnelInfo t in tunnels) {
+					IPAddress privateAddress = sessionManager.GetIPv6TunnelEndpoint(t.TunnelId);
+
+					TunnelSession session = null;
+					if (t.Endpoint.Equals("ayiya")) {
+						session = new TunnelSession(TunnelType.AyiyaIPv6,
+						                            privateAddress,
+						                            t.Password);
+					} else if (t.Endpoint.Equals("heartbeat")) {
+						session = new TunnelSession(TunnelType.Heartbeat,
+						                            privateAddress,
+						                            t.Password);
+					} else {
+						IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse(t.Endpoint), 0);
+						session = new TunnelSession(TunnelType.IPv6inIPv4, endPoint);
+					}
+
+					sessionManager.AddSession(session);
+				}
+			}
+
 			_sessionManager = sessionManager;
 			_listener = new TcpListener(IPAddress.Any, port);
-			_thread = new Thread(new ThreadStart(listenerThread));
 		}
 
 		public void Start() {
 			lock (_runlock) {
 				_running = true;
 				_listener.Start();
+				_thread = new Thread(new ThreadStart(listenerThread));
 				_thread.Start();
 			}
 		}
