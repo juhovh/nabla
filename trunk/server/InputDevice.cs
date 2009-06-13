@@ -38,7 +38,7 @@ namespace Nabla {
 					if (i<10 && addrBytes[i] != 0x00) {
 						isIPv4Address = false;
 						break;
-					} else if (addrBytes[i] != 0xff) {
+					} else if (i>=10 && addrBytes[i] != 0xff) {
 						isIPv4Address = false;
 						break;
 					}
