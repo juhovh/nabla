@@ -66,10 +66,6 @@ namespace Nabla {
 				_tunnelTypes.Add(TunnelType.AyiyaIPv6);
 				break;
 			case GenericInputType.Heartbeat:
-				/* We still need a raw socket for Heartbeat */
-				addressFamily = AddressFamily.InterNetwork;
-				protocol = 41;
-
 				_udpSocket = new Socket(AddressFamily.InterNetwork,
 				                        SocketType.Dgram,
 				                        ProtocolType.Udp);
@@ -181,25 +177,20 @@ namespace Nabla {
 
 						handleAyiyaPacket(endPoint, data, datalen);
 					}
-				} else {
-					IPEndPoint endPoint;
-					int datalen;
+				} else if (_type == GenericInputType.Heartbeat) {
+					while (_udpSocket.Poll(waitms*1000, SelectMode.SelectRead)) {
+						EndPoint sender = (EndPoint) new IPEndPoint(IPAddress.Any, 0);
+						int datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,
+						                                     SocketFlags.None,
+						                                     ref sender);
+						Console.WriteLine("Received a heartbeat packet from {0}", sender);
 
-					if (_type == GenericInputType.Heartbeat) {
-						while (_udpSocket.Poll(0, SelectMode.SelectRead)) {
-							EndPoint sender = (EndPoint) new IPEndPoint(IPAddress.Any, 0);
-							datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,
-							                                 SocketFlags.None,
-							                                 ref sender);
-							Console.WriteLine("Received a heartbeat packet from {0}", sender);
+						/* Nullify the port of the end point, otherwise it won't be found */
+						IPEndPoint endPoint = new IPEndPoint(((IPEndPoint) sender).Address, 0);
 
-							/* Nullify the port of the end point, otherwise it won't be found */
-							endPoint = new IPEndPoint(((IPEndPoint) sender).Address, 0);
-
-							handleHeartbeatPacket(endPoint, data, datalen);
-						}
+						handleHeartbeatPacket(endPoint, data, datalen);
 					}
-
+				} else {
 					if (!_rawSocket.WaitForReadable())
 						continue;
 
@@ -224,9 +215,19 @@ namespace Nabla {
 						throw new Exception("Unsupported input type: " + _type);
 					}
 
-					endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);;
-					datalen = _rawSocket.ReceiveFrom(data, ref endPoint);
+					IPEndPoint endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);;
+					int datalen = _rawSocket.ReceiveFrom(data, ref endPoint);
 					Console.WriteLine("Received a packet from {0}", endPoint);
+
+					if (tunnelType == TunnelType.IPv6inIPv4) {
+						TunnelSession session;
+						session = _sessionManager.GetSession(TunnelType.Heartbeat,
+						                                     endPoint, null);
+						if (session != null) {
+							/* Heartbeat session alive with this endpoint */
+							tunnelType = TunnelType.Heartbeat;
+						}
+					}
 
 					if (!_sessionManager.SessionAlive(tunnelType, endPoint))
 						continue;
