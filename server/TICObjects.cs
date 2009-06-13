@@ -48,9 +48,7 @@ namespace Nabla {
 			string ret = "";
 
 			string type;
-			if (IPv4Endpoint.Equals("dynamic")) {
-				type = "dynamic";
-			} else if (IPv4Endpoint.Equals("heartbeat")) { 
+			if (IPv4Endpoint.Equals("heartbeat")) { 
 				type = "6in4-heartbeat"; 
 			} else if (IPv4Endpoint.Equals("ayiya")) { 
 				type = "ayiya"; 

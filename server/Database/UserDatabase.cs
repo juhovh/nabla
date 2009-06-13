@@ -50,6 +50,7 @@ namespace Nabla.Database {
 				", enabled boolean" +
 
 				", name varchar(128)" + 
+				", type varchar(32)" +
 				", endpoint varchar(39)" +
 				", userenabled boolean" +
 				", password varchar(32))";
@@ -101,7 +102,7 @@ namespace Nabla.Database {
 				return false;
 			}
 
-			DataTable dataTable = getDataTable("users", "WHERE username = '" + userName + "'");
+			DataTable dataTable = getDataTable("users", "WHERE username='" + userName + "'");
 			if (dataTable.Rows.Count == 0) {
 				return false;
 			}
@@ -119,7 +120,7 @@ namespace Nabla.Database {
 				return null;
 			}
 
-			DataTable dataTable = getDataTable("users", "WHERE username = '" + userName + "'");
+			DataTable dataTable = getDataTable("users", "WHERE username='" + userName + "'");
 			if (dataTable.Rows.Count == 0) {
 				return null;
 			}
@@ -150,13 +151,14 @@ namespace Nabla.Database {
 
 			string commandString = "INSERT INTO tunnels " +
 				" (ownerid, created, lastmodified, enabled, " +
-				"  name, endpoint, userenabled, password) VALUES (" +
+				"  name, type, endpoint, userenabled, password) VALUES (" +
 				"'" + tunnelInfo.OwnerId + "', " +
 				"datetime('" + tunnelInfo.Created.ToString("s") + "'), " +
 				"datetime('" + tunnelInfo.LastModified.ToString("s") + "'), " +
 				"'" + (tunnelInfo.Enabled ? 1 : 0) + "', " +
 
 				"'" + tunnelInfo.Name + "', " +
+				"'" + tunnelInfo.Type + "', " +
 				"'" + tunnelInfo.Endpoint + "', " +
 				"'" + (tunnelInfo.UserEnabled ? 1 : 0) + "', " +
 				"'" + tunnelInfo.Password + "')";
@@ -188,13 +190,21 @@ namespace Nabla.Database {
 		}
 
 		public TunnelInfo[] ListTunnels(Int64 userId) {
+			return ListTunnels(userId, null);
+		}
+
+		public TunnelInfo[] ListTunnels(Int64 userId, string type) {
 			if (userId <= 0) {
 				return new TunnelInfo[] {};
 			}
 
 			List<TunnelInfo> tunnels = new List<TunnelInfo>();
+			string whereString = "WHERE ownerid=" + userId;
+			if (type != null) {
+				whereString += " AND type='" + type + "'";
+			}
 
-			DataTable dataTable = getDataTable("tunnels", "WHERE ownerid = '" + userId + "'");
+			DataTable dataTable = getDataTable("tunnels", whereString);
 			foreach (DataRow dataRow in dataTable.Rows) {
 				tunnels.Add(dataRowToTunnelInfo(dataRow));
 			}
@@ -207,7 +217,7 @@ namespace Nabla.Database {
 				return null;
 			}
 
-			DataTable dataTable = getDataTable("tunnels", "WHERE id = '" + tunnelId + "'");
+			DataTable dataTable = getDataTable("tunnels", "WHERE id=" + tunnelId);
 			if (dataTable.Rows.Count == 0) {
 				return null;
 			}
@@ -224,6 +234,7 @@ namespace Nabla.Database {
 			tunnelInfo.Enabled = (bool) dataRow["enabled"];
 
 			tunnelInfo.Name = (string) dataRow["name"];
+			tunnelInfo.Type = (string) dataRow["type"];
 			tunnelInfo.Endpoint = (string) dataRow["endpoint"];
 			tunnelInfo.UserEnabled = (bool) dataRow["userenabled"];
 			tunnelInfo.Password = (string) dataRow["password"];
@@ -263,7 +274,7 @@ namespace Nabla.Database {
 
 			List<RouteInfo> routes = new List<RouteInfo>();
 
-			DataTable dataTable = getDataTable("routes", "WHERE ownerid = '" + userId + "'");
+			DataTable dataTable = getDataTable("routes", "WHERE ownerid=" + userId);
 			foreach (DataRow dataRow in dataTable.Rows) {
 				routes.Add(dataRowToRouteInfo(dataRow));
 			}
@@ -276,7 +287,7 @@ namespace Nabla.Database {
 				return null;
 			}
 
-			DataTable dataTable = getDataTable("routes", "WHERE id = '" + routeId + "'");
+			DataTable dataTable = getDataTable("routes", "WHERE id=" + routeId);
 			if (dataTable.Rows.Count == 0) {
 				return null;
 			}

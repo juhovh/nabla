@@ -138,6 +138,35 @@ namespace Nabla {
 			return null;
 		}
 
+		public bool UpdateSession(TunnelSession session, IPEndPoint source) {
+			try {
+				session.EndPoint = source;
+				AddSession(session);
+				return true;
+			} catch (Exception) {}
+
+			return false;
+		}
+
+		public bool SessionAlive(TunnelType type, IPEndPoint source) {
+			TunnelSession session = null;
+			lock (_sessionlock) {
+				try {
+					session = _sessions[type][source];
+				} catch (Exception) {
+					return false;
+				}
+			}
+
+
+			/* XXX: Check that the session is alive */
+			if (DateTime.Now - session.LastAlive > TimeSpan.Zero) {
+				return true;
+			}
+
+			return false;
+		}
+
 		public bool GetTunnelIPv4Endpoints(Int64 tunnelId, ref IPAddress client, ref IPAddress server) {
 			if (tunnelId > 0xffffff) {
 				return false;
@@ -174,35 +203,6 @@ namespace Nabla {
 			client = new IPAddress(clientBytes);
 
 			return true;
-		}
-
-		public bool UpdateSession(TunnelSession session, IPEndPoint source) {
-			try {
-				session.EndPoint = source;
-				AddSession(session);
-				return true;
-			} catch (Exception) {}
-
-			return false;
-		}
-
-		public bool SessionAlive(TunnelType type, IPEndPoint source) {
-			TunnelSession session = null;
-			lock (_sessionlock) {
-				try {
-					session = _sessions[type][source];
-				} catch (Exception) {
-					return false;
-				}
-			}
-
-
-			/* XXX: Check that the session is alive */
-			if (DateTime.Now - session.LastAlive > TimeSpan.Zero) {
-				return true;
-			}
-
-			return false;
 		}
 
 		public void Start() {

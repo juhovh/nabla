@@ -29,7 +29,9 @@ public class CreateDatabase {
 			TunnelInfo tunnelInfo = new TunnelInfo();
 			tunnelInfo.OwnerId = userInfo.UserId;
 			tunnelInfo.Enabled = true;
+
 			tunnelInfo.Name = "My first tunnel";
+			tunnelInfo.Type = "tic";
 			tunnelInfo.Endpoint = "ayiya";
 			tunnelInfo.UserEnabled = true;
 			tunnelInfo.Password = "salasana";
@@ -42,6 +44,7 @@ public class CreateDatabase {
 			routeInfo.OwnerId = userInfo.UserId;
 			routeInfo.TunnelId = tunnelInfo.TunnelId;
 			routeInfo.Enabled = true;
+
 			routeInfo.Description = "This is a default route for a subnet";
 			routeInfo.UserEnabled = false;
 			userDB.AddRouteInfo(routeInfo);

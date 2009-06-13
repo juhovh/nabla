@@ -282,15 +282,10 @@ namespace Nabla {
 
 		private string handleTunnelCommand(string[] words) {
 			if (words[0].Equals("list")) {
-				TunnelInfo[] tunnels = _db.ListTunnels(_sessionInfo.UserId);
+				TunnelInfo[] tunnels = _db.ListTunnels(_sessionInfo.UserId, "tic");
 
 				string ret = "201 Listing tunnels\n";
 				foreach (TunnelInfo t in tunnels) {
-					/* XXX: Is there a cleaner way to do this? */
-					if (t.Endpoint.Equals("dynamic")) {
-						continue;
-					}
-
 					/* Get IPv6 endpoint from SessionManager */
 					IPAddress ipv6Endpoint = null, ipv6POP = null;
 					if (!_sessionManager.GetTunnelIPv6Endpoints(t.TunnelId, ref ipv6Endpoint, ref ipv6POP)) {
