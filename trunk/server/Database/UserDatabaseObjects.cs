@@ -50,6 +50,7 @@ namespace Nabla.Database {
 		public bool Enabled;
 
 		public string Name;
+		public string Type;
 		public string Endpoint;
 		public bool UserEnabled;
 		public string Password;
