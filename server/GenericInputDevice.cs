@@ -295,13 +295,11 @@ namespace Nabla {
 				return;
 			}
 
-			MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
-			byte[] passwdHash = md5.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
-
 			string theirHashStr = str.Substring(str.Length-32, 32);
 			str = str.Substring(0, str.Length-32);
-			str += BitConverter.ToString(passwdHash).Replace("-", "").ToLower();
+			str += session.Password;
 
+			MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
 			byte[] ourHash = md5.ComputeHash(Encoding.ASCII.GetBytes(str));
 			string ourHashStr = BitConverter.ToString(ourHash).Replace("-", "").ToLower();
 
