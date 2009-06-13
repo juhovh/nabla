@@ -30,10 +30,10 @@ namespace Nabla {
 
 			SessionManager sessionManager = new SessionManager();
 			sessionManager.AddOutputDevice(args[1], IPAddress.Parse("192.168.1.16"), true);
-			sessionManager.Start();
 
 			TICServer ticServer = new TICServer(sessionManager, args[0]);
 			ticServer.Start();
+			sessionManager.Start();
 
 			while (true) {
 				Thread.Sleep(1000);
