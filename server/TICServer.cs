@@ -49,6 +49,10 @@ namespace Nabla {
 				TunnelInfo[] tunnels = db.ListTunnels(0, "tic");
 				foreach (TunnelInfo t in tunnels) {
 					IPAddress privateAddress = sessionManager.GetIPv6TunnelEndpoint(t.TunnelId);
+					if (privateAddress == null) {
+						Console.WriteLine("Session not added, IPv6 maybe not enabled?");
+						continue;
+					}
 
 					TunnelSession session = null;
 					if (t.Endpoint.Equals("ayiya")) {
