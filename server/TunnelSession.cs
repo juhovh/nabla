@@ -27,9 +27,9 @@ namespace Nabla {
 	public class TunnelSession {
 		public readonly TunnelType TunnelType;
 		public readonly AddressFamily AddressFamily;
-		public IPEndPoint EndPoint;
-		public IPAddress PrivateAddress = null;
-		public string Password = null;
+		public IPEndPoint EndPoint = null;
+		public readonly IPAddress PrivateAddress = null;
+		public readonly string Password = null;
 		public DateTime LastAlive;
 
 		private TunnelSession(TunnelType type) {
@@ -74,6 +74,19 @@ namespace Nabla {
 
 			PrivateAddress = privateAddress;
 			Password = password;
+		}
+
+		public override string ToString() {
+			string ret = "";
+
+			ret += "TunnelType: " + TunnelType + "\n";
+			ret += "AddressFamily: " + AddressFamily + "\n";
+			ret += "EndPoint: " + EndPoint + "\n";
+			ret += "PrivateAddress: " + PrivateAddress + "\n";
+			ret += "Password: " + Password + "\n";
+			ret += "LastAlive: " + LastAlive.ToString("s");
+
+			return ret;
 		}
 	}
 }

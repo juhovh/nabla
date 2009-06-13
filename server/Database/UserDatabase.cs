@@ -194,14 +194,21 @@ namespace Nabla.Database {
 		}
 
 		public TunnelInfo[] ListTunnels(Int64 userId, string type) {
-			if (userId <= 0) {
+			if (userId <= 0 && type == null) {
 				return new TunnelInfo[] {};
 			}
 
 			List<TunnelInfo> tunnels = new List<TunnelInfo>();
-			string whereString = "WHERE ownerid=" + userId;
+			string whereString = "WHERE";
+			if (userId > 0) {
+				whereString += " ownerid=" + userId;
+			}
 			if (type != null) {
-				whereString += " AND type='" + type + "'";
+				if (userId > 0) {
+					whereString += " AND";
+				}
+
+				whereString += " type='" + type + "'";
 			}
 
 			DataTable dataTable = getDataTable("tunnels", whereString);

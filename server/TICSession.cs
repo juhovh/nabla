@@ -292,8 +292,9 @@ namespace Nabla {
 				string ret = "201 Listing tunnels\n";
 				foreach (TunnelInfo t in tunnels) {
 					/* Get IPv6 endpoint from SessionManager */
-					IPAddress ipv6Endpoint = null, ipv6POP = null;
-					if (!_sessionManager.GetTunnelIPv6Endpoints(t.TunnelId, ref ipv6Endpoint, ref ipv6POP)) {
+					IPAddress ipv6Endpoint = _sessionManager.GetIPv6TunnelEndpoint(t.TunnelId);
+					IPAddress ipv6POP = _sessionManager.GetIPv6ServerEndpoint();
+					if (ipv6Endpoint == null || ipv6POP == null) {
 						/* No known endpoints for this tunnel, maybe IPv6 not enabled? */
 						continue;
 					}
@@ -337,8 +338,9 @@ namespace Nabla {
 				ticTunnelInfo.Password = tunnelInfo.Password;
 
 				/* Get IPv6Endpoint and IPv6POP from SessionManager */
-				IPAddress ipv6Endpoint = null, ipv6POP = null;
-				if (!_sessionManager.GetTunnelIPv6Endpoints(tunnelId, ref ipv6Endpoint, ref ipv6POP)) {
+				IPAddress ipv6Endpoint = _sessionManager.GetIPv6TunnelEndpoint(tunnelId);
+				IPAddress ipv6POP = _sessionManager.GetIPv6ServerEndpoint();
+				if (ipv6Endpoint == null || ipv6POP == null) {
 					/* No known endpoints for this tunnel, maybe IPv6 not enabled? */
 					return "400 Error in tunnel T" + tunnelId + " configuration";
 				}
