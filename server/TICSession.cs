@@ -289,18 +289,43 @@ namespace Nabla {
 			if (command.Equals("list")) {
 				TunnelInfo[] tunnels = _db.ListTunnels(_sessionInfo.UserId, "tic");
 
+				/* If connection is IPv6, list only 4in6 tunnels */
+				bool IPv6conn = (_sessionInfo.LocalAddress.AddressFamily ==
+				                 AddressFamily.InterNetworkV6);
+
 				string ret = "201 Listing tunnels\n";
 				foreach (TunnelInfo t in tunnels) {
-					/* Get IPv6 endpoint from SessionManager */
-					IPAddress ipv6Endpoint = _sessionManager.GetIPv6TunnelEndpoint(t.TunnelId);
-					IPAddress ipv6POP = _sessionManager.GetIPv6ServerEndpoint();
-					if (ipv6Endpoint == null || ipv6POP == null) {
-						/* No known endpoints for this tunnel, maybe IPv6 not enabled? */
-						continue;
+					TICTunnelInfo ticTunnelInfo = new TICTunnelInfo(t.TunnelId, t.Endpoint);
+
+					switch (ticTunnelInfo.Type) {
+					case "6in4":
+					case "6in4-heartbeat":
+					case "ayiya":
+						/* Get IPv6 endpoint from SessionManager */
+						IPAddress ipv6Endpoint = _sessionManager.GetIPv6TunnelEndpoint(t.TunnelId);
+						if (ipv6Endpoint == null || IPv6conn) {
+							/* No known endpoints for this tunnel, maybe IPv6 not enabled? */
+							continue;
+						}
+						ticTunnelInfo.IPv6Endpoint = ipv6Endpoint;
+						break;
+					case "4in6":
+						/* Get IPv4 endpoint from SessionManager */
+						IPAddress ipv4Endpoint = _sessionManager.GetIPv4TunnelEndpoint(t.TunnelId);
+						if (ipv4Endpoint == null || !IPv6conn) {
+							/* No known endpoints for this tunnel, maybe IPv4 not enabled? */
+							continue;
+						}
+						ticTunnelInfo.IPv4Endpoint = ipv4Endpoint.ToString();
+						break;
+					default:
+						throw new Exception("Unknown TIC tunnel type from database");
 					}
 
 					ret += String.Format("T{0} {1} {2} nabla\n",
-						t.TunnelId, ipv6Endpoint, t.Endpoint);
+					                     t.TunnelId,
+					                     ticTunnelInfo.IPv6Endpoint,
+					                     ticTunnelInfo.IPv4Endpoint);
 				}
 				ret += "202 <tunnel_id> <ipv6_endpoint> <ipv4_endpoint> <pop_name>";
 				return ret;
@@ -329,29 +354,52 @@ namespace Nabla {
 					return "400 T" + tunnelId + " is not one of your tunnels";
 				}
 
-				/* Only these values are from the database */
-				TICTunnelInfo ticTunnelInfo = new TICTunnelInfo(tunnelInfo.TunnelId);
+				/* First get values from the database */
+				TICTunnelInfo ticTunnelInfo = new TICTunnelInfo(tunnelInfo.TunnelId, tunnelInfo.Endpoint);
 				ticTunnelInfo.TunnelName = tunnelInfo.Name;
-				ticTunnelInfo.IPv4Endpoint = tunnelInfo.Endpoint;
 				ticTunnelInfo.UserEnabled = tunnelInfo.UserEnabled;
 				ticTunnelInfo.AdminEnabled = tunnelInfo.Enabled;
 				ticTunnelInfo.Password = tunnelInfo.Password;
 
-				/* Get IPv6Endpoint and IPv6POP from SessionManager */
-				IPAddress ipv6Endpoint = _sessionManager.GetIPv6TunnelEndpoint(tunnelId);
-				IPAddress ipv6POP = _sessionManager.GetIPv6ServerEndpoint();
-				if (ipv6Endpoint == null || ipv6POP == null) {
-					/* No known endpoints for this tunnel, maybe IPv6 not enabled? */
-					return "400 Error in tunnel T" + tunnelId + " configuration";
+				/* If connection is IPv6, show only 4in6 tunnels */
+				bool IPv6conn = (_sessionInfo.LocalAddress.AddressFamily ==
+				                 AddressFamily.InterNetworkV6);
+
+				switch (ticTunnelInfo.Type) {
+				case "6in4":
+				case "6in4-heartbeat":
+				case "ayiya":
+					/* Get IPv6Endpoint and IPv6POP from SessionManager */
+					IPAddress ipv6Endpoint = _sessionManager.GetIPv6TunnelEndpoint(tunnelId);
+					IPAddress ipv6POP = _sessionManager.GetIPv6ServerEndpoint();
+					if (ipv6Endpoint == null || ipv6POP == null || IPv6conn) {
+						/* No known endpoints for this tunnel, maybe IPv6 not enabled? */
+						return "400 Error in tunnel T" + tunnelId + " configuration";
+					}
+
+					ticTunnelInfo.IPv6Endpoint = ipv6Endpoint;
+					ticTunnelInfo.IPv4POP = _sessionInfo.LocalAddress;
+					ticTunnelInfo.IPv6POP = ipv6POP;
+					break;
+				case "4in6":
+					IPAddress ipv4Endpoint = _sessionManager.GetIPv4TunnelEndpoint(tunnelId);
+					IPAddress ipv4POP = _sessionManager.GetIPv4ServerEndpoint();
+					if (ipv4Endpoint == null || ipv4POP == null || !IPv6conn) {
+						/* No known endpoints for this tunnel, maybe IPv4 not enabled? */
+						return "400 Error in tunnel T" + tunnelId + " configuration";
+					}
+					ticTunnelInfo.IPv4Endpoint = ipv4Endpoint.ToString();
+					ticTunnelInfo.IPv4POP = ipv4POP;
+					ticTunnelInfo.IPv6POP = _sessionInfo.LocalAddress;
+					break;
+				default:
+					throw new Exception("Unknown TIC tunnel type from database");
 				}
-				ticTunnelInfo.IPv6Endpoint = ipv6Endpoint;
-				ticTunnelInfo.IPv6POP = ipv6POP;
 
 				/* Some constants that don't need to change */
 				ticTunnelInfo.IPv6PrefixLength = 64;
 				ticTunnelInfo.TunnelMTU = 1280;
 				ticTunnelInfo.POPId = "nabla";
-				ticTunnelInfo.IPv4POP = _sessionInfo.LocalAddress;
 				ticTunnelInfo.HeartbeatInterval = 3600;
 
 				string ret = "201 Showing tunnel information for T" + tunnelId + "\n";

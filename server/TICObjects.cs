@@ -18,10 +18,12 @@
 
 using System;
 using System.Net;
+using System.Net.Sockets;
 
 namespace Nabla {
 	public class TICTunnelInfo {
-		public Int64 TunnelId;
+		public readonly Int64 TunnelId;
+		public readonly string Type;
 
 		public IPAddress IPv6Endpoint;
 		public IPAddress IPv6POP;
@@ -40,24 +42,31 @@ namespace Nabla {
 		public string Password;
 		public Int64 HeartbeatInterval;
 
-		public TICTunnelInfo(Int64 id) {
+		public TICTunnelInfo(Int64 id, string endpoint) {
 			TunnelId = id;
+			if (endpoint.Equals("heartbeat")) {
+				Type = "6in4-heartbeat";
+			} else if (endpoint.Equals("ayiya")) {
+				Type = "ayiya";
+			} else {
+				try {
+					IPAddress addr = IPAddress.Parse(endpoint);
+					if (addr.AddressFamily == AddressFamily.InterNetwork) {
+						Type = "6in4";
+					} else {
+						Type = "4in6";
+					}
+				} catch (Exception) {
+					Type = "unknown";
+				}
+			}
 		}
 
 		public override string ToString() {
 			string ret = "";
 
-			string type;
-			if (IPv4Endpoint.Equals("heartbeat")) { 
-				type = "6in4-heartbeat"; 
-			} else if (IPv4Endpoint.Equals("ayiya")) { 
-				type = "ayiya"; 
-			} else { 
-				type = "6in4"; 
-			}
-
 			ret += "TunnelId: T" + TunnelId + "\n";
-			ret += "Type: " + type + "\n";
+			ret += "Type: " + Type + "\n";
 			ret += "IPv6 Endpoint: " + IPv6Endpoint + "\n";
 			ret += "IPv6 POP: " + IPv6POP + "\n";
 			ret += "IPv6 PrefixLength: " + IPv6PrefixLength + "\n";

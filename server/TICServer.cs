@@ -40,6 +40,8 @@ namespace Nabla {
 			InputDevice dev;
 			dev = new GenericInputDevice(deviceName, GenericInputType.IPv6inIPv4);
 			sessionManager.AddInputDevice(dev);
+			dev = new GenericInputDevice(deviceName, GenericInputType.IPv4inIPv6);
+			sessionManager.AddInputDevice(dev);
 			dev = new GenericInputDevice(deviceName, GenericInputType.Heartbeat);
 			sessionManager.AddInputDevice(dev);
 			dev = new GenericInputDevice(deviceName, GenericInputType.Ayiya);
@@ -64,8 +66,17 @@ namespace Nabla {
 						                            privateAddress,
 						                            t.Password);
 					} else {
-						IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse(t.Endpoint), 0);
-						session = new TunnelSession(TunnelType.IPv6inIPv4, endPoint);
+						IPAddress address = IPAddress.Parse(t.Endpoint);
+						IPEndPoint endPoint = new IPEndPoint(address, 0);
+
+						TunnelType type;
+						if (address.AddressFamily == AddressFamily.InterNetwork) {
+							type = TunnelType.IPv6inIPv4;
+						} else {
+							type = TunnelType.IPv4inIPv6;
+						}
+
+						session = new TunnelSession(type, endPoint);
 					}
 
 					sessionManager.AddSession(session);
@@ -73,7 +84,7 @@ namespace Nabla {
 			}
 
 			_sessionManager = sessionManager;
-			_listener = new TcpListener(IPAddress.Any, port);
+			_listener = new TcpListener(IPAddress.IPv6Any, port);
 		}
 
 		public void Start() {
@@ -108,8 +119,8 @@ namespace Nabla {
 			string serviceName = "Nabla";
 			string serviceUrl = "http://code.google.com/p/nabla/";
 
-			IPEndPoint remoteEndPoint = (IPEndPoint) client.Client.RemoteEndPoint;
-			IPEndPoint localEndPoint = (IPEndPoint) client.Client.LocalEndPoint;
+			IPEndPoint remoteEndPoint = InputDevice.GetIPEndPoint(client.Client.RemoteEndPoint);
+			IPEndPoint localEndPoint = InputDevice.GetIPEndPoint(client.Client.LocalEndPoint);
 			TICSession session = new TICSession(_sessionManager, serviceName,
 			                                    remoteEndPoint.Address, localEndPoint.Address);
 
