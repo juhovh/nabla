@@ -94,9 +94,12 @@ namespace Nabla {
 		private string handleCommand(string[] words) {
 			if (words.Length == 0) {
 				return "200 Empty line, please enter at least something we accept";
-			} else if (words[0].Equals("help")) {
+			}
+
+			string command = words[0].ToLower();
+			if (command.Equals("help")) {
 				return getHelpString();
-			} else if (words[0].Equals("exit")) {
+			} else if (command.Equals("exit")) {
 				if (_sessionInfo.State == SessionState.Tunnel ||
 				    _sessionInfo.State == SessionState.Route ||
 				    _sessionInfo.State == SessionState.Pop) {
@@ -107,12 +110,12 @@ namespace Nabla {
 				/* In other cases exit is equivalent to quit */
 				_finished = true;
 				return "200 Thank you for using this " + _serviceName + " service";
-			} else if (words[0].Equals("quit")) {
+			} else if (command.Equals("quit")) {
 				_finished = true;
 				return "200 Thank you for using this " + _serviceName + " service";
-			} else if (words[0].Equals("starttls") && _sessionInfo.State == SessionState.Initial) {
+			} else if (command.Equals("starttls") && _sessionInfo.State == SessionState.Initial) {
 				return "400 This service is not SSL enabled (yet)";
-			} else if (words[0].Equals("client") && _sessionInfo.State == SessionState.Initial) {
+			} else if (command.Equals("client") && _sessionInfo.State == SessionState.Initial) {
 				if (words.Length < 2 || !words[1].Contains("/")) {
 					return "400 A valid client identifier is expected";
 				}
@@ -128,7 +131,7 @@ namespace Nabla {
 				}
 
 				return "200 Client Identity accepted";
-			} else if (words[0].Equals("username") && _sessionInfo.State == SessionState.Initial) {
+			} else if (command.Equals("username") && _sessionInfo.State == SessionState.Initial) {
 				if (words.Length != 2) {
 					return "400 A username is expected";
 				}
@@ -137,7 +140,7 @@ namespace Nabla {
 				_sessionInfo.State = SessionState.Challenge;
 
 				return "200 Choose your authentication challenge please";
-			} else if (words[0].Equals("challenge") && _sessionInfo.State == SessionState.Challenge) {
+			} else if (command.Equals("challenge") && _sessionInfo.State == SessionState.Challenge) {
 				if (words.Length != 2) {
 					return "400 Challenge expects a authentication type";
 				}
@@ -160,7 +163,7 @@ namespace Nabla {
 					_sessionInfo.State = SessionState.Challenge;
 					return "400 Unknown authentication type: " + words[1];
 				}
-			} else if (words[0].Equals("authenticate") && _sessionInfo.State == SessionState.Authenticate) {
+			} else if (command.Equals("authenticate") && _sessionInfo.State == SessionState.Authenticate) {
 				if (words.Length != 3) {
 					return "400 Authenticate requires 2 arguments";
 				}
@@ -210,7 +213,7 @@ namespace Nabla {
 				ret += " as " + userInfo.UserName + " (" + userInfo.FullName + ")";
 				ret += " from " + _sessionInfo.SourceAddress;
 				return ret;
-			} else if (words[0].Equals("tunnel") && _sessionInfo.State == SessionState.Main) {
+			} else if (command.Equals("tunnel") && _sessionInfo.State == SessionState.Main) {
 				if (words.Length > 1) {
 					/* Execute the command directly in current context */
 					string[] tmp = new string[words.Length-1];
@@ -220,7 +223,7 @@ namespace Nabla {
 
 				_sessionInfo.State = SessionState.Tunnel;
 				return "200 Context set to tunnel";
-			} else if (words[0].Equals("route") && _sessionInfo.State == SessionState.Main) {
+			} else if (command.Equals("route") && _sessionInfo.State == SessionState.Main) {
 				if (words.Length > 1) {
 					/* Execute the command directly in current context */
 					string[] tmp = new string[words.Length-1];
@@ -230,7 +233,7 @@ namespace Nabla {
 
 				_sessionInfo.State = SessionState.Route;
 				return "200 Context set to route";
-			} else if (words[0].Equals("pop") && _sessionInfo.State == SessionState.Main) {
+			} else if (command.Equals("pop") && _sessionInfo.State == SessionState.Main) {
 				if (words.Length > 1) {
 					/* Execute the command directly in current context */
 					string[] tmp = new string[words.Length-1];
@@ -246,7 +249,7 @@ namespace Nabla {
 				return handleRouteCommand(words);
 			} else if (_sessionInfo.State == SessionState.Pop) {
 				return handlePopCommand(words);
-			} else if (words[0].Equals("set")) {
+			} else if (command.Equals("set")) {
 				if (words.Length != 3) {
 					return "400 'set' requires two arguments";
 				}
@@ -264,7 +267,7 @@ namespace Nabla {
 				} else {
 					return "400 No such option '" + words[1] + "' to set";
 				}
-			} else if (words[0].Equals("get")) {
+			} else if (command.Equals("get")) {
 				if (words.Length != 2) {
 					return "400 'get' requires one argument";
 				}
@@ -281,7 +284,9 @@ namespace Nabla {
 		}
 
 		private string handleTunnelCommand(string[] words) {
-			if (words[0].Equals("list")) {
+			string command = words[0].ToLower();
+
+			if (command.Equals("list")) {
 				TunnelInfo[] tunnels = _db.ListTunnels(_sessionInfo.UserId, "tic");
 
 				string ret = "201 Listing tunnels\n";
@@ -298,7 +303,7 @@ namespace Nabla {
 				}
 				ret += "202 <tunnel_id> <ipv6_endpoint> <ipv4_endpoint> <pop_name>";
 				return ret;
-			} else if (words[0].Equals("show")) {
+			} else if (command.Equals("show")) {
 				if (words.Length != 2) {
 					return "400 Show requires a tunnel id";
 				}
@@ -352,7 +357,7 @@ namespace Nabla {
 				ret += "202 Done";
 
 				return ret;
-			} else if (words[0].Equals("set")) {
+			} else if (command.Equals("set")) {
 				if (words.Length != 4) {
 					return "400 set requires 3 arguments";
 				}
@@ -417,7 +422,7 @@ namespace Nabla {
 				} else {
 					return "400 " + words[2] + " is not a known variable";
 				}
-			} else if (words[0].Equals("put")) {
+			} else if (command.Equals("put")) {
 				if (words.Length != 3) {
 					return "400 put requires 2 arguments";
 				}
@@ -427,7 +432,7 @@ namespace Nabla {
 				} else {
 					return "400 " + words[2] + " is not a known variable";
 				}
-			} else if (words[0].Equals("get")) {
+			} else if (command.Equals("get")) {
 				if (words.Length != 3) {
 					return "400 get requires 2 arguments";
 				}
@@ -443,7 +448,9 @@ namespace Nabla {
 		}
 
 		private string handleRouteCommand(string[] words) {
-			if (words[0].Equals("list")) {
+			string command = words[0].ToLower();
+
+			if (command.Equals("list")) {
 				RouteInfo[] routes = _db.ListRoutes(_sessionInfo.UserId);
 
 				string ret = "201 Listing routes\n";
@@ -457,7 +464,7 @@ namespace Nabla {
 				}
 				ret += "202 <route_id> <tunnel_id> <route_prefix>";
 				return ret;
-			} else if (words[0].Equals("show")) {
+			} else if (command.Equals("show")) {
 				if (words.Length != 2) {
 					return "400 Show requires a route id";
 				}
@@ -505,12 +512,14 @@ namespace Nabla {
 		}
 
 		private string handlePopCommand(string[] words) {
-			if (words[0].Equals("list")) {
+			string command = words[0].ToLower();
+
+			if (command.Equals("list")) {
 				string ret = "201 Listing PoPs\n";
 				ret += "nabla\n";
 				ret += "202 <pop_name>";
 				return ret;
-			} else if (words[0].Equals("show")) {
+			} else if (command.Equals("show")) {
 				if (words.Length != 2) {
 					return "400 Show requires a pop id";
 				}
@@ -538,7 +547,7 @@ namespace Nabla {
 				ret += "202 Done";
 
 				return ret;
-			} else if (words[0].Equals("get")) {
+			} else if (command.Equals("get")) {
 				if (words.Length != 3) {
 					return "400 get requires 2 arguments";
 				}
