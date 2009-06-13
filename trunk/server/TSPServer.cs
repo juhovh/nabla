@@ -70,8 +70,8 @@ namespace Nabla {
 
 			TcpClient client = (TcpClient) data;
 
-			IPEndPoint remoteEndPoint = (IPEndPoint) client.Client.RemoteEndPoint;
-			IPEndPoint localEndPoint = (IPEndPoint) client.Client.LocalEndPoint;
+			IPEndPoint remoteEndPoint = InputDevice.GetIPEndPoint(client.Client.RemoteEndPoint);
+			IPEndPoint localEndPoint = InputDevice.GetIPEndPoint(client.Client.LocalEndPoint);
 			TSPSession session = new TSPSession(ProtocolType.Tcp, remoteEndPoint.Address, localEndPoint.Address);
 
 			Stream stream = client.GetStream();

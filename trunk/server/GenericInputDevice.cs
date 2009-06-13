@@ -103,25 +103,25 @@ namespace Nabla {
 			_thread = new Thread(new ThreadStart(this.threadLoop));
 		}
 
-		public void SetSessionManager(SessionManager sessionManager) {
+		public override void SetSessionManager(SessionManager sessionManager) {
 			_sessionManager = sessionManager;
 		}
 
-		public TunnelType[] GetSupportedTypes() {
+		public override TunnelType[] GetSupportedTypes() {
 			return _tunnelTypes.ToArray();
 		}
 
-		public void Start() {
+		public override void Start() {
 			_running = true;
 			_thread.Start();
 		}
 
-		public void Stop() {
+		public override void Stop() {
 			_running = false;
 			_thread.Join();
 		}
 
-		public void SendPacket(TunnelSession session, byte[] data) {
+		public override void SendPacket(TunnelSession session, byte[] data) {
 			if (_type == GenericInputType.Ayiya) {
 				/* FIXME: not necessarily IPv6 */
 				int datalen = 40 + data[4]*256 + data[5];
@@ -168,7 +168,7 @@ namespace Nabla {
 						                                     SocketFlags.None,
 						                                     ref sender);
 						Console.WriteLine("Received an AYIYA packet from {0}", sender);
-						IPEndPoint endPoint = (IPEndPoint) sender;
+						IPEndPoint endPoint = InputDevice.GetIPEndPoint(sender);
 
 						if (datalen < 8) {
 							Console.WriteLine("Packet length {0} invalid", datalen);
