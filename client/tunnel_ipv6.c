@@ -45,7 +45,6 @@ struct tunnel_data_s {
 	int fd;
 	tapcfg_t *tapcfg;
 	int family;
-	char passwd_hash[33];
 };
 
 static const char routerhw[] = { 0x00, 0x01, 0x23, 0x45, 0x67, 0x89 };
@@ -368,9 +367,7 @@ init(tunnel_t *tunnel)
 	int sock;
 	tapcfg_t *tapcfg;
 	tunnel_data_t *data;
-	struct MD5Context md5;
-	unsigned char digest[16];
-	int ret, i;
+	int ret;
 
 	assert(tunnel);
 	endpoint = &tunnel->endpoint;
@@ -412,11 +409,6 @@ init(tunnel_t *tunnel)
 		}
 	}
 
-	/* Calculate shared secret from the password */
-	MD5Init(&md5);
-	MD5Update(&md5, (unsigned char *) endpoint->password, strlen(endpoint->password));
-	MD5Final(digest, &md5);
-
 	data = calloc(1, sizeof(tunnel_data_t));
 	if (!data) {
 		closesocket(sock);
@@ -426,9 +418,6 @@ init(tunnel_t *tunnel)
 	data->fd = sock;
 	data->tapcfg = tapcfg;
 	data->family = family;
-	for (i = 0; i < 16; i++) {
-		sprintf(data->passwd_hash + i*2, "%02x", digest[i]);
-	}
 	tunnel->privdata = data;
 
 	return 0;
@@ -483,11 +472,7 @@ stop(tunnel_t *tunnel)
 static int
 beat(tunnel_t *tunnel)
 {
-	tunnel_data_t *data;
-
 	assert(tunnel);
-	assert(tunnel->privdata);
-	data = tunnel->privdata;
 
 	if (tunnel->endpoint.type == TUNNEL_TYPE_HEARTBEAT) {
 		fd_set wfds;
@@ -512,7 +497,7 @@ beat(tunnel_t *tunnel)
 		/* Create the string to send including our password */
 		snprintf(buf, sizeof(buf), "HEARTBEAT TUNNEL %s %s %ld %s",
 			 ipv6str, "sender", (long int) current_time,
-		         data->passwd_hash);
+		         tunnel->endpoint.password);
 
 		/* Generate a MD5 */
 		MD5Init(&md5);
