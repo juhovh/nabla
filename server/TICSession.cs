@@ -462,6 +462,7 @@ namespace Nabla {
 						}
 					}
 
+					/* XXX: Check that tunnel type is tic */
 					_db.UpdateTunnelEndpoint(tunnelId, words[3]);
 					return "200 Endpoint of T" + tunnelId + " changed to " + words[3];
 				} else if (words[2].Equals("state")) {
@@ -479,6 +480,7 @@ namespace Nabla {
 						return "400 Tunnel was already in the requested state";
 					}
 
+					/* XXX: Check that tunnel type is tic */
 					_db.UpdateTunnelUserEnabled(tunnelId, enabled);
 					return "State of T" + tunnelId + " changed to " + words[3];
 				} else {
