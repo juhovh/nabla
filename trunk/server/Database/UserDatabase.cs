@@ -40,7 +40,7 @@ namespace Nabla.Database {
 				", enabled boolean" +
 				", username varchar(32)" +
 				", password varchar(64)" +
-				", tunnel_password varchar(32)" +
+				", tunnel_password varchar(128)" +
 				", fullname varchar(128))";
 			string tunnelString = "CREATE TABLE tunnels (" +
 				"id integer primary key autoincrement" +
@@ -78,17 +78,12 @@ namespace Nabla.Database {
 		public void AddUserInfo(UserInfo userInfo) {
 			string passwordHash = SHA256WithSalt(userInfo.Password, null);
 
-			MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
-			byte[] pwBytes = Encoding.UTF8.GetBytes(userInfo.TunnelPassword);
-			byte[] pwHashBytes = md5.ComputeHash(pwBytes);
-			string tunnelPasswordHash = BitConverter.ToString(pwHashBytes).Replace("-", "").ToLower();
-
 			string commandString = "INSERT INTO users " +
 				" (enabled, username, password, tunnel_password, fullname) VALUES (" +
 				"'" + (userInfo.Enabled ? 1 : 0) + "', " +
 				"'" + userInfo.UserName + "', " +
 				"'" + passwordHash + "', " +
-				"'" + tunnelPasswordHash + "', " +
+				"'" + userInfo.TunnelPassword + "', " +
 				"'" + userInfo.FullName + "')";
 
 			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
