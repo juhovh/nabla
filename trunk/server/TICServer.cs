@@ -24,30 +24,38 @@ using System.Threading;
 using Nabla.Database;
 
 namespace Nabla {
-	public class TICServer {
+	public class TICServer : InputDevice {
 		private Object _runlock = new Object();
 		private volatile bool _running = false;
 
-		private SessionManager _sessionManager;
+		private string _dbName;
+		private string _deviceName;
 		private TcpListener _listener;
+		private SessionManager _sessionManager;
 		private Thread _thread;
 
 		/* Use the default port */
-		public TICServer(SessionManager sessionManager, string deviceName) :
-			this(sessionManager, deviceName, 3874) {}
+		public TICServer(string dbName, string deviceName) :
+			this(dbName, deviceName, 3874) {}
 
-		public TICServer(SessionManager sessionManager, string deviceName, int port) {
+		public TICServer(string dbName, string deviceName, int port) {
+			_dbName = dbName;
+			_deviceName = deviceName;
+			_listener = new TcpListener(IPAddress.IPv6Any, port);
+		}
+
+		public override void SetSessionManager(SessionManager sessionManager) {
 			InputDevice dev;
-			dev = new GenericInputDevice(deviceName, GenericInputType.IPv6inIPv4);
+			dev = new GenericInputDevice(_deviceName, GenericInputType.IPv6inIPv4);
 			sessionManager.AddInputDevice(dev);
-			dev = new GenericInputDevice(deviceName, GenericInputType.IPv4inIPv6);
+			dev = new GenericInputDevice(_deviceName, GenericInputType.IPv4inIPv6);
 			sessionManager.AddInputDevice(dev);
-			dev = new GenericInputDevice(deviceName, GenericInputType.Heartbeat);
+			dev = new GenericInputDevice(_deviceName, GenericInputType.Heartbeat);
 			sessionManager.AddInputDevice(dev);
-			dev = new GenericInputDevice(deviceName, GenericInputType.Ayiya);
+			dev = new GenericInputDevice(_deviceName, GenericInputType.Ayiya);
 			sessionManager.AddInputDevice(dev);
 
-			using (UserDatabase db = new UserDatabase("nabla.db")) {
+			using (UserDatabase db = new UserDatabase(_dbName)) {
 				TunnelInfo[] tunnels = db.ListTunnels(0, "tic");
 				foreach (TunnelInfo t in tunnels) {
 					IPAddress privateAddress = sessionManager.GetIPv6TunnelEndpoint(t.TunnelId);
@@ -84,10 +92,13 @@ namespace Nabla {
 			}
 
 			_sessionManager = sessionManager;
-			_listener = new TcpListener(IPAddress.IPv6Any, port);
 		}
 
-		public void Start() {
+		public override TunnelType[] GetSupportedTypes() {
+			return new TunnelType[] {};
+		}
+
+		public override void Start() {
 			lock (_runlock) {
 				_running = true;
 				_listener.Start();
@@ -96,12 +107,17 @@ namespace Nabla {
 			}
 		}
 
-		public void Stop() {
+		public override void Stop() {
 			lock (_runlock) {
 				_running = false;
 				_thread.Join();
 				_listener.Stop();
 			}
+		}
+
+		public override void SendPacket(TunnelSession session, byte[] data) {
+			/* Never called because we have no types set */
+			throw new Exception("Send packet called on TICServer");
 		}
 
 		private void listenerThread() {
@@ -121,7 +137,7 @@ namespace Nabla {
 
 			IPEndPoint remoteEndPoint = InputDevice.GetIPEndPoint(client.Client.RemoteEndPoint);
 			IPEndPoint localEndPoint = InputDevice.GetIPEndPoint(client.Client.LocalEndPoint);
-			TICSession session = new TICSession(_sessionManager, serviceName,
+			TICSession session = new TICSession(_sessionManager, _dbName, serviceName,
 			                                    remoteEndPoint.Address, localEndPoint.Address);
 
 			StreamReader reader = new StreamReader(client.GetStream());

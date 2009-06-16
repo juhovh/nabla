@@ -61,9 +61,11 @@ namespace Nabla {
 		private SessionInfo _sessionInfo;
 		private bool _finished = false;
 
-		public TSPSession(SessionManager sessionManager, ProtocolType type, IPAddress sourceAddress, IPAddress localAddress) {
+		public TSPSession(SessionManager sessionManager, string dbName, ProtocolType type,
+		                  IPAddress sourceAddress, IPAddress localAddress) {
+			_sessionManager = sessionManager;
+			_db = new UserDatabase(dbName);
 			_protocolType = type;
-			_db = new UserDatabase("nabla.db");
 			_sessionInfo = new SessionInfo();
 			_sessionInfo.SourceAddress = sourceAddress;
 			_sessionInfo.LocalAddress = localAddress;
