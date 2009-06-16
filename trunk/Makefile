@@ -10,8 +10,10 @@ SRCS_client := client/client.c client/tunnel.c client/tunnel_ipv4.c client/tunne
 
 SRCS_rawsock   := server/Sockets/rawsock.c
 SRCS_RawSocket := server/Sockets/RawSocket.cs server/Sockets/RawSocketNative.cs server/Sockets/RawSocketPcap.cs
-SRCS_server    := server/*.cs server/Database/*.cs
-LIBS_server    := System,System.Data,System.Data.SQLite,Nabla.Sockets
+SRCS_utils     := server/*.cs server/Database/*.cs
+LIBS_utils     := System,System.Data,System.Data.SQLite,Nabla.Sockets
+SRCS_createdb  := $(SRCS_utils) server/utils/CreateDatabase.cs
+SRCS_server    := $(SRCS_utils) server/utils/Server.cs
 
 TARGET_ext :=
 TARGET_libpre := lib
@@ -48,9 +50,10 @@ LIBFLAGS_darwin := -dynamiclib -install_name $(TARGET_libpre)rawsock$(TARGET_lib
 LIBFLAGS_sunos := $(LIBFLAGS_unix)
 LIBFLAGS := $(LIBFLAGS_$(PLATFORM))
 
-TARGET_client  := bin/client$(TARGET_ext)
-TARGET_rawsock := bin/$(TARGET_libpre)rawsock$(TARGET_libext)
-TARGET_server  := bin/Server.exe
+TARGET_client   := bin/client$(TARGET_ext)
+TARGET_rawsock  := bin/$(TARGET_libpre)rawsock$(TARGET_libext)
+TARGET_createdb := bin/CreateDatabase.exe
+TARGET_server   := bin/Server.exe
 
 
 all: platform-check nabla-client nabla-server
@@ -83,7 +86,8 @@ endif
 nabla-server: nabla-rawsock
 ifneq ($(CSC),)
 	cp lib/*.dll bin/
-	$(CSC) -lib:bin -out:$(TARGET_server) -r:$(LIBS_server) $(SRCS_server)
+	$(CSC) -lib:bin -out:$(TARGET_server) -r:$(LIBS_utils) $(SRCS_server)
+	$(CSC) -lib:bin -out:$(TARGET_createdb) -r:$(LIBS_utils) $(SRCS_createdb)
 endif
 
 nabla-rawsock:
