@@ -59,12 +59,15 @@ namespace Nabla {
 				TunnelInfo[] tunnels = db.ListTunnels(0, "tic");
 				foreach (TunnelInfo t in tunnels) {
 					IPAddress privateAddress = sessionManager.GetIPv6TunnelEndpoint(t.TunnelId);
-					if (privateAddress == null) {
+					if ((t.Endpoint.Equals("ayiya") || t.Endpoint.Equals("heartbeat")) &&
+					    privateAddress == null) {
 						Console.WriteLine("Session not added, IPv6 maybe not enabled?");
 						continue;
 					}
 
-					/* XXX: Check that tunnel is user enabled and admin enabled */
+					if (!t.Enabled || !t.UserEnabled) {
+						Console.WriteLine("Tunnel T" + t.TunnelId + " not enabled, session not added");
+					}
 
 					TunnelSession session = null;
 					if (t.Endpoint.Equals("ayiya")) {
