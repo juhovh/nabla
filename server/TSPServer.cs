@@ -24,35 +24,57 @@ using System.Net.Sockets;
 using System.Threading;
 
 namespace Nabla {
-	public class TSPServer {
+	public class TSPServer : InputDevice {
 		private Object _runlock = new Object();
 		private volatile bool _running = false;
 
+		private string _deviceName;
 		private TcpListener _tcpListener;
+		private SessionManager _sessionManager;
 		private Thread _tcpThread;
 
 		/* Use the default port */
-		public TSPServer() : this(3653) {}
+		public TSPServer(string deviceName) : this(deviceName, 3653) {}
 
-		public TSPServer(int port) {
+		public TSPServer(string deviceName, int port) {
+			_deviceName = deviceName;
 			_tcpListener = new TcpListener(IPAddress.Any, port);
-			_tcpThread = new Thread(new ThreadStart(listenerThread));
 		}
 
-		public void Start() {
+		public override void SetSessionManager(SessionManager sessionManager) {
+			InputDevice dev;
+			dev = new GenericInputDevice(_deviceName, GenericInputType.IPv6inIPv4);
+			sessionManager.AddInputDevice(dev);
+			dev = new GenericInputDevice(_deviceName, GenericInputType.IPv4inIPv6);
+			sessionManager.AddInputDevice(dev);
+
+			_sessionManager = sessionManager;
+		}
+
+		public override TunnelType[] GetSupportedTypes() {
+			/* We will handle IPv6inUDP ourselves */
+			return new TunnelType[] { TunnelType.IPv6inUDP };
+		}
+
+		public override void Start() {
 			lock (_runlock) {
-				_running = true;
 				_tcpListener.Start();
+				_running = true;
+				_tcpThread = new Thread(new ThreadStart(listenerThread));
 				_tcpThread.Start();
 			}
 		}
 
-		public void Stop() {
+		public override void Stop() {
 			lock (_runlock) {
 				_running = false;
 				_tcpThread.Join();
 				_tcpListener.Stop();
 			}
+		}
+
+		public override void SendPacket(TunnelSession session, byte[] data) {
+			/* XXX: Handle IPv6inUDP incoming data */
 		}
 
 		private void listenerThread() {
@@ -72,7 +94,8 @@ namespace Nabla {
 
 			IPEndPoint remoteEndPoint = InputDevice.GetIPEndPoint(client.Client.RemoteEndPoint);
 			IPEndPoint localEndPoint = InputDevice.GetIPEndPoint(client.Client.LocalEndPoint);
-			TSPSession session = new TSPSession(ProtocolType.Tcp, remoteEndPoint.Address, localEndPoint.Address);
+			TSPSession session = new TSPSession(_sessionManager, ProtocolType.Tcp,
+			                                    remoteEndPoint.Address, localEndPoint.Address);
 
 			Stream stream = client.GetStream();
 

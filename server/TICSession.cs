@@ -43,6 +43,7 @@ namespace Nabla {
 			public IPAddress LocalAddress;
 
 			public bool PromptEnabled;
+			public string TICVersion;
 			public string ClientName;
 			public string ClientVersion;
 			public string OSName;
@@ -116,18 +117,24 @@ namespace Nabla {
 			} else if (command.Equals("starttls") && _sessionInfo.State == SessionState.Initial) {
 				return "400 This service is not SSL enabled (yet)";
 			} else if (command.Equals("client") && _sessionInfo.State == SessionState.Initial) {
-				if (words.Length < 2 || !words[1].Contains("/")) {
+				if (words.Length < 2 || !words[1].StartsWith("TIC/")) {
 					return "400 A valid client identifier is expected";
 				}
 
-				_sessionInfo.ClientName = words[1].Substring(0, words[1].IndexOf('/'));
-				_sessionInfo.ClientVersion = words[1].Substring(words[1].IndexOf('/')+1);
+				_sessionInfo.TICVersion = words[1].Substring(words[1].IndexOf('/')+1);
 
 				if (words.Length >= 3 && words[2].Contains("/")) {
-					_sessionInfo.OSName = words[2].Substring(0, words[2].IndexOf('/'));
-					_sessionInfo.OSVersion = words[2].Substring(words[2].IndexOf('/')+1);
-				} else if (words.Length >= 3) {
-					_sessionInfo.OSName = words[2];
+					_sessionInfo.ClientName = words[2].Substring(0, words[2].IndexOf('/'));
+					_sessionInfo.ClientVersion = words[2].Substring(words[2].IndexOf('/')+1);
+				} else {
+					_sessionInfo.ClientName = words[2];
+				}
+
+				if (words.Length >= 4 && words[3].Contains("/")) {
+					_sessionInfo.OSName = words[3].Substring(0, words[3].IndexOf('/'));
+					_sessionInfo.OSVersion = words[3].Substring(words[3].IndexOf('/')+1);
+				} else if (words.Length >= 4) {
+					_sessionInfo.OSName = words[3];
 				}
 
 				return "200 Client Identity accepted";
