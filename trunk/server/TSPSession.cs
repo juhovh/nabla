@@ -55,12 +55,13 @@ namespace Nabla {
 			public Int64 UserId;
 		}
 
+		private SessionManager _sessionManager;
 		private ProtocolType _protocolType;
 		private UserDatabase _db;
 		private SessionInfo _sessionInfo;
 		private bool _finished = false;
 
-		public TSPSession(ProtocolType type, IPAddress sourceAddress, IPAddress localAddress) {
+		public TSPSession(SessionManager sessionManager, ProtocolType type, IPAddress sourceAddress, IPAddress localAddress) {
 			_protocolType = type;
 			_db = new UserDatabase("nabla.db");
 			_sessionInfo = new SessionInfo();
@@ -197,11 +198,11 @@ namespace Nabla {
 				}
 			}
 
-			/* XXX: Check that type is correct and call SessionManager */
+			/* XXX: Get a tunnel ID to call SessionManager */
 			/* XXX: Set the real keepalive interval and address */
 			string lifetime = "1440";
-			IPAddress clientAddress = IPAddress.Parse("2001::1");
-			IPAddress serverAddress = IPAddress.Parse("2001::1");
+			IPAddress clientAddress = _sessionManager.GetIPv6TunnelEndpoint(1);
+			IPAddress serverAddress = _sessionManager.GetIPv6ServerEndpoint();
 			IPAddress keepaliveAddress = serverAddress;
 			int keepaliveInterval = 30;
 
