@@ -64,6 +64,8 @@ namespace Nabla {
 						continue;
 					}
 
+					/* XXX: Check that tunnel is user enabled and admin enabled */
+
 					TunnelSession session = null;
 					if (t.Endpoint.Equals("ayiya")) {
 						session = new TunnelSession(TunnelType.AyiyaIPv6,
