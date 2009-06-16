@@ -59,6 +59,7 @@ namespace Nabla {
 				_method = SASLMethod.Unsupported;
 				break;
 			}
+			_realm = realm;
 		}
 
 		public string[] GetSupportedMethods() {
@@ -113,17 +114,34 @@ namespace Nabla {
 					string responseValue = dict["response"];
 					string qopValue = dict["qop"];
 
-					/* Directly from RFC 2617 / RFC 2831 */
-					string A1 = unq(usernameValue) + ":" + unq(realmValue) + ":" + passwd;
-					string A2 = "AUTHENTICATE:" + digestUriValue;
-					if (qopValue.Equals("auth-int"))
-						A2 += ":00000000000000000000000000000000";
-
 					MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
-					byte[] HA1Bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(A1));
+
+					/* Directly from RFC 2617 / RFC 2831 */
+					string A1_1 = unq(usernameValue) + ":" + unq(realmValue) + ":" + passwd;
+					byte[] HA1_1Bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(A1_1));
+
+					/* Construct A1 from raw bytes and the string */
+					byte[] A1End = Encoding.UTF8.GetBytes(":" + unq(nonceValue) +
+					                                      ":" + unq(cnonceValue));
+					byte[] A1Bytes = new byte[HA1_1Bytes.Length + A1End.Length];
+					Array.Copy(HA1_1Bytes, 0, A1Bytes, 0, HA1_1Bytes.Length);
+					Array.Copy(A1End, 0, A1Bytes, HA1_1Bytes.Length, A1End.Length);
+
+					/* Calculate H(A1) */
+					byte[] HA1Bytes = md5.ComputeHash(A1Bytes);
 					string HA1 = BitConverter.ToString(HA1Bytes).Replace("-", "").ToLower();
+
+					string A2 = "AUTHENTICATE:" + unq(digestUriValue);
+					string cA2 = ":" + unq(digestUriValue);
+					if (qopValue.Equals("auth-int")) {
+						A2 += ":00000000000000000000000000000000";
+						cA2 += ":00000000000000000000000000000000";
+					}
+
 					byte[] HA2Bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(A2));
 					string HA2 = BitConverter.ToString(HA2Bytes).Replace("-", "").ToLower();
+					byte[] cHA2Bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(cA2));
+					string cHA2 = BitConverter.ToString(cHA2Bytes).Replace("-", "").ToLower();
 
 					string digestString =
 						HA1 + ":" + unq(nonceValue) + ":" + ncValue + ":" +
@@ -136,17 +154,9 @@ namespace Nabla {
 						return "300 Invalid username or password";
 					}
 
-					/* Construct the rspauth with different A2 value */
-					A2 = ":" + digestUriValue;
-					if (qopValue.Equals("auth-int"))
-						A2 += ":00000000000000000000000000000000";
-
-					HA2Bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(A2));
-					HA2 = BitConverter.ToString(HA2Bytes).Replace("-", "").ToLower();
-
 					digestString =
 						HA1 + ":" + unq(nonceValue) + ":" + ncValue + ":" +
-						unq(cnonceValue) + ":" + unq(qopValue) + ":" + HA2;
+						unq(cnonceValue) + ":" + unq(qopValue) + ":" + cHA2;
 					digestBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(digestString));
 					digest = BitConverter.ToString(digestBytes).Replace("-", "").ToLower();
 
@@ -155,7 +165,7 @@ namespace Nabla {
 
 					_finished = true;
 					_success = true;
-					return rspauth + "\r\n200 Success";
+					return rspauth;
 				}
 			} catch (Exception) {}
 
@@ -164,8 +174,10 @@ namespace Nabla {
 		}
 
 		private string unq(string str) {
-			/* FIXME: Implement unquote */
-			return str;
+			if (str[0] == '"' && str[str.Length-1] == '"')
+				return str.Substring(1, str.Length-2);
+			else
+				return str;
 		}
 	}
 }

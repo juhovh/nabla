@@ -77,20 +77,21 @@ namespace Nabla {
 			_db.Dispose();
 		}
 
-		public string HandleCommand(string command) {
+		public string[] HandleCommand(string command) {
 			Console.WriteLine("Handling command: " + command);
 
 			string response;
-			if (_saslAuth != null) {
-				if (_saslAuth.Finished) {
-					_saslAuth = null;
-				}
-
+			if (_saslAuth != null && !_saslAuth.Finished) {
 				response = _saslAuth.GetResponse(command);
 				if (_saslAuth.Success) {
 					_sessionInfo.State = SessionState.Main;
+
+					/* We need to reply in two separate packets, very stupid */
+					Console.WriteLine("Outputting response: " + response);
+					return new string[] { response, "200 Success\r\n" };
 				}
 			} else {
+				_saslAuth = null;
 				response = handleCommand(command);
 			}
 
@@ -98,7 +99,8 @@ namespace Nabla {
 				return null;
 			}
 
-			return response + "\r\n";
+			Console.WriteLine("Outputting response: " + response);
+			return new string[] { response + "\r\n" };
 		}
 
 		public bool Finished() {
