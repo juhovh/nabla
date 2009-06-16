@@ -194,16 +194,14 @@ namespace Nabla {
 				}
 	
 				bool passwordMatch;
-				string passwordHash = userInfo.TunnelPassword;
-				MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
 				if (words[1].Equals("clear")) {
-					byte[] pwBytes = Encoding.UTF8.GetBytes(words[2]);
-					byte[] theirHash = md5.ComputeHash(pwBytes);
-					string theirHashStr
-						= BitConverter.ToString(theirHash).Replace("-", "").ToLower();
-
-					passwordMatch = theirHashStr.Equals(passwordHash);
+					passwordMatch = words[2].Equals(userInfo.TunnelPassword);
 				} else if (words[1].Equals("md5")) {
+					MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
+					byte[] pwBytes = Encoding.UTF8.GetBytes(userInfo.TunnelPassword);
+					byte[] pwHashBytes = md5.ComputeHash(pwBytes);
+					string passwordHash = BitConverter.ToString(pwHashBytes).Replace("-", "").ToLower();
+
 					byte[] ourBytes = Encoding.ASCII.GetBytes(_sessionInfo.Challenge + passwordHash);
 					byte[] ourHash = md5.ComputeHash(ourBytes);
 					string ourHashStr
