@@ -61,6 +61,8 @@ namespace Nabla {
 		private SessionInfo _sessionInfo;
 		private bool _finished = false;
 
+		private SASLAuth _saslAuth = null;
+
 		public TSPSession(SessionManager sessionManager, string dbName, ProtocolType type,
 		                  IPAddress sourceAddress, IPAddress localAddress) {
 			_sessionManager = sessionManager;
@@ -78,7 +80,20 @@ namespace Nabla {
 		public string HandleCommand(string command) {
 			Console.WriteLine("Handling command: " + command);
 
-			string response = handleCommand(command);
+			string response;
+			if (_saslAuth != null) {
+				if (_saslAuth.Finished) {
+					_saslAuth = null;
+				}
+
+				response = _saslAuth.GetResponse(command);
+				if (_saslAuth.Success) {
+					_sessionInfo.State = SessionState.Main;
+				}
+			} else {
+				response = handleCommand(command);
+			}
+
 			if (response == null) {
 				return null;
 			}
@@ -108,14 +123,14 @@ namespace Nabla {
 
 				/* XXX: Should return the real capabilities */
 				_sessionInfo.State = SessionState.Authenticate;
-				return "CAPABILITY TUNNEL=V6V4 TUNNEL=V6UDPV4 AUTH=ANONYMOUS";
+				return "CAPABILITY TUNNEL=V6V4 TUNNEL=V6UDPV4 AUTH=DIGEST-MD5";
 			} else if (_sessionInfo.State == SessionState.Authenticate) {
 				if (!words[0].Equals("AUTHENTICATE")) {
 					return "300 Authentication failed";
 				}
 
-				_sessionInfo.State = SessionState.Main;
-				return "200 Success";
+				_saslAuth = new SASLAuth(words[1], "nabla");
+				return _saslAuth.GetChallenge();
 			} else {
 				XmlDocument xmlDoc = new XmlDocument();
 				try {
