@@ -62,12 +62,12 @@ namespace Nabla {
 		private SessionInfo _sessionInfo;
 		private bool _finished = false;
 
-		public TICSession(SessionManager sessionManager, string serviceName,
+		public TICSession(SessionManager sessionManager, string dbName, string serviceName,
 		                  IPAddress source, IPAddress local) {
 			_sessionManager = sessionManager;
 			_serviceName = serviceName;
 
-			_db = new UserDatabase("nabla.db");
+			_db = new UserDatabase(dbName);
 			_sessionInfo = new SessionInfo();
 			_sessionInfo.SourceAddress = source;
 			_sessionInfo.LocalAddress = local;

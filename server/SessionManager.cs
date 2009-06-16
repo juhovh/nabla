@@ -53,7 +53,7 @@ namespace Nabla {
 				}
 
 				lock (_sessionlock) {
-					bool missing = false;
+					bool missing = true;
 
 					dev.SetSessionManager(this);
 					foreach (TunnelType t in dev.GetSupportedTypes()) {
@@ -64,7 +64,7 @@ namespace Nabla {
 						}
 					}
 
-					if (missing) {
+					if (missing || dev.GetSupportedTypes().Length == 0) {
 						_inputDevices.Add(dev);
 					}
 				}

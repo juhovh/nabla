@@ -28,15 +28,17 @@ namespace Nabla {
 		private Object _runlock = new Object();
 		private volatile bool _running = false;
 
+		private string _dbName;
 		private string _deviceName;
 		private TcpListener _tcpListener;
 		private SessionManager _sessionManager;
 		private Thread _tcpThread;
 
 		/* Use the default port */
-		public TSPServer(string deviceName) : this(deviceName, 3653) {}
+		public TSPServer(string dbName, string deviceName) : this(dbName, deviceName, 3653) {}
 
-		public TSPServer(string deviceName, int port) {
+		public TSPServer(string dbName, string deviceName, int port) {
+			_dbName = dbName;
 			_deviceName = deviceName;
 			_tcpListener = new TcpListener(IPAddress.Any, port);
 		}
@@ -94,7 +96,7 @@ namespace Nabla {
 
 			IPEndPoint remoteEndPoint = InputDevice.GetIPEndPoint(client.Client.RemoteEndPoint);
 			IPEndPoint localEndPoint = InputDevice.GetIPEndPoint(client.Client.LocalEndPoint);
-			TSPSession session = new TSPSession(_sessionManager, ProtocolType.Tcp,
+			TSPSession session = new TSPSession(_sessionManager, _dbName, ProtocolType.Tcp,
 			                                    remoteEndPoint.Address, localEndPoint.Address);
 
 			Stream stream = client.GetStream();
