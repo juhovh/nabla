@@ -29,8 +29,8 @@ namespace Nabla {
 			}
 
 			SessionManager sessionManager = new SessionManager();
-			sessionManager.AddInputDevice(new TICServer("nabla.db", args[0]));
 			sessionManager.AddOutputDevice(args[1], IPAddress.Parse("192.168.1.16"), true);
+			sessionManager.AddInputDevice(new TICServer("nabla.db", args[0]));
 
 			sessionManager.Start();
 
