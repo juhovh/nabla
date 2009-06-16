@@ -126,7 +126,7 @@ namespace Nabla {
 				if (words.Length >= 3 && words[2].Contains("/")) {
 					_sessionInfo.ClientName = words[2].Substring(0, words[2].IndexOf('/'));
 					_sessionInfo.ClientVersion = words[2].Substring(words[2].IndexOf('/')+1);
-				} else {
+				} else if (words.Length >= 3) {
 					_sessionInfo.ClientName = words[2];
 				}
 
@@ -136,6 +136,13 @@ namespace Nabla {
 				} else if (words.Length >= 4) {
 					_sessionInfo.OSName = words[3];
 				}
+
+				Console.WriteLine("Client information:");
+				Console.WriteLine("TICVersion: " + _sessionInfo.TICVersion);
+				Console.WriteLine("ClientName: " + _sessionInfo.ClientName);
+				Console.WriteLine("ClientVersion: " + _sessionInfo.ClientVersion);
+				Console.WriteLine("OSName: " + _sessionInfo.OSName);
+				Console.WriteLine("OSVersion: " + _sessionInfo.OSVersion);
 
 				return "200 Client Identity accepted";
 			} else if (command.Equals("username") && _sessionInfo.State == SessionState.Initial) {
