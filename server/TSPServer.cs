@@ -170,22 +170,24 @@ namespace Nabla {
 
 				/* Content-length of response depends on the state before the command */
 				bool outputContentLength = session.OutputContentLength;
-				string response = session.HandleCommand(line);
-				if (response == null)
+				string[] responses = session.HandleCommand(line);
+				if (responses == null)
 					continue;
 
-				byte[] outBytes = Encoding.UTF8.GetBytes(response);
-				if (outputContentLength) {
-					string clString = "Content-length: " + outBytes.Length + "\r\n";
-					byte[] clBytes = Encoding.UTF8.GetBytes(clString);
+				foreach (string response in responses) {
+					byte[] outBytes = Encoding.UTF8.GetBytes(response);
+					if (outputContentLength) {
+						string clString = "Content-length: " + outBytes.Length + "\r\n";
+						byte[] clBytes = Encoding.UTF8.GetBytes(clString);
 
-					byte[] tmpBytes = new byte[clBytes.Length + outBytes.Length];
-					Array.Copy(clBytes, 0, tmpBytes, 0, clBytes.Length);
-					Array.Copy(outBytes, 0, tmpBytes, clBytes.Length, outBytes.Length);
-					outBytes = tmpBytes;
+						byte[] tmpBytes = new byte[clBytes.Length + outBytes.Length];
+						Array.Copy(clBytes, 0, tmpBytes, 0, clBytes.Length);
+						Array.Copy(outBytes, 0, tmpBytes, clBytes.Length, outBytes.Length);
+						outBytes = tmpBytes;
+					}
+					stream.Write(outBytes, 0, outBytes.Length);
+					stream.Flush();
 				}
-				stream.Write(outBytes, 0, outBytes.Length);
-				stream.Flush();
 			}
 
 			session.Cleanup();
