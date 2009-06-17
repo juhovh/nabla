@@ -129,11 +129,6 @@ namespace Nabla {
 				buflen -= newline+2;
 				Array.Copy(buf, newline+2, buf, 0, buflen);
 
-				/* This is weird, why is there sometimes nulls? */
-				while (line[0] == '\0') {
-					line = line.Substring(1);
-				}
-
 				/* If Content-length is set, read multiline content */
 				if (line.StartsWith("Content-length:")) {
 					string lenstr = line.Substring("Content-length:".Length).Trim();

@@ -62,7 +62,7 @@ namespace Nabla {
 			_realm = realm;
 		}
 
-		public string[] GetSupportedMethods() {
+		public static string[] GetSupportedMethods() {
 			return new string[] { "PLAIN", "DIGEST-MD5" };
 		}
 
@@ -74,9 +74,10 @@ namespace Nabla {
 				return null;
 			case SASLMethod.DigestMD5:
 				string challenge = "";
-				challenge += "realm=\"" + _realm + "\"";
+				challenge += "charset=utf-8";
+				challenge += ",realm=\"" + _realm + "\"";
 				challenge += ",nonce=\"" + nonce + "\"";
-				challenge += ",qop=\"auth\",algorithm=md5-sess,charset=utf-8";
+				challenge += ",qop=\"auth\",algorithm=md5-sess";
 				return Convert.ToBase64String(Encoding.UTF8.GetBytes(challenge));
 			default:
 				_finished = true;
@@ -85,11 +86,27 @@ namespace Nabla {
 		}
 
 		public string GetResponse(string resp) {
+			if (resp.Length > 0 && resp[0] == '\0') {
+				/* Strip the null byte that Gateway6 client always sends */
+				resp = resp.Substring(1);
+			}
+
 			try {
 				switch (_method) {
 				case SASLMethod.Plain:
-					/* FIXME: Implement plain checking */ 
-					return "200 Authentication successful";
+					string[] words = resp.Split(new char[] {'\0'});
+					if (words.Length != 3) {
+						throw new Exception("Invalid plain authentication string, length: " + words.Length);
+					}
+
+					string username = words[1].Trim();
+					string password = words[2].Trim();
+
+					Console.WriteLine("Got plain authentication with: " + username + ":" + password);
+
+					_finished = true;
+					_success = true;
+					return null;
 				case SASLMethod.DigestMD5:
 					Dictionary<string, string> dict = new Dictionary<string, string>();
 					string respString = Encoding.UTF8.GetString(Convert.FromBase64String(resp));
@@ -167,7 +184,9 @@ namespace Nabla {
 					_success = true;
 					return rspauth;
 				}
-			} catch (Exception) {}
+			} catch (Exception e) {
+				Console.WriteLine(e);
+			}
 
 			_finished = true;
 			return "300 Error parsing challenge response";
