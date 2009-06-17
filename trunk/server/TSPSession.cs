@@ -86,9 +86,12 @@ namespace Nabla {
 				if (_saslAuth.Success) {
 					_sessionInfo.State = SessionState.Main;
 
-					/* We need to reply in two separate packets, very stupid */
-					Console.WriteLine("Outputting response: " + response);
-					return new string[] { response, "200 Success\r\n" };
+					if (response == null) {
+						response = "200 Authentication successful";
+					} else {
+						/* We need to reply in two separate packets, very stupid */
+						return new string[] { response, "200 Success\r\n" };
+					}
 				}
 			} else {
 				_saslAuth = null;
@@ -123,9 +126,17 @@ namespace Nabla {
 					return "302 Unsupported client version";
 				}
 
-				/* XXX: Should return the real capabilities */
 				_sessionInfo.State = SessionState.Authenticate;
-				return "CAPABILITY TUNNEL=V6V4 TUNNEL=V6UDPV4 AUTH=DIGEST-MD5";
+
+				/* XXX: Should return the real tunnel capabilities */
+				string capability = "CAPABILITY";
+				capability += " TUNNEL=V6V4 TUNNEL=V6UDPV4";
+				string[] authMethods = SASLAuth.GetSupportedMethods();
+				foreach (string m in authMethods) {
+					capability += " AUTH=" + m;
+				}
+
+				return capability;
 			} else if (_sessionInfo.State == SessionState.Authenticate) {
 				if (!words[0].Equals("AUTHENTICATE")) {
 					return "300 Authentication failed";
