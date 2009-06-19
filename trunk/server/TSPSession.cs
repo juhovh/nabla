@@ -220,6 +220,12 @@ namespace Nabla {
 				}
 			}
 
+			if (_sessionInfo.LocalAddress.AddressFamily ==
+			    AddressFamily.InterNetwork &&
+			    type.Equals("v6udpv4")) {
+				return "303 Can't initiate v6udpv4 tunnel over IPv4";
+			}
+
 			TunnelInfo tunnel = null;
 			TunnelInfo[] tunnels = _db.ListTunnels(_sessionInfo.UserId, "tsp");
 			foreach (TunnelInfo t in tunnels) {
