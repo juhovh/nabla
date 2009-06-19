@@ -121,7 +121,14 @@ namespace Nabla {
 
 				/* XXX: Should return the real tunnel capabilities */
 				string capability = "CAPABILITY";
-				capability += " TUNNEL=V6V4 TUNNEL=V6UDPV4";
+
+				if (_sessionManager.GetIPv4ServerEndpoint() != null) {
+					capability += " TUNNEL=V4V6";
+				}
+				if (_sessionManager.GetIPv6ServerEndpoint() != null) {
+					capability += " TUNNEL=V6V4 TUNNEL=V6UDPV4";
+				}
+
 				string[] authMethods = SASLAuth.GetSupportedMethods();
 				foreach (string m in authMethods) {
 					capability += " AUTH=" + m;
