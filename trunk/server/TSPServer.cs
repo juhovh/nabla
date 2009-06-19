@@ -106,10 +106,33 @@ namespace Nabla {
 
 				IPEndPoint endPoint = InputDevice.GetIPEndPoint(sender);
 
+				if (!_udpSessions.ContainsKey(endPoint)) {
+					IPEndPoint localEndPoint = (IPEndPoint) _udpSocket.LocalEndPoint;
+					TSPSession s = new TSPSession(_sessionManager, _dbName,
+					                              ProtocolType.Udp,
+					                              endPoint.Address,
+					                              localEndPoint.Address);
+					_udpSessions.Add(endPoint, s);
+				}
+
 				Console.WriteLine("Contents of UDP packet: ");
 				byte[] tspData = new byte[datalen-8];
 				Array.Copy(data, 8, tspData, 0, tspData.Length);
 				Console.WriteLine(Encoding.UTF8.GetString(tspData));
+
+				TSPSession session = _udpSessions[endPoint];
+				string line = Encoding.UTF8.GetString(tspData);
+
+				string[] responses = session.HandleCommand(line);
+				if (responses == null)
+					continue;
+
+				foreach (string r in responses) {
+					tspData = Encoding.UTF8.GetBytes(r);
+					Array.Copy(tspData, 0, data, 8, tspData.Length);
+					_udpSocket.SendTo(data, tspData.Length+8,
+					                  SocketFlags.None, endPoint);
+				}
 			}
 		}
 
