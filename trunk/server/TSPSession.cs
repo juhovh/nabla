@@ -86,7 +86,7 @@ namespace Nabla {
 				} else if (_saslAuth.Finished) {
 					_saslAuth = null;
 					_sessionInfo.UserName = null;
-					_sessionInfo.UserId = null;
+					_sessionInfo.UserId = 0;
 				}
 			} else {
 				response = handleCommand(command);
