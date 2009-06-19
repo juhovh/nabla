@@ -30,11 +30,17 @@ public class CreateDatabase {
 			tunnelInfo.OwnerId = userInfo.UserId;
 			tunnelInfo.Enabled = true;
 
-			tunnelInfo.Name = "My first tunnel";
+			tunnelInfo.Name = "My TIC tunnel";
 			tunnelInfo.Type = "tic";
 			tunnelInfo.Endpoint = "ayiya";
 			tunnelInfo.UserEnabled = true;
 			tunnelInfo.Password = "salasana";
+			userDB.AddTunnelInfo(tunnelInfo);
+
+			tunnelInfo.Name = "My TSP tunnel";
+			tunnelInfo.Type = "tsp";
+			tunnelInfo.Endpoint = "ipv6";
+			tunnelInfo.UserEnabled = true;
 			userDB.AddTunnelInfo(tunnelInfo);
 
 			/* This is to get the tunnel ID correctly */

@@ -42,16 +42,7 @@ namespace Nabla {
 			public IPAddress SourceAddress;
 			public IPAddress LocalAddress;
 
-			public bool PromptEnabled;
-			public string ClientName;
-			public string ClientVersion;
-			public string OSName;
-			public string OSVersion;
-
 			public string UserName;
-			public string ChallengeType;
-			public string Challenge;
-
 			public Int64 UserId;
 		}
 
@@ -142,7 +133,8 @@ namespace Nabla {
 					return "300 Authentication failed";
 				}
 
-				_saslAuth = new SASLAuth(words[1], "nabla");
+				SASLAuthCallback callback = new SASLAuthCallback(getPassword);
+				_saslAuth = new SASLAuth(words[1], "nabla", callback);
 				return _saslAuth.GetChallenge();
 			} else {
 				XmlDocument xmlDoc = new XmlDocument();
@@ -228,37 +220,69 @@ namespace Nabla {
 				}
 			}
 
-			/* XXX: Get a tunnel ID to call SessionManager */
+			TunnelInfo tunnel = null;
+			TunnelInfo[] tunnels = _db.ListTunnels(_sessionInfo.UserId, "tsp");
+			foreach (TunnelInfo t in tunnels) {
+				if (!t.Enabled || !t.UserEnabled)
+					continue;
+
+				if ((type.Equals("v6v4") || type.Equals("v6udpv4")) &&
+				    t.Endpoint.Equals("ipv6")) {
+					tunnel = t;
+					break;
+				} else if (type.Equals("v4v6") && t.Endpoint.Equals("ipv4")) {
+					tunnel = t;
+					break;
+				}
+			}
+
+			if (tunnel == null) {
+				return "303 No suitable tunnel for type " + type + " found";
+			}
+
+			IPAddress clientAddress, serverAddress;
+			if (type.Equals("v6v4") || type.Equals("v6udpv4")) {
+				clientAddress = _sessionManager.GetIPv6TunnelEndpoint(tunnel.TunnelId);
+				serverAddress = _sessionManager.GetIPv6ServerEndpoint();
+			} else if (type.Equals("v4v6")) {
+				clientAddress = _sessionManager.GetIPv4TunnelEndpoint(tunnel.TunnelId);
+				serverAddress = _sessionManager.GetIPv4ServerEndpoint();
+			} else {
+				return "303 Unknown tunnel type: " + type;
+			}
+
+			if (clientAddress == null || serverAddress == null) {
+				return "303 Tunnel type " + type + " not configured";
+			}
+
 			/* XXX: Set the real keepalive interval and address */
 			string lifetime = "1440";
-			IPAddress clientAddress = _sessionManager.GetIPv6TunnelEndpoint(1);
-			IPAddress serverAddress = _sessionManager.GetIPv6ServerEndpoint();
 			IPAddress keepaliveAddress = serverAddress;
 			int keepaliveInterval = 30;
 
 			XmlDocument response = new XmlDocument();
-			XmlElement tunnel = response.CreateElement("tunnel");
-			XmlElement server = response.CreateElement("server");
-			XmlElement client = response.CreateElement("client");
-			XmlElement keepalive = response.CreateElement("keepalive");
+			XmlElement tunnelNode = response.CreateElement("tunnel");
+			XmlElement serverNode = response.CreateElement("server");
+			XmlElement clientNode = response.CreateElement("client");
+			XmlElement keepaliveNode = response.CreateElement("keepalive");
 
-			keepalive.SetAttribute("interval", keepaliveInterval.ToString());
-			keepalive.AppendChild(addressToElement(response, keepaliveAddress));
+			keepaliveNode.SetAttribute("interval", keepaliveInterval.ToString());
+			keepaliveNode.AppendChild(addressToElement(response, keepaliveAddress));
 
-			client.AppendChild(addressToElement(response, _sessionInfo.SourceAddress));
-			client.AppendChild(addressToElement(response, clientAddress));
-			client.AppendChild(keepalive);
+			clientNode.AppendChild(addressToElement(response, _sessionInfo.SourceAddress));
+			clientNode.AppendChild(addressToElement(response, clientAddress));
+			clientNode.AppendChild(keepaliveNode);
 
-			server.AppendChild(addressToElement(response, _sessionInfo.LocalAddress));
-			server.AppendChild(addressToElement(response, serverAddress));
+			serverNode.AppendChild(addressToElement(response, _sessionInfo.LocalAddress));
+			serverNode.AppendChild(addressToElement(response, serverAddress));
 
-			tunnel.SetAttribute("action", "info");
-			tunnel.SetAttribute("type", type);
-			tunnel.SetAttribute("lifetime", lifetime);
-			tunnel.AppendChild(server);
-			tunnel.AppendChild(client);
+			tunnelNode.SetAttribute("action", "info");
+			tunnelNode.SetAttribute("type", type);
+			tunnelNode.SetAttribute("lifetime", lifetime);
+			tunnelNode.AppendChild(serverNode);
+			tunnelNode.AppendChild(clientNode);
 
-			response.AppendChild(tunnel);
+			response.AppendChild(tunnelNode);
 
 			return "200 OK\r\n" + response.OuterXml;
 		}
@@ -279,6 +303,18 @@ namespace Nabla {
 
 		private string handleRejectCommand(XmlElement doc, string type) {
 			return null;
+		}
+
+		private string getPassword(string username) {
+			UserInfo userInfo = _db.GetUserInfo(username);
+			if (userInfo == null) {
+				return null;
+			}
+
+			_sessionInfo.UserName = userInfo.UserName;
+			_sessionInfo.UserId = userInfo.UserId;
+
+			return userInfo.TunnelPassword;
 		}
 
 		private IPAddress elementToAddress(XmlElement element) {
