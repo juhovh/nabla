@@ -22,6 +22,7 @@ using System.Net;
 using System.Text;
 using System.Net.Sockets;
 using System.Threading;
+using System.Collections.Generic;
 
 namespace Nabla {
 	public class TSPServer : InputDevice {
@@ -30,9 +31,13 @@ namespace Nabla {
 
 		private string _dbName;
 		private string _deviceName;
+		private Socket _udpSocket;
 		private TcpListener _tcpListener;
 		private SessionManager _sessionManager;
 		private Thread _tcpThread;
+
+		private Dictionary<IPEndPoint, TSPSession> _udpSessions =
+			new Dictionary<IPEndPoint, TSPSession>();
 
 		/* Use the default port */
 		public TSPServer(string dbName, string deviceName) : this(dbName, deviceName, 3653) {}
@@ -40,6 +45,11 @@ namespace Nabla {
 		public TSPServer(string dbName, string deviceName, int port) {
 			_dbName = dbName;
 			_deviceName = deviceName;
+
+			_udpSocket = new Socket(AddressFamily.InterNetworkV6,
+			                        SocketType.Dgram,
+			                        ProtocolType.Udp);
+			_udpSocket.Bind(new IPEndPoint(IPAddress.IPv6Any, port);
 			_tcpListener = new TcpListener(IPAddress.Any, port);
 		}
 
@@ -62,7 +72,10 @@ namespace Nabla {
 			lock (_runlock) {
 				_tcpListener.Start();
 				_running = true;
-				_tcpThread = new Thread(new ThreadStart(listenerThread));
+
+				_udpThread = new Thread(new ThreadStart(udpListenerThread));
+				_udpThread.Start();
+				_tcpThread = new Thread(new ThreadStart(tcpListenerThread));
 				_tcpThread.Start();
 			}
 		}
@@ -79,7 +92,27 @@ namespace Nabla {
 			/* XXX: Handle IPv6inUDP incoming data */
 		}
 
-		private void listenerThread() {
+		private void udpListenerThread() {
+			byte[] data = new byte[2048];
+
+			while (_running) {
+				EndPoint sender = (EndPoint) new IPEndPoint(IPAddress.IPv6Any, 0);
+
+				int datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,
+				                                     SocketFlags.None,
+				                                     ref sender);
+				Console.WriteLine("Received TSP packet from {0}", sender);
+
+				IPEndPoint endPoint = InputDevice.GetIPEndPoint(sender);
+
+				Console.WriteLine("Contents of UDP packet: ");
+				byte[] tspData = new byte[datalen-8];
+				Array.Copy(data, 8, tspData, 0, tspData.Length);
+				Console.WriteLine(Encoding.UTF8.GetString(tspData));
+			}
+		}
+
+		private void tcpListenerThread() {
 			while (_running) {
 				TcpClient client = _tcpListener.AcceptTcpClient();
 
