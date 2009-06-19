@@ -69,6 +69,18 @@ namespace Nabla {
 		}
 
 		public string[] HandleCommand(string command) {
+			/* XXX: Can remove when UDP handling knows how to do this */
+			if (command.EndsWith("\0")) {
+				/* This looks like a Gateway6 client bug */
+				command = command.Substring(0, command.Length-1);
+			}
+			if (command.EndsWith("\r\n")) {
+				command = command.Substring(0, command.Length-2);
+			}
+			if (command.Trim().Equals("")) {
+				return null;
+			}
+
 			Console.WriteLine("Handling command: " + command);
 
 			string response;

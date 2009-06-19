@@ -31,6 +31,7 @@ namespace Nabla {
 			DigestMD5
 		}
 
+		private string _methodString;
 		private SASLMethod _method;
 		private string _realm;
 		private SASLAuthCallback _callback;
@@ -51,6 +52,7 @@ namespace Nabla {
 		}
 
 		public SASLAuth(string method, string realm, SASLAuthCallback callback) {
+			_methodString = method;
 			switch (method) {
 			case "PLAIN":
 				_method = SASLMethod.Plain;
@@ -85,7 +87,7 @@ namespace Nabla {
 				return Convert.ToBase64String(Encoding.UTF8.GetBytes(challenge));
 			default:
 				_finished = true;
-				return "300 Unsupported authentication method";
+				return "300 Unsupported authentication method " + _methodString;
 			}
 		}
 
