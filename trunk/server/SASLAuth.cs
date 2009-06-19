@@ -22,6 +22,8 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 
 namespace Nabla {
+	public delegate string SASLAuthCallback(string username);
+
 	public class SASLAuth {
 		private enum SASLMethod {
 			Unsupported,
@@ -31,6 +33,7 @@ namespace Nabla {
 
 		private SASLMethod _method;
 		private string _realm;
+		private SASLAuthCallback _callback;
 
 		private bool _finished = false;
 		private bool _success = false;
@@ -47,7 +50,7 @@ namespace Nabla {
 			}
 		}
 
-		public SASLAuth(string method, string realm) {
+		public SASLAuth(string method, string realm, SASLAuthCallback callback) {
 			switch (method) {
 			case "PLAIN":
 				_method = SASLMethod.Plain;
@@ -60,6 +63,7 @@ namespace Nabla {
 				break;
 			}
 			_realm = realm;
+			_callback = callback;
 		}
 
 		public static string[] GetSupportedMethods() {
@@ -122,7 +126,10 @@ namespace Nabla {
 
 					string usernameValue = dict["username"];
 					string realmValue = dict["realm"];
-					string passwd = "salasana"; // XXX: Fix to be correct
+					string passwd = _callback(unq(usernameValue));
+					if (passwd == null) {
+						return "300 Invalid username or password";
+					}
 
 					string nonceValue = dict["nonce"];
 					string ncValue = dict["nc"];
