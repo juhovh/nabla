@@ -83,9 +83,12 @@ namespace Nabla {
 						/* We need to reply in two separate packets, very stupid */
 						return new string[] { response, "200 Success\r\n" };
 					}
+				} else if (_saslAuth.Finished) {
+					_saslAuth = null;
+					_sessionInfo.UserName = null;
+					_sessionInfo.UserId = null;
 				}
 			} else {
-				_saslAuth = null;
 				response = handleCommand(command);
 			}
 
