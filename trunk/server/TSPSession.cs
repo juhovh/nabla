@@ -210,9 +210,9 @@ namespace Nabla {
 				}
 
 				if (_protocolType != ProtocolType.Udp) {
-					/* XXX: Type needs to be UDP */
+					return "303 Can't initiate NAT connection over TCP"
 				} else if (!type.Equals("v6udpv4")) {
-					/* XXX: No suitable tunnel found */
+					return "303 Can't initiate non-UDP tunnel with NAT";
 				}
 			} else {
 				if (type.Equals("v6anyv4")) {
