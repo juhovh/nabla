@@ -127,6 +127,7 @@ namespace Nabla {
 				if (responses == null)
 					continue;
 
+				/* XXX: Multiple responses should be queued for seq numbers */
 				foreach (string r in responses) {
 					tspData = Encoding.UTF8.GetBytes(r);
 					Array.Copy(tspData, 0, data, 8, tspData.Length);
