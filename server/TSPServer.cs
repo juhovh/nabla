@@ -34,6 +34,7 @@ namespace Nabla {
 		private Socket _udpSocket;
 		private TcpListener _tcpListener;
 		private SessionManager _sessionManager;
+		private Thread _udpThread;
 		private Thread _tcpThread;
 
 		private Dictionary<IPEndPoint, TSPSession> _udpSessions =
@@ -49,7 +50,7 @@ namespace Nabla {
 			_udpSocket = new Socket(AddressFamily.InterNetworkV6,
 			                        SocketType.Dgram,
 			                        ProtocolType.Udp);
-			_udpSocket.Bind(new IPEndPoint(IPAddress.IPv6Any, port);
+			_udpSocket.Bind(new IPEndPoint(IPAddress.IPv6Any, port));
 			_tcpListener = new TcpListener(IPAddress.Any, port);
 		}
 
