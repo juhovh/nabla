@@ -39,7 +39,7 @@ public class CreateDatabase {
 
 			tunnelInfo.Name = "My TSP tunnel";
 			tunnelInfo.Type = "tsp";
-			tunnelInfo.Endpoint = "ipv6";
+			tunnelInfo.Endpoint = "ipv4";
 			tunnelInfo.UserEnabled = true;
 			userDB.AddTunnelInfo(tunnelInfo);
 
