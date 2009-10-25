@@ -85,7 +85,7 @@ endif
 
 nabla-server: nabla-rawsock
 ifneq ($(CSC),)
-	cp lib/*.dll bin/
+	cp lib/*.dll lib/*.dll.config bin/
 	$(CSC) -lib:bin -out:$(TARGET_server) -r:$(LIBS_utils) $(SRCS_server)
 	$(CSC) -lib:bin -out:$(TARGET_createdb) -r:$(LIBS_utils) $(SRCS_createdb)
 endif
