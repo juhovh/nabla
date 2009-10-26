@@ -284,32 +284,32 @@ namespace Nabla {
 			bool success = true;
 
 			lock (_runlock) {
-				/* If not running, start a thread, otherwise simply resolve */
-				if (!_running) {
-					ReceivePacketCallback originalCallback = _callback;
-					_callback = null;
-
-					_running = true;
-					_thread = new Thread(new ThreadStart(threadLoop));
-					_thread.Start();
-
-					try {
-						resolveHardwareAddress(null, target);
-					} catch (Exception) {
-						success = false;
-					}
-
-					_running = false;
-					_thread.Join();
-
-					_callback = originalCallback;
-				} else {
-					try {
-						resolveHardwareAddress(null, target);
-					} catch (Exception) {
-						success = false;
-					}
+				if (_running) {
+					throw new Exception("Can't probe addresses while running");
 				}
+
+				/* Clear ARP table just to be sure information is current */
+				lock (_arplock) {
+					_arptable.Clear();
+				}
+
+				ReceivePacketCallback originalCallback = _callback;
+				_callback = null;
+
+				_running = true;
+				_thread = new Thread(new ThreadStart(threadLoop));
+				_thread.Start();
+
+				try {
+					resolveHardwareAddress(null, target);
+				} catch (Exception) {
+					success = false;
+				}
+
+				_running = false;
+				_thread.Join();
+
+				_callback = originalCallback;
 			}
 
 			return success;
