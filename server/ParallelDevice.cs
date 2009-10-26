@@ -44,16 +44,11 @@ namespace Nabla {
 		private Dictionary<IPAddress, byte[]> _arptable
 			= new Dictionary<IPAddress, byte[]>();
 
-		private Object _cblock = new Object();
 		private ReceivePacketCallback _callback = null;
 
 		public ReceivePacketCallback ReceivePacketCallback {
 			get {
-				ReceivePacketCallback ret;
-				lock (_cblock) {
-					ret = _callback;
-				}
-				return ret;
+				return _callback;
 			}
 			set {
 				/* Prevent changing callback while running, it's not a good idea anyway */
@@ -61,9 +56,7 @@ namespace Nabla {
 					if (_running) {
 						throw new Exception("Can't set callback while running");
 					}
-				}
 
-				lock (_cblock) {
 					_callback = value;
 				}
 			}
@@ -268,7 +261,7 @@ namespace Nabla {
 					throw new Exception("Address " + dest + " not a local address and default route was not found");
 				}
 
-				hwaddr = ResolveHardwareAddress(src, dest);
+				hwaddr = resolveHardwareAddress(src, dest);
 			}
 
 			byte[] outbuf = new byte[14+datalen];
@@ -287,14 +280,47 @@ namespace Nabla {
 			Console.WriteLine("Sent packet to host " + dest);
 		}
 
-		public byte[] ResolveHardwareAddress(IPAddress target) {
-			return ResolveHardwareAddress(null, target);
+		public bool ProbeIPAddress(IPAddress target) {
+			bool success = true;
+
+			lock (_runlock) {
+				/* If not running, start a thread, otherwise simply resolve */
+				if (!_running) {
+					ReceivePacketCallback originalCallback = _callback;
+					_callback = null;
+
+					_running = true;
+					_thread = new Thread(new ThreadStart(threadLoop));
+					_thread.Start();
+
+					try {
+						resolveHardwareAddress(null, target);
+					} catch (Exception) {
+						success = false;
+					}
+
+					_running = false;
+					_thread.Join();
+
+					_callback = originalCallback;
+				} else {
+					try {
+						resolveHardwareAddress(null, target);
+					} catch (Exception) {
+						success = false;
+					}
+				}
+			}
+
+			return success;
 		}
 
-		public byte[] ResolveHardwareAddress(IPAddress source, IPAddress target) {
+		public byte[] resolveHardwareAddress(IPAddress source, IPAddress target) {
 			if (source != null && source.AddressFamily != target.AddressFamily) {
 				throw new Exception("Source and target families don't match");
 			}
+
+			Console.WriteLine("Trying to resolve target: " + target);
 			    
 			lock (_arplock) {
 				if (!_arptable.ContainsKey(target)) {
@@ -443,14 +469,11 @@ namespace Nabla {
 					continue;
 				}
 
-				/* Lock to make sure that callback doesn't get nullified in the middle */
-				lock (_cblock) {
-					if (_callback != null) {
-						/* Remove the 14 byte Ethernet header from data */
-						byte[] outbuf = new byte[data.Length - 14];
-						Array.Copy(data, 14, outbuf, 0, outbuf.Length);
-						_callback(outbuf);
-					}
+				if (_callback != null) {
+					/* Remove the 14 byte Ethernet header from data */
+					byte[] outbuf = new byte[data.Length - 14];
+					Array.Copy(data, 14, outbuf, 0, outbuf.Length);
+					_callback(outbuf);
 				}
 			}
 		}

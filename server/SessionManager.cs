@@ -71,7 +71,7 @@ namespace Nabla {
 			}
 		}
 
-		public void AddOutputDevice(string deviceName, IPAddress ipv4, bool ipv6) {
+		public void AddOutputDevice(string deviceName, bool ipv4, bool ipv6) {
 			OutputDeviceCallback callback = new OutputDeviceCallback(extReceive);
 			lock (_runlock) {
 				if (_running) {

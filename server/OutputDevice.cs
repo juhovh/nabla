@@ -34,12 +34,7 @@ namespace Nabla {
 
 		public IPAddress IPv6TunnelPrefix = null;
 
-		public OutputDevice(string deviceName, IPAddress ipv4, bool enableIPv6, OutputDeviceCallback cb) {
-			bool enableIPv4 = false;
-			if (ipv4.AddressFamily == AddressFamily.InterNetwork) {
-				enableIPv4 = true;
-			}
-
+		public OutputDevice(string deviceName, bool enableIPv4, bool enableIPv6, OutputDeviceCallback cb) {
 			_device = new ParallelDevice(deviceName);
 			_device.ReceivePacketCallback = new ReceivePacketCallback(receivePacket);
 			_mapper.AddProtocol(ProtocolType.Tcp);
@@ -53,11 +48,32 @@ namespace Nabla {
 			Console.WriteLine("Configure success was: " + confSuccess);
 
 			if (_device.IPv4Route != null) {
-				if (_device.IPv4Route.AddressInSubnet(ipv4)) {
-					_device.AddSubnet(ipv4, 32);
-					_mapper.Addresses += ipv4;
-					Console.WriteLine("Added IPv4 address: {0}", ipv4);
+				IPConfig route = _device.IPv4Route;
+				IPAddress ipv4 = _device.IPv4Route.Address;
+				byte[] ipv4Bytes = ipv4.GetAddressBytes();
+
+				/* FIXME: This bruteforce is ugly, but works for most cases */
+				bool addressFound = false;
+				for (byte i=1; i<255; i++) {
+					ipv4Bytes[3] = i;
+					ipv4 = new IPAddress(ipv4Bytes);
+
+					if (!route.AddressInSubnet(ipv4))
+						continue;
+
+					if (!_device.ProbeIPAddress(ipv4)) {
+						addressFound = true;
+						break;
+					}
 				}
+
+				if (!addressFound) {
+					throw new Exception("Could not find an available IPv4 address");
+				}
+
+				_device.AddSubnet(ipv4, 32);
+				_mapper.Addresses += ipv4;
+				Console.WriteLine("Added IPv4 address: {0}", ipv4);
 			}
 
 			if (_device.IPv6Route != null) {
