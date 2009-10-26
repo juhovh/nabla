@@ -36,7 +36,7 @@ namespace Nabla {
 	}
 
 	public class GenericInputDevice : InputDevice {
-		private const int CLOCK_OFF = 120;
+		private const int CLOCK_MAX_OFFSET = 120;
 		private const int waitms = 100;
 
 		private Thread _thread;
@@ -281,7 +281,7 @@ namespace Nabla {
 			int epochdiff = (int) (epochnow - epochtime);
 			if (epochdiff < 0)
 				epochdiff = -epochdiff;
-			if (epochdiff > CLOCK_OFF) {
+			if (epochdiff > CLOCK_MAX_OFFSET) {
 				Console.WriteLine("The clock is too much off ({0} seconds)", epochdiff);                                  
 				return;
 			}
@@ -353,7 +353,7 @@ namespace Nabla {
 			int epochdiff = (int) (epochnow - epochtime);
 			if (epochdiff < 0)
 				epochdiff = -epochdiff;
-			if (epochdiff > CLOCK_OFF) {
+			if (epochdiff > CLOCK_MAX_OFFSET) {
 				Console.WriteLine("The clock is too much off ({0} seconds)", epochdiff);
 				return;
 			}
