@@ -27,6 +27,9 @@ namespace Nabla {
 	public delegate void ReceivePacketCallback(byte[] data);
 
 	public class ParallelDevice {
+		private const int ARP_RETRIES = 3;    	// send 3 requests before giving up
+		private const int ARP_RETRY_DELAY = 1;	// wait for 1 second between requests
+
 		private byte[] _hwaddr;
 		private RawSocket _socket;
 		private Thread _thread;
@@ -53,6 +56,13 @@ namespace Nabla {
 				return ret;
 			}
 			set {
+				/* Prevent changing callback while running, it's not a good idea anyway */
+				lock (_runlock) {
+					if (_running) {
+						throw new Exception("Can't set callback while running");
+					}
+				}
+
 				lock (_cblock) {
 					_callback = value;
 				}
@@ -87,11 +97,13 @@ namespace Nabla {
 		}
 
 		public bool AutoConfigureRoutes(bool configureIPv4, bool configureIPv6, int waitms) {
+			/* Keep runlock to prevent starting, stopping and setting the callback */
 			lock (_runlock) {
 				if (_running) {
 					throw new Exception("Can't configure routes while running");
 				}
 
+				/* Nullify callback temporarily, the interface is not yet started */
 				ReceivePacketCallback originalCallback;
 				originalCallback = _callback;
 				_callback = null;
@@ -106,14 +118,13 @@ namespace Nabla {
 					_thread.Start();
 
 					_configuring = true;
+					_ipv4Route = null;
+					_ipv6Route = null;
 
 					if (configureIPv4) {
-						_ipv4Route = null;
 						sendDHCPDiscover();
 					}
-
 					if (configureIPv6) {
-						_ipv6Route = null;
 						sendNDRouterSol();
 					}
 
@@ -133,9 +144,11 @@ namespace Nabla {
 					_configuring = false;
 				}
 
+				/* Join the thread after releasing configuration lock */
 				_running = false;
 				_thread.Join();
 
+				/* Return the original callback */
 				_callback = originalCallback;
 
 				return success;
@@ -148,10 +161,10 @@ namespace Nabla {
 					return;
 
 				_running = true;
-
 				_thread = new Thread(new ThreadStart(threadLoop));
 				_thread.Start();
 			}
+			Console.WriteLine("Parallel device started");
 		}
 
 		public void Stop() {
@@ -255,39 +268,7 @@ namespace Nabla {
 					throw new Exception("Address " + dest + " not a local address and default route was not found");
 				}
 
-				lock (_arplock) {
-					if (!_arptable.ContainsKey(dest)) {
-						/* Wait one second between requests */
-						TimeSpan span = new TimeSpan(0, 0, 1);
-
-						for (int i=0; i<3; i++) {
-							/* Send ARP/NDSol request to get the hardware address */
-							if (dest.AddressFamily == AddressFamily.InterNetwork) {
-								sendARPRequest(src, dest);
-							} else {
-								sendNDSol(dest);
-							}
-
-							DateTime startTime = DateTime.Now;
-							while (!_arptable.ContainsKey(dest)) {
-								TimeSpan wait = (startTime + span) - DateTime.Now;
-								if (wait < TimeSpan.Zero)
-									break;
-
-								Monitor.Wait(_arplock, wait);
-							}
-
-							if (_arptable.ContainsKey(dest))
-								break;
-						}
-
-						if (!_arptable.ContainsKey(dest)) {
-							throw new Exception("Couldn't find hardware address for " + dest);
-						}
-					}
-
-					hwaddr = _arptable[dest];
-				}
+				hwaddr = ResolveHardwareAddress(src, dest);
 			}
 
 			byte[] outbuf = new byte[14+datalen];
@@ -304,6 +285,55 @@ namespace Nabla {
 
 			_socket.Send(outbuf);
 			Console.WriteLine("Sent packet to host " + dest);
+		}
+
+		public byte[] ResolveHardwareAddress(IPAddress target) {
+			return ResolveHardwareAddress(null, target);
+		}
+
+		public byte[] ResolveHardwareAddress(IPAddress source, IPAddress target) {
+			if (source != null && source.AddressFamily != target.AddressFamily) {
+				throw new Exception("Source and target families don't match");
+			}
+			    
+			lock (_arplock) {
+				if (!_arptable.ContainsKey(target)) {
+					/* Wait one second between requests */
+					TimeSpan span = new TimeSpan(0, 0, ARP_RETRY_DELAY);
+
+					for (int i=0; i<ARP_RETRIES; i++) {
+						/* Send ARP/NDSol request to get the hardware address */
+						if (target.AddressFamily == AddressFamily.InterNetwork) {
+							/* If source is unknown, perform an ARP probe */
+							if (source == null) {
+								source = new IPAddress(new byte[] { 0, 0, 0, 0 });
+							}
+
+							sendARPRequest(source, target);
+						} else {
+							sendNDSol(target);
+						}
+
+						DateTime startTime = DateTime.Now;
+						while (!_arptable.ContainsKey(target)) {
+							TimeSpan wait = (startTime + span) - DateTime.Now;
+							if (wait < TimeSpan.Zero)
+								break;
+
+							Monitor.Wait(_arplock, wait);
+						}
+
+						if (_arptable.ContainsKey(target))
+							break;
+					}
+
+					if (!_arptable.ContainsKey(target)) {
+						throw new Exception("Couldn't find hardware address for " + target);
+					}
+				}
+
+				return _arptable[target];
+			}
 		}
 
 		private void threadLoop() {
@@ -351,12 +381,13 @@ namespace Nabla {
 					bool broadcast = (ipaddr[0] == 255 && ipaddr[1] == 255 &&
 					                  ipaddr[2] == 255 && ipaddr[3] == 255);
 
-					/* Check for DHCP UDP packet content */
+					/* Check for DHCP UDP packet content (UDP protocol value 17) */
 					int dataidx = 14 + (data[14]&0x0f)*4;
 					if (data[14+9] == 17 && datalen >= dataidx+8) {
 						int srcPort = (data[dataidx] << 8) | data[dataidx+1];
 						int dstPort = (data[dataidx+2] << 8) | data[dataidx+3];
 
+						/* DHCP server port 67 and client port 68 */
 						if (srcPort == 67 && dstPort == 68) {
 							handleDHCPReply(data, dataidx+8, datalen);
 							continue;
@@ -372,18 +403,20 @@ namespace Nabla {
 						/* XXX: Should too small IPv6 packet be reported? */
 						continue;
 					}
-					
+
+					/* Check for ND packet, ICMPv6 next header value 58 hop limit 255 */
 					if (data[14+6] == 58 && data[14+7] == 255) {
 						if (datalen < 14+40+8) {
 							/* XXX: Should too small ICMPv6 packet be reported? */
 							continue;
 						}
 
-						/* ICMPv6 packet found */
+						/* Valid ICMPv6 packet found */
 						int type = data[14+40];
 
+						/* Handle and skip recognized ND packet types */
 						if (type == 133) {
-							/* XXX: Router solicitation */
+							/* XXX: Router solicitation, not handled */
 						} else if (type == 134) {
 							handleNDRouterAdv(data, datalen);
 							continue;
@@ -413,6 +446,7 @@ namespace Nabla {
 				/* Lock to make sure that callback doesn't get nullified in the middle */
 				lock (_cblock) {
 					if (_callback != null) {
+						/* Remove the 14 byte Ethernet header from data */
 						byte[] outbuf = new byte[data.Length - 14];
 						Array.Copy(data, 14, outbuf, 0, outbuf.Length);
 						_callback(outbuf);
