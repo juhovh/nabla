@@ -72,7 +72,7 @@ namespace Nabla {
 		}
 
 		public void AddOutputDevice(string deviceName, bool ipv4, bool ipv6) {
-			OutputDeviceCallback callback = new OutputDeviceCallback(extReceive);
+			OutputDeviceCallback callback = new OutputDeviceCallback(packetFromOutputDevice);
 			lock (_runlock) {
 				if (_running) {
 					throw new Exception("Can't add devices while running, stop the manager first");
@@ -114,6 +114,19 @@ namespace Nabla {
 			}
 		}
 
+		/* This is simply a helper function that changes the endpoint and then adds
+		 * the session to the session arrays. It's here because the updated session
+		 * might be an unitialized session that needs to be added. This is ugly though */
+		public bool UpdateSession(TunnelSession session, IPEndPoint endpoint) {
+			try {
+				session.EndPoint = endpoint;
+				AddSession(session);
+				return true;
+			} catch (Exception) {}
+
+			return false;
+		}
+
 		public TunnelSession GetSession(TunnelType type, IPEndPoint source, IPAddress address) {
 			lock (_sessionlock) {
 				if (_sessions[type].ContainsKey(source)) {
@@ -145,17 +158,7 @@ namespace Nabla {
 			return null;
 		}
 
-		public bool UpdateSession(TunnelSession session, IPEndPoint source) {
-			try {
-				session.EndPoint = source;
-				AddSession(session);
-				return true;
-			} catch (Exception) {}
-
-			return false;
-		}
-
-		public bool SessionAlive(TunnelType type, IPEndPoint source) {
+		private bool sessionAlive(TunnelType type, IPEndPoint source) {
 			TunnelSession session = null;
 			lock (_sessionlock) {
 				try {
@@ -166,7 +169,7 @@ namespace Nabla {
 			}
 
 
-			/* XXX: Check that the session is alive */
+			/* XXX: Check that the session is alive by setting some timeout value... */
 			if (DateTime.Now - session.LastAlive > TimeSpan.Zero) {
 				return true;
 			}
@@ -282,7 +285,20 @@ namespace Nabla {
 			}
 		}
 
-		public void ProcessPacket(TunnelType type, IPEndPoint source, byte[] data) {
+		/* Incoming packet from an InputDevice.
+		 * type - type of the tunnel sending this data through, indicates the encapsulation type
+		 * source - the source address and port where the encapsulated packet is originally coming from
+		 * data - actual packet bytes
+		 * offset - offset where the actual data of the packet begins
+		 * length - length of the data in bytes */
+		public void PacketFromInputDevice(TunnelType type, IPEndPoint source, byte[] data, int offset, int length) {
+			if (!sessionAlive(type, source)) {
+				return;
+			}
+
+			byte[] outdata = new byte[length];
+			Array.Copy(data, offset, outdata, 0, length);
+
 			foreach (OutputDevice dev in _outputDevices) {
 				try {
 					dev.SendPacket(source, data);
@@ -292,7 +308,11 @@ namespace Nabla {
 			}
 		}
 
-		private void extReceive(AddressFamily family, IPEndPoint destination, byte[] data) {
+		/* Incoming packet from an OutputDevice.
+		 * family - the address family of the data packet that was received
+		 * destination - the destination address and port where the encapsulated tunnel packet should be sent
+		 * data - actual packet bytes */
+		private void packetFromOutputDevice(AddressFamily family, IPEndPoint destination, byte[] data) {
 			TunnelSession session;
 
 			lock (_sessionlock) {
