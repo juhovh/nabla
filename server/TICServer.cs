@@ -48,12 +48,14 @@ namespace Nabla {
 			InputDevice dev;
 
 			/* All input tunnel types used by TIC should be listed here */
+/*
 			dev = new GenericInputDevice(_deviceName, GenericInputType.IPv6inIPv4);
 			sessionManager.AddInputDevice(dev);
 			dev = new GenericInputDevice(_deviceName, GenericInputType.IPv4inIPv6);
 			sessionManager.AddInputDevice(dev);
 			dev = new GenericInputDevice(_deviceName, GenericInputType.Heartbeat);
 			sessionManager.AddInputDevice(dev);
+*/
 			dev = new GenericInputDevice(_deviceName, GenericInputType.Ayiya);
 			sessionManager.AddInputDevice(dev);
 
