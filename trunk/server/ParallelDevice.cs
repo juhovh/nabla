@@ -30,22 +30,29 @@ namespace Nabla {
 		private const int ARP_RETRIES = 3;    	// send 3 requests before giving up
 		private const int ARP_RETRY_DELAY = 1;	// wait for 1 second between requests
 
-		private byte[] _hwaddr;
-		private RawSocket _socket;
-		private Thread _thread;
+		private byte[] _hwaddr;		// Hardware address of the original interface
+		private RawSocket _socket;	// Raw link layer socket to receive and send packets
+		private Thread _thread;		// Thread that is running to receive packets from device
 
-		private Object _runlock = new Object();
-		private bool _running;
+		private Object _runlock = new Object();	// Runlock to prevent modifications when starting or stopping
+		private bool _running = false;		// A boolean telling if the device is running currently
 
-		private Dictionary<IPAddress, IPConfig> _subnets
-			= new Dictionary<IPAddress, IPConfig>();
+		/* List of subnets assigned to this device, for example subnet 192.168.1.10/32 means that the
+		 * device will reply to ARP requests asking for address 192.168.1.10 and will also accept to
+		 * send packets from address 192.168.1.10 to the public network.
+		 *
+		 * NOTE: All the addresses in these subnets should be handled by the callback delegate! */
+		private List<IPConfig> _subnets = new List<IPConfig>();
 
-		private Object _arplock = new Object();
-		private Dictionary<IPAddress, byte[]> _arptable
-			= new Dictionary<IPAddress, byte[]>();
+		/* Dictionary that maps an IP address into the hardware address of the host, despite
+		 * the name this dictionary is also used to hold the hardware address mapping of IPv6
+		 * hosts discovered using the neighbor discovery protocol */
+		// FIXME: This dictionary is growing indefinitely and should be purged somehow
+		private Dictionary<IPAddress, byte[]> _arptable = new Dictionary<IPAddress, byte[]>();
+		private Object _arplock = new Object();	// Lock for modifying the _arptable dictionary
 
+		/* This callback handles all the incoming packets, cannot be modified while running */
 		private ReceivePacketCallback _callback = null;
-
 		public ReceivePacketCallback ReceivePacketCallback {
 			get {
 				return _callback;
@@ -62,11 +69,16 @@ namespace Nabla {
 			}
 		}
 
+		/* Configuration information stores the IPv4 and IPv6 information of the network, this means
+		 * the network prefix, network prefix length (netmask) and the default route information, for
+		 * example 192.168.1.0/24 and 192.168.1.1 could be a valid route information for IPv6, in case
+		 * of IPv6 the default route should be the link local IPv6 address of the router */
 		private Object _confLock = new Object();
 		private bool _configuring = false;
 		private IPConfig _ipv4Route;
 		private IPConfig _ipv6Route;
 
+		/* Public getters for the IPv4Route and IPv6Route */
 		public IPConfig IPv4Route {
 			get {
 				lock (_confLock) {
@@ -82,6 +94,7 @@ namespace Nabla {
 			}
 		}
 
+		/* Constructor taking the name of the physical interface we will attach to as a parameter */
 		public ParallelDevice(string deviceName) {
 			_hwaddr = RawSocket.GetHardwareAddress(deviceName);
 			_socket = RawSocket.GetRawSocket(deviceName,
@@ -89,6 +102,23 @@ namespace Nabla {
 			                                 0, 100);
 		}
 
+		/* This method will attempt to automatically configure the network and route information for
+		 * both IPv4 and IPv6.
+		 *
+		 * In case of IPv4 this means sending a DHCP Discover broadcast packet to all host and
+		 * listening for replies. In case a DHCP Reply packet includes both default route and the
+		 * netmask, it will be added as the default IPv4 route and later DHCP Reply packets are ignored.
+		 *
+		 * In case of IPv6 a ND router solicitation message is sent and router advertisement packets
+		 * are listened. In case a router advertisement packet includes the prefix length, it will be
+		 * added as the default IPv6 route and later ND router advertisement packets are ignored.
+		 *
+		 * Finally waitms indicates the number of milliseconds that are waited for server replies in
+		 * configuration. In case there are no replies during that time, the protocol in question is
+		 * simply not configured and can be checked by checking the IPv4Route and IPv6Route respectively.
+		 *
+		 * If all required routes are found, the method will return 'true' immediately, otherwise
+		 * if either of the requested protocols failed, 'false' is returned. */
 		public bool AutoConfigureRoutes(bool configureIPv4, bool configureIPv6, int waitms) {
 			/* Keep runlock to prevent starting, stopping and setting the callback */
 			lock (_runlock) {
@@ -96,9 +126,9 @@ namespace Nabla {
 					throw new Exception("Can't configure routes while running");
 				}
 
-				/* Nullify callback temporarily, the interface is not yet started */
-				ReceivePacketCallback originalCallback;
-				originalCallback = _callback;
+				/* Nullify callback temporarily, the interface is not yet started
+				 * so we wouldn't want to send any packets to the callback now */
+				ReceivePacketCallback originalCallback = _callback;
 				_callback = null;
 
 				TimeSpan span = new TimeSpan(0, 0, 0, 0, waitms);
@@ -106,14 +136,17 @@ namespace Nabla {
 
 				bool success = false;
 				lock (_confLock) {
+					/* Starting the thread is ok as long as we're inside conflock */
 					_running = true;
 					_thread = new Thread(new ThreadStart(threadLoop));
 					_thread.Start();
 
+					/* Reset the current route information if available and start a search */
 					_configuring = true;
 					_ipv4Route = null;
 					_ipv6Route = null;
 
+					/* Send discoveries for IPv4 and/or IPv6 depending on user request */
 					if (configureIPv4) {
 						sendDHCPDiscover();
 					}
@@ -121,6 +154,7 @@ namespace Nabla {
 						sendNDRouterSol();
 					}
 
+					/* Wait for reply packets and timeout if not found */
 					while (!success) {
 						TimeSpan wait = (startTime + span) - DateTime.Now;
 						if (wait <= TimeSpan.Zero)
@@ -134,20 +168,28 @@ namespace Nabla {
 						}
 					}
 
+					/* Finish configuration */
 					_configuring = false;
+					if (!configureIPv4) {
+						_ipv4Route = null;
+					}
+					if (!configureIPv6) {
+						_ipv6Route = null;
+					}
 				}
 
 				/* Join the thread after releasing configuration lock */
 				_running = false;
 				_thread.Join();
 
-				/* Return the original callback */
+				/* Recover the original callback */
 				_callback = originalCallback;
 
 				return success;
 			}
 		}
 
+		/* Start running the parallel device with current configuration */
 		public void Start() {
 			lock (_runlock) {
 				if (_running)
@@ -160,6 +202,7 @@ namespace Nabla {
 			Console.WriteLine("Parallel device started");
 		}
 
+		/* Stop running the parallel device and wait that the thread has finished */
 		public void Stop() {
 			lock (_runlock) {
 				if (!_running)
@@ -171,8 +214,11 @@ namespace Nabla {
 			Console.WriteLine("Parallel device stopped");
 		}
 
+		/* Add a subnet that will be replied to in ARP replies, it is the
+		 * responsibility of the program adding a subnet to make sure that there
+		 * are no duplicate addresses in the network at the moment */
 		public void AddSubnet(IPAddress addr, int prefixlen) {
-			_subnets.Add(addr, new IPConfig(addr, prefixlen, null));
+			_subnets.Add(new IPConfig(addr, prefixlen, null));
 		}
 
 		public void SendPacket(byte[] data) {
@@ -183,6 +229,18 @@ namespace Nabla {
 			SendPacket(data, 0, datalen);
 		}
 
+		/* Send packet data to the network using paralle device. This function doesn't
+		 * make any checks for the data, so it will send all the packets as-is even if
+		 * the data is corrupt or invalid. It does however check that the source IP
+		 * address is one of the subnets added or otherwise the packet is simply dropped.
+		 *
+		 * Multicast and broadcast packets are sent to the correct multicast and broadcast
+		 * hardware addresses, the network type is always assumed to be Ethernet.
+		 *
+		 * If the destination address is neither multicast nor broadcast, a check is made
+		 * whether the default route is configured. If it is configured it is sent as a link
+		 * local or using the default route hardware address depending on if it belongs to
+		 * the subnet or not. */
 		public void SendPacket(byte[] data, int offset, int datalen) {
 			int version = (data[offset] >> 4) & 0x0f;
 
@@ -197,6 +255,8 @@ namespace Nabla {
 
 				Array.Copy(data, offset+16, ipaddr, 0, 4);
 				dest = new IPAddress(ipaddr);
+
+				/* Multicast addresses 224.0.0.0 to 239.255.255.255 (RFC 3171) */
 				multicast = (ipaddr[0] < 224 && ipaddr[0] > 239);
 				broadcast = (ipaddr[0] == 255 && ipaddr[1] == 255 &&
 				             ipaddr[2] == 255 && ipaddr[3] == 255);
@@ -208,6 +268,8 @@ namespace Nabla {
 
 				Array.Copy(data, offset+24, ipaddr, 0, 16);
 				dest = new IPAddress(ipaddr);
+
+				/* IPv6 doesn't have broadcast, multicast checked by the system */
 				multicast = dest.IsIPv6Multicast;
 				broadcast = false;
 			} else {
@@ -215,6 +277,7 @@ namespace Nabla {
 			}
 
 			if (!addressInSubnets(src)) {
+				// XXX: Should this be an exception, maybe of a different type? */
 				throw new Exception("Source address " + src + " not in range");
 			}
 
@@ -238,11 +301,14 @@ namespace Nabla {
 					Array.Copy(dest.GetAddressBytes(), 12, hwaddr, 2, 4);
 				}
 			} else if (broadcast) {
+				/* Broadcast address ff:ff:ff:ff:ff:ff */
 				hwaddr = new byte[6];
 				for (int i=0; i<6; i++) {
 					hwaddr[i] = 0xff;
 				}
 			} else {
+				/* The packet is unicast, check if it belongs to the configured subnets. If it
+				 * doesn't then it will be sent using default route hardware address instead */
 				lock (_confLock) {
 					if (dest.AddressFamily == AddressFamily.InterNetwork) {
 						/* If a route is configured, check if it needs to be applied */
@@ -261,9 +327,14 @@ namespace Nabla {
 					throw new Exception("Address " + dest + " not a local address and default route was not found");
 				}
 
+				/* Lookup the ARP/ND table and attempt a request automatically if not found */
 				hwaddr = resolveHardwareAddress(src, dest);
+				if (hwaddr == null) {
+					throw new Exception("Couldn't find hardware address for " + dest);
+				}
 			}
 
+			/* Construct the 14-byte Ethernet header for the packet */
 			byte[] outbuf = new byte[14+datalen];
 			Array.Copy(hwaddr, 0, outbuf, 0, 6);
 			Array.Copy(_hwaddr, 0, outbuf, 6, 6);
@@ -276,10 +347,16 @@ namespace Nabla {
 			}
 			Array.Copy(data, offset, outbuf, 14, datalen);
 
+			/* Inject the constructed Ethernet frame using the raw socket */
 			_socket.Send(outbuf);
 			Console.WriteLine("Sent packet to host " + dest);
 		}
 
+		/* This will attempt to find out if a certain IP address is currently present in the
+		 * network by using either ARP or ND requests depending on the protocol. Returns 'true'
+		 * if the IP address is present in the network, otherwise returns 'false'.
+		 *
+		 * NOTE: This method can only be called when the parallel device is not yet running! */
 		public bool ProbeIPAddress(IPAddress target) {
 			bool success = true;
 
@@ -300,9 +377,7 @@ namespace Nabla {
 				_thread = new Thread(new ThreadStart(threadLoop));
 				_thread.Start();
 
-				try {
-					resolveHardwareAddress(null, target);
-				} catch (Exception) {
+				if (resolveHardwareAddress(null, target) == null) {
 					success = false;
 				}
 
@@ -315,7 +390,17 @@ namespace Nabla {
 			return success;
 		}
 
-		public byte[] resolveHardwareAddress(IPAddress source, IPAddress target) {
+		/* This privately used function will attempt to resolve an address by first looking
+		 * up the _arptable dictionary and if not found from there, it will make ARP_RETRIES
+		 * tries to resolve the address with a delay of ARP_RETRY_DELAY between retries. If
+		 * the address is still not found, it will return null as its return value. Otherwise
+		 * a byte array containing the hardware address of the destionation is returned.
+		 *
+		 * The source address is the source used in ARP requests, it is not necessary in
+		 * ND requests and therefore ignored in case of IPv6 addresses. It can be null which
+		 * simply means that the default 0.0.0.0 address is used as a source. The target
+		 * is the address to be resolved. */
+		private byte[] resolveHardwareAddress(IPAddress source, IPAddress target) {
 			if (source != null && source.AddressFamily != target.AddressFamily) {
 				throw new Exception("Source and target families don't match");
 			}
@@ -331,7 +416,7 @@ namespace Nabla {
 						/* Send ARP/NDSol request to get the hardware address */
 						if (target.AddressFamily == AddressFamily.InterNetwork) {
 							/* If source is unknown, perform an ARP probe */
-							if (source == null) {
+							if (source == null || source.addressFamily != AddressFamily.InterNetwork) {
 								source = new IPAddress(new byte[] { 0, 0, 0, 0 });
 							}
 
@@ -349,12 +434,13 @@ namespace Nabla {
 							Monitor.Wait(_arplock, wait);
 						}
 
-						if (_arptable.ContainsKey(target))
+						if (_arptable.ContainsKey(target)) {
 							break;
+						}
 					}
 
 					if (!_arptable.ContainsKey(target)) {
-						throw new Exception("Couldn't find hardware address for " + target);
+						return null;
 					}
 				}
 
@@ -362,6 +448,7 @@ namespace Nabla {
 			}
 		}
 
+		/* This is the main thread loop that handles all incoming packets from the device. */
 		private void threadLoop() {
 			byte[] data = new byte[2048];
 
@@ -484,7 +571,7 @@ namespace Nabla {
 				return true;
 			}
 
-			foreach (IPConfig config in _subnets.Values) {
+			foreach (IPConfig config in _subnets) {
 				if (config.AddressInSubnet(addr)) {
 					return true;
 				}
