@@ -39,7 +39,7 @@ namespace Nabla {
 
 		private class SessionInfo {
 			public SessionState State = SessionState.Initial;
-			public IPAddress SourceAddress;
+			public IPAddress RemoteAddress;
 			public IPAddress LocalAddress;
 
 			public bool PromptEnabled;
@@ -63,13 +63,13 @@ namespace Nabla {
 		private bool _finished = false;
 
 		public TICSession(SessionManager sessionManager, string dbName, string serviceName,
-		                  IPAddress source, IPAddress local) {
+		                  IPAddress remote, IPAddress local) {
 			_sessionManager = sessionManager;
 			_serviceName = serviceName;
 
 			_db = new UserDatabase(dbName);
 			_sessionInfo = new SessionInfo();
-			_sessionInfo.SourceAddress = source;
+			_sessionInfo.RemoteAddress = remote;
 			_sessionInfo.LocalAddress = local;
 		}
 
@@ -223,7 +223,7 @@ namespace Nabla {
 
 				string ret = "200 Succesfully logged in using " + _sessionInfo.ChallengeType;
 				ret += " as " + userInfo.UserName + " (" + userInfo.FullName + ")";
-				ret += " from " + _sessionInfo.SourceAddress;
+				ret += " from " + _sessionInfo.RemoteAddress;
 				return ret;
 			} else if (command.Equals("tunnel") && _sessionInfo.State == SessionState.Main) {
 				if (words.Length > 1) {
@@ -314,7 +314,7 @@ namespace Nabla {
 					case "6in4-heartbeat":
 					case "ayiya":
 						/* Get IPv6 endpoint from SessionManager */
-						IPAddress ipv6Endpoint = _sessionManager.GetIPv6TunnelEndpoint(t.TunnelId);
+						IPAddress ipv6Endpoint = _sessionManager.GetIPv6TunnelRemoteAddress(t.TunnelId);
 						if (ipv6Endpoint == null || IPv6conn) {
 							/* No known endpoints for this tunnel, maybe IPv6 not enabled? */
 							continue;
@@ -323,7 +323,7 @@ namespace Nabla {
 						break;
 					case "4in6":
 						/* Get IPv4 endpoint from SessionManager */
-						IPAddress ipv4Endpoint = _sessionManager.GetIPv4TunnelEndpoint(t.TunnelId);
+						IPAddress ipv4Endpoint = _sessionManager.GetIPv4TunnelRemoteAddress(t.TunnelId);
 						if (ipv4Endpoint == null || !IPv6conn) {
 							/* No known endpoints for this tunnel, maybe IPv4 not enabled? */
 							continue;
@@ -382,8 +382,8 @@ namespace Nabla {
 				case "6in4-heartbeat":
 				case "ayiya":
 					/* Get IPv6Endpoint and IPv6POP from SessionManager */
-					IPAddress ipv6Endpoint = _sessionManager.GetIPv6TunnelEndpoint(tunnelId);
-					IPAddress ipv6POP = _sessionManager.GetIPv6ServerEndpoint();
+					IPAddress ipv6Endpoint = _sessionManager.GetIPv6TunnelRemoteAddress(tunnelId);
+					IPAddress ipv6POP = _sessionManager.GetIPv6TunnelLocalAddress(tunnelId);
 					if (ipv6Endpoint == null || ipv6POP == null || IPv6conn) {
 						/* No known endpoints for this tunnel, maybe IPv6 not enabled? */
 						return "400 Error in tunnel T" + tunnelId + " configuration";
@@ -394,8 +394,8 @@ namespace Nabla {
 					ticTunnelInfo.IPv6POP = ipv6POP;
 					break;
 				case "4in6":
-					IPAddress ipv4Endpoint = _sessionManager.GetIPv4TunnelEndpoint(tunnelId);
-					IPAddress ipv4POP = _sessionManager.GetIPv4ServerEndpoint();
+					IPAddress ipv4Endpoint = _sessionManager.GetIPv4TunnelRemoteAddress(tunnelId);
+					IPAddress ipv4POP = _sessionManager.GetIPv4TunnelLocalAddress(tunnelId);
 					if (ipv4Endpoint == null || ipv4POP == null || !IPv6conn) {
 						/* No known endpoints for this tunnel, maybe IPv4 not enabled? */
 						return "400 Error in tunnel T" + tunnelId + " configuration";

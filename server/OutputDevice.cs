@@ -80,11 +80,15 @@ namespace Nabla {
 				IPAddress ipv6 = _device.IPv6Route.Address;
 				byte[] ipv6Bytes = ipv6.GetAddressBytes();
 
-				/* This ID should be specific to this instance */
-				ipv6Bytes[8]  = 0xbe;
-				ipv6Bytes[9]  = 0xef;
-				ipv6Bytes[10] = 0x00;
+				/* XXX: This ID should be specific to this instance */
+				ipv6Bytes[8]  = 0x71;
+				ipv6Bytes[9]  = 0x55;
+				ipv6Bytes[10] = 0x17;
 
+				/* If these two bytes are FF FF they shouldn't conflict
+				 * with any existing addresses, because IPv6 treats MAC-48
+				 * addresses as EUI-48 and adds FF FE instead. Therefore
+				 * the FF FF reserved for MAC-48 is not used in IPv6. */
 				ipv6Bytes[11] = 0xff;
 				ipv6Bytes[12] = 0xff;
 				ipv6 = new IPAddress(ipv6Bytes);
@@ -141,9 +145,13 @@ namespace Nabla {
 				/* Override the original data packet */
 				data = packet.Bytes;
 			} else {
+				/* Get the source address of the IPv6 packet */
 				byte[] ipaddress = new byte[16];
 				Array.Copy(data, 8, ipaddress, 0, 16);
 				IPAddress addr = new IPAddress(ipaddress);
+
+				/* If the source IPv6 address is not found from the mapping,
+				 * map it to the source endpoint (tunnel endpoint) correctly */
 				if (!_ipv6map.ContainsKey(addr)) {
 					_ipv6map.Add(addr, source);
 				}
@@ -183,14 +191,19 @@ namespace Nabla {
 				destination = m.ClientEndPoint;
 				data = packet.Bytes;
 			} else {
+				/* Get the destination address of the packet */
 				byte[] ipaddress = new byte[16];
 				Array.Copy(data, 24, ipaddress, 0, 16);
 				IPAddress addr = new IPAddress(ipaddress);
 
+				/* If the packet is sent to an unknown IPv6 destination, simply
+				 * drop the packet from sending data. */
+				// FIXME: Should handle multicast
 				if (!_ipv6map.ContainsKey(addr)) {
 					return;
 				}
 
+				/* Get the (tunnel) endpoint from mapping */
 				destination = _ipv6map[addr];
 			}
 

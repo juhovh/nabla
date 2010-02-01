@@ -416,7 +416,7 @@ namespace Nabla {
 						/* Send ARP/NDSol request to get the hardware address */
 						if (target.AddressFamily == AddressFamily.InterNetwork) {
 							/* If source is unknown, perform an ARP probe */
-							if (source == null || source.addressFamily != AddressFamily.InterNetwork) {
+							if (source == null || source.AddressFamily != AddressFamily.InterNetwork) {
 								source = new IPAddress(new byte[] { 0, 0, 0, 0 });
 							}
 
