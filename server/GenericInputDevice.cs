@@ -227,13 +227,7 @@ namespace Nabla {
 						}
 					}
 
-					if (!_sessionManager.SessionAlive(tunnelType, endPoint))
-						continue;
-
-					byte[] outdata = new byte[datalen];
-					Array.Copy(data, 0, outdata, 0, datalen);
-
-					_sessionManager.ProcessPacket(tunnelType, endPoint, outdata);
+					_sessionManager.PacketFromInputDevice(tunnelType, endPoint, data, 0, datalen);
 				}
 			}
 		}
@@ -303,7 +297,6 @@ namespace Nabla {
 
 			if (!theirHashStr.Equals(ourHashStr)) {
 				Console.WriteLine("Incorrect Heartbeat hash");
-				_sessionManager.UpdateSession(session, session.EndPoint);
 				return;
 			}
 
@@ -396,7 +389,6 @@ namespace Nabla {
 			byte[] ourHash = sha1.ComputeHash(data, 0, length);
 			if (!BitConverter.ToString(ourHash).Equals(BitConverter.ToString(theirHash))) {
 				Console.WriteLine("Incorrect AYIYA hash");
-				_sessionManager.UpdateSession(session, session.EndPoint);
 				return;
 			}
 			_sessionManager.UpdateSession(session, source);
@@ -406,14 +398,7 @@ namespace Nabla {
 				return;
 			}
 
-			if (!_sessionManager.SessionAlive(tunnelType, source))
-				return;
-
-			/* Remove the AYIYA header from the packet */
-			byte[] outdata = new byte[datalen-hlen];
-			Array.Copy(data, hlen, outdata, 0, outdata.Length);
-
-			_sessionManager.ProcessPacket(tunnelType, source, outdata);
+			_sessionManager.PacketFromInputDevice(tunnelType, source, data, hlen, datalen-hlen);
 		}
 	}
 }
