@@ -29,7 +29,7 @@ namespace Nabla {
 			}
 
 			SessionManager sessionManager = new SessionManager();
-			sessionManager.AddOutputDevice(args[1], true, true);
+			sessionManager.AddOutputDevice(args[1], false, true);
 			sessionManager.AddInputDevice(new TICServer("nabla.db", args[0]));
 			sessionManager.AddInputDevice(new TSPServer("nabla.db", args[0]));
 

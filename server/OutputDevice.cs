@@ -81,9 +81,9 @@ namespace Nabla {
 				byte[] ipv6Bytes = ipv6.GetAddressBytes();
 
 				/* XXX: This ID should be specific to this instance */
-				ipv6Bytes[8]  = 0x71;
-				ipv6Bytes[9]  = 0x55;
-				ipv6Bytes[10] = 0x17;
+				ipv6Bytes[8]  = 0x00;
+				ipv6Bytes[9]  = 0xbe;
+				ipv6Bytes[10] = 0xef;
 
 				/* If these two bytes are FF FF they shouldn't conflict
 				 * with any existing addresses, because IPv6 treats MAC-48

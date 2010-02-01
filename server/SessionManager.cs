@@ -301,7 +301,7 @@ namespace Nabla {
 
 			foreach (OutputDevice dev in _outputDevices) {
 				try {
-					dev.SendPacket(source, data);
+					dev.SendPacket(source, outdata);
 				} catch (Exception e) {
 					Console.WriteLine("Exception sending packet: " + e);
 				}
