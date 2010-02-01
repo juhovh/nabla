@@ -188,6 +188,10 @@ namespace Nabla.Database {
 			return ListTunnels(userId, null);
 		}
 
+		public TunnelInfo[] ListTunnels(string type) {
+			return ListTunnels(0, type);
+		}
+
 		public TunnelInfo[] ListTunnels(Int64 userId, string type) {
 			if (userId <= 0 && type == null) {
 				return new TunnelInfo[] {};

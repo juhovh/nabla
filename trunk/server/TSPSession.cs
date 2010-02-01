@@ -137,10 +137,10 @@ namespace Nabla {
 				/* XXX: Should return the real tunnel capabilities */
 				string capability = "CAPABILITY";
 
-				if (_sessionManager.GetIPv4ServerEndpoint() != null) {
+				if (_sessionManager.IPv4IsAvailable) {
 					capability += " TUNNEL=V4V6";
 				}
-				if (_sessionManager.GetIPv6ServerEndpoint() != null) {
+				if (_sessionManager.IPv6IsAvailable) {
 					capability += " TUNNEL=V6V4 TUNNEL=V6UDPV4";
 				}
 
@@ -270,11 +270,11 @@ namespace Nabla {
 
 			IPAddress clientAddress, serverAddress;
 			if (type.Equals("v6v4") || type.Equals("v6udpv4")) {
-				clientAddress = _sessionManager.GetIPv6TunnelEndpoint(tunnel.TunnelId);
-				serverAddress = _sessionManager.GetIPv6ServerEndpoint();
+				clientAddress = _sessionManager.GetIPv6TunnelRemoteAddress(tunnel.TunnelId);
+				serverAddress = _sessionManager.GetIPv6TunnelLocalAddress(tunnel.TunnelId);
 			} else if (type.Equals("v4v6")) {
-				clientAddress = _sessionManager.GetIPv4TunnelEndpoint(tunnel.TunnelId);
-				serverAddress = _sessionManager.GetIPv4ServerEndpoint();
+				clientAddress = _sessionManager.GetIPv4TunnelRemoteAddress(tunnel.TunnelId);
+				serverAddress = _sessionManager.GetIPv4TunnelLocalAddress(tunnel.TunnelId);
 			} else {
 				return "303 Unknown tunnel type: " + type;
 			}

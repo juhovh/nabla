@@ -174,7 +174,14 @@ namespace Nabla {
 			return false;
 		}
 
-		public IPAddress GetIPv4TunnelEndpoint(Int64 tunnelId) {
+		public bool IPv4IsAvailable {
+			get {
+				// XXX: Should return the real availability
+				return true;
+			}
+		}
+
+		public IPAddress GetIPv4TunnelRemoteAddress(Int64 tunnelId) {
 			if (tunnelId > 0xffffff) {
 				return null;
 			}
@@ -183,12 +190,26 @@ namespace Nabla {
 			return IPAddress.Parse("10.123.45.2");
 		}
 
-		public IPAddress GetIPv4ServerEndpoint() {
+		public IPAddress GetIPv4TunnelLocalAddress(Int64 tunnelId) {
 			/* XXX: Should check from OutputDevice that this is ok */
 			return IPAddress.Parse("10.123.45.1");
 		}
 
-		public IPAddress GetIPv6TunnelEndpoint(Int64 tunnelId) {
+		public bool IPv6IsAvailable {
+			get {
+				IPAddress tunnelPrefix = null;
+				foreach (OutputDevice dev in _outputDevices) {
+					if (dev.IPv6TunnelPrefix != null) {
+						tunnelPrefix = dev.IPv6TunnelPrefix;
+						break;
+					}
+				}
+
+				return (tunnelPrefix != null);
+			}
+		}
+
+		public IPAddress GetIPv6TunnelRemoteAddress(Int64 tunnelId) {
 			if (tunnelId > 0xffffff) {
 				return null;
 			}
@@ -210,10 +231,10 @@ namespace Nabla {
 			ipaddr[14] = (byte) (tunnelId >> 8);
 			ipaddr[15] = (byte) (tunnelId);
 
-			return new IPAddress(ipaddr);;
+			return new IPAddress(ipaddr);
 		}
 
-		public IPAddress GetIPv6ServerEndpoint() {
+		public IPAddress GetIPv6TunnelLocalAddress(Int64 tunnelId) {
 			IPAddress tunnelPrefix = null;
 			foreach (OutputDevice dev in _outputDevices) {
 				if (dev.IPv6TunnelPrefix != null) {

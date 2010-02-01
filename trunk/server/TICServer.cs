@@ -46,6 +46,8 @@ namespace Nabla {
 
 		public override void SetSessionManager(SessionManager sessionManager) {
 			InputDevice dev;
+
+			/* All input tunnel types used by TIC should be listed here */
 			dev = new GenericInputDevice(_deviceName, GenericInputType.IPv6inIPv4);
 			sessionManager.AddInputDevice(dev);
 			dev = new GenericInputDevice(_deviceName, GenericInputType.IPv4inIPv6);
@@ -56,11 +58,19 @@ namespace Nabla {
 			sessionManager.AddInputDevice(dev);
 
 			using (UserDatabase db = new UserDatabase(_dbName)) {
-				TunnelInfo[] tunnels = db.ListTunnels(0, "tic");
+				TunnelInfo[] tunnels = db.ListTunnels("tic");
+
+				/* Iterate through the tunnels and add each tunnel session to the session manager */
 				foreach (TunnelInfo t in tunnels) {
-					IPAddress privateAddress = sessionManager.GetIPv6TunnelEndpoint(t.TunnelId);
-					if ((t.Endpoint.Equals("ayiya") || t.Endpoint.Equals("heartbeat")) &&
-					    privateAddress == null) {
+
+					/* Get the public IPv6 address that is reserved for this tunnel endpoint */
+					IPAddress privateAddress = sessionManager.GetIPv6TunnelRemoteAddress(t.TunnelId);
+
+					/* AYIYA and Heartbeat both require sessions to be available */
+					if ((t.Endpoint.Equals("ayiya") || t.Endpoint.Equals("heartbeat")) && privateAddress == null) {
+						/* SessionManager couldn't find an address to this endpoint, maybe we have
+						 * exceeded the number of tunnels or IPv6 wasn't found in output device */
+
 						Console.WriteLine("Session not added, IPv6 maybe not enabled?");
 						continue;
 					}
