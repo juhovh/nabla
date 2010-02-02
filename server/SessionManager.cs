@@ -230,9 +230,15 @@ namespace Nabla {
 			}
 
 			byte[] ipaddr = tunnelPrefix.GetAddressBytes();
-			ipaddr[13] = (byte) (tunnelId >> 16);
-			ipaddr[14] = (byte) (tunnelId >> 8);
-			ipaddr[15] = (byte) (tunnelId);
+
+			// FIXME: This is REALLY ugly hack only for testing
+			ipaddr[13] = 0x64;
+			ipaddr[14] = 0x2c;
+			ipaddr[15] = 0x4f;
+
+			//ipaddr[13] = (byte) (tunnelId >> 16);
+			//ipaddr[14] = (byte) (tunnelId >> 8);
+			//ipaddr[15] = (byte) (tunnelId);
 
 			return new IPAddress(ipaddr);
 		}

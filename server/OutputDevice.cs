@@ -80,17 +80,19 @@ namespace Nabla {
 				IPAddress ipv6 = _device.IPv6Route.Address;
 				byte[] ipv6Bytes = ipv6.GetAddressBytes();
 
-				/* XXX: This ID should be specific to this instance */
-				ipv6Bytes[8]  = 0x00;
-				ipv6Bytes[9]  = 0xbe;
-				ipv6Bytes[10] = 0xef;
+				/* FIXME: These bytes should be reserved for a application
+				 *        specific byte, instance specific byte and tunnel
+				 *        specific byte, it's gonna be tight around here... */
 
-				/* If these two bytes are FF FF they shouldn't conflict
-				 * with any existing addresses, because IPv6 treats MAC-48
-				 * addresses as EUI-48 and adds FF FE instead. Therefore
-				 * the FF FF reserved for MAC-48 is not used in IPv6. */
-				ipv6Bytes[11] = 0xff;
-				ipv6Bytes[12] = 0xff;
+				/* Also see the RFC 4291 about the universal/local bit, in this
+				 * case the 7th bit should be zero since we administer the
+				 * addresses locally */
+				ipv6Bytes[8]  = 0x00;
+				ipv6Bytes[9]  = 0x00;
+				ipv6Bytes[10] = 0x00;
+				ipv6Bytes[11] = 0x00;
+				ipv6Bytes[12] = 0x00;
+
 				ipv6 = new IPAddress(ipv6Bytes);
 
 				_device.AddSubnet(ipv6, 104);
