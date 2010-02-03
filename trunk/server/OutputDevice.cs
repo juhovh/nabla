@@ -32,7 +32,7 @@ namespace Nabla {
 		private Dictionary<IPAddress, IPEndPoint> _ipv6map = new Dictionary<IPAddress, IPEndPoint>();
 		private OutputDeviceCallback _callback;
 
-		public IPAddress IPv6TunnelPrefix = null;
+		public IPAddress IPv6LocalAddress = null;
 
 		public OutputDevice(string deviceName, bool enableIPv4, bool enableIPv6, OutputDeviceCallback cb) {
 			_device = new ParallelDevice(deviceName);
@@ -79,6 +79,7 @@ namespace Nabla {
 			if (_device.IPv6Route != null) {
 				IPAddress ipv6 = _device.IPv6Route.Address;
 				byte[] ipv6Bytes = ipv6.GetAddressBytes();
+				byte[] hwaddress = _device.HardwareAddress;
 
 				/* FIXME: These bytes should be reserved for a application
 				 *        specific byte, instance specific byte and tunnel
@@ -87,16 +88,26 @@ namespace Nabla {
 				/* Also see the RFC 4291 about the universal/local bit, in this
 				 * case the 7th bit should be zero since we administer the
 				 * addresses locally */
-				ipv6Bytes[8]  = 0x00;
-				ipv6Bytes[9]  = 0x00;
+				ipv6Bytes[8]  = 0x18;
+				ipv6Bytes[9]  = 0x37;
+
+				/* These three bytes should be reserved for the tunnel number */
 				ipv6Bytes[10] = 0x00;
 				ipv6Bytes[11] = 0x00;
 				ipv6Bytes[12] = 0x00;
 
-				ipv6 = new IPAddress(ipv6Bytes);
+				/* These three bytes should be the same as hardware address */
+				ipv6Bytes[13] = 0x00;
+				ipv6Bytes[14] = 0x00;
+				ipv6Bytes[15] = 0x00;
 
+				ipv6 = new IPAddress(ipv6Bytes);
 				_device.AddSubnet(ipv6, 104);
-				IPv6TunnelPrefix = ipv6;
+
+				Array.Copy(hwaddress, hwaddress.Length - 3, ipv6Bytes, 13, 3);
+				ipv6 = new IPAddress(ipv6Bytes);
+				IPv6LocalAddress = ipv6;
+
 				Console.WriteLine("Added IPv6 subnet: {0}/{1}", ipv6, 104);
 			}
 		}

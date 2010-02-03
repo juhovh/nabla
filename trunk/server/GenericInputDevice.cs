@@ -137,11 +137,7 @@ namespace Nabla {
 				outdata[5] = (byte) (epochnow >> 16);
 				outdata[6] = (byte) (epochnow >> 8);
 				outdata[7] = (byte) (epochnow);
-				Array.Copy(session.PrivateAddress.GetAddressBytes(), 0, outdata, 8, 16);
-				/* FIXME: needs POP address */
-				outdata[21] = 0;
-				outdata[22] = 0;
-				outdata[23] = 0;
+				Array.Copy(session.LocalAddress.GetAddressBytes(), 0, outdata, 8, 16);
 
 				SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
 				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));

@@ -28,7 +28,9 @@ namespace Nabla {
 		public readonly TunnelType TunnelType;
 		public readonly AddressFamily AddressFamily;
 		public IPEndPoint EndPoint = null;
-		public readonly IPAddress PrivateAddress = null;
+
+		public readonly IPAddress LocalAddress = null;
+		public readonly IPAddress RemoteAddress = null;
 		public readonly string Password = null;
 		public DateTime LastAlive;
 
@@ -63,7 +65,7 @@ namespace Nabla {
 			EndPoint = endPoint;
 		}
 
-		public TunnelSession(TunnelType type, IPAddress privateAddress, string password) : this(type) {
+		public TunnelSession(TunnelType type, IPAddress localAddress, IPAddress remoteAddress, string password) : this(type) {
 			switch (type) {
 			case TunnelType.IPv4inIPv4:
 			case TunnelType.IPv4inIPv6:
@@ -72,7 +74,8 @@ namespace Nabla {
 				throw new Exception("A static tunnel type " + type + " can't be configured as dynamic");
 			}
 
-			PrivateAddress = privateAddress;
+			LocalAddress = localAddress;
+			RemoteAddress = remoteAddress;
 			Password = password;
 		}
 
@@ -82,7 +85,8 @@ namespace Nabla {
 			ret += "TunnelType: " + TunnelType + "\n";
 			ret += "AddressFamily: " + AddressFamily + "\n";
 			ret += "EndPoint: " + EndPoint + "\n";
-			ret += "PrivateAddress: " + PrivateAddress + "\n";
+			ret += "LocalAddress: " + LocalAddress + "\n";
+			ret += "RemoteAddress: " + RemoteAddress + "\n";
 			ret += "Password: " + Password + "\n";
 			ret += "LastAlive: " + LastAlive.ToString("s");
 
