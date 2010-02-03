@@ -165,7 +165,7 @@ namespace Nabla {
 						int datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,
 						                                     SocketFlags.None,
 						                                     ref sender);
-						Console.WriteLine("Received an AYIYA packet from {0}", sender);
+						//Console.WriteLine("Received an AYIYA packet from {0}", sender);
 						IPEndPoint endPoint = InputDevice.GetIPEndPoint(sender);
 
 						if (datalen < 8) {
