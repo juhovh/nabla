@@ -284,8 +284,7 @@ namespace Nabla {
 			}
 
 			if (!addressInSubnets(src)) {
-				// XXX: Should this be an exception, maybe of a different type? */
-				throw new Exception("Source address " + src + " not in range");
+				Console.WriteLine("Dropping packet from source address " + src);
 			}
 
 			byte[] hwaddr;
@@ -337,7 +336,7 @@ namespace Nabla {
 				/* Lookup the ARP/ND table and attempt a request automatically if not found */
 				hwaddr = resolveHardwareAddress(src, dest);
 				if (hwaddr == null) {
-					throw new Exception("Couldn't find hardware address for " + dest);
+					Console.WriteLine("Resolving address " + dest + " not successful, packet dropped");
 				}
 			}
 
