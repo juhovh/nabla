@@ -110,7 +110,7 @@ namespace Nabla {
 					throw new Exception("Session without EndPoint and Password");
 				}
 
-				Console.WriteLine("Added new session:\n" + session);
+				Console.WriteLine("\nModified session:\n" + session + "\n");
 			}
 		}
 

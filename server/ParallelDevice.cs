@@ -356,7 +356,7 @@ namespace Nabla {
 
 			/* Inject the constructed Ethernet frame using the raw socket */
 			_socket.Send(outbuf);
-			Console.WriteLine("Sent packet to host " + dest);
+			//Console.WriteLine("Sent packet to host " + dest);
 		}
 
 		/* This will attempt to find out if a certain IP address is currently present in the
@@ -412,8 +412,6 @@ namespace Nabla {
 				throw new Exception("Source and target families don't match");
 			}
 
-			Console.WriteLine("Trying to resolve target: " + target);
-			    
 			lock (_arplock) {
 				if (!_arptable.ContainsKey(target)) {
 					/* Wait one second between requests */
@@ -573,11 +571,6 @@ namespace Nabla {
 		}
 
 		private bool addressInSubnets(IPAddress addr) {
-			/* Count link local addresses as always being in the subnet */
-			if (addr.IsIPv6LinkLocal) {
-				return true;
-			}
-
 			foreach (IPConfig config in _subnets) {
 				if (config.AddressInSubnet(addr)) {
 					return true;
@@ -952,6 +945,9 @@ namespace Nabla {
 			/* Set ICMPv6 type and code */
 			data[14+40] = 136;
 			data[14+41] = 0;
+
+			/* Add information that this packet is solicited to the flags */
+			data[14+40+4] = 0x40;
 
 			/* Add target link-layer address option */
 			data[14+40+8+16] = 2;
