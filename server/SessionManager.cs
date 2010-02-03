@@ -88,7 +88,7 @@ namespace Nabla {
 					throw new Exception("Session with unconfigured type: " + session.TunnelType);
 				}
 
-				if (session.EndPoint == null && session.PrivateAddress != null) {
+				if (session.EndPoint == null && session.Password != null) {
 					/* EndPoint not known, wait for first packet */
 					_uninitiatedSessions.Add(session);
 				} else if (session.EndPoint != null) {
@@ -107,7 +107,7 @@ namespace Nabla {
 					_sessions[session.TunnelType][session.EndPoint] = session;
 					_rsessions[session.AddressFamily][session.EndPoint] = session;
 				} else {
-					throw new Exception("Session without EndPoint and PrivateAddress");
+					throw new Exception("Session without EndPoint and Password");
 				}
 
 				Console.WriteLine("Added new session:\n" + session);
@@ -139,7 +139,7 @@ namespace Nabla {
 				}
 
 				foreach (TunnelSession ts in _sessions[type].Values) {
-					IPAddress gwaddr = ts.PrivateAddress;
+					IPAddress gwaddr = ts.RemoteAddress;
 					if (gwaddr != null && gwaddr.Equals(address)) {
 						_sessions[ts.TunnelType].Remove(ts.EndPoint);
 						_rsessions[ts.AddressFamily].Remove(ts.EndPoint);
@@ -148,7 +148,7 @@ namespace Nabla {
 				}
 
 				foreach (TunnelSession ts in _uninitiatedSessions) {
-					if (type == ts.TunnelType && address.Equals(ts.PrivateAddress)) {
+					if (type == ts.TunnelType && address.Equals(ts.RemoteAddress)) {
 						_uninitiatedSessions.Remove(ts);
 						return ts;
 					}
@@ -200,15 +200,15 @@ namespace Nabla {
 
 		public bool IPv6IsAvailable {
 			get {
-				IPAddress tunnelPrefix = null;
+				IPAddress localAddress = null;
 				foreach (OutputDevice dev in _outputDevices) {
-					if (dev.IPv6TunnelPrefix != null) {
-						tunnelPrefix = dev.IPv6TunnelPrefix;
+					if (dev.IPv6LocalAddress != null) {
+						localAddress = dev.IPv6LocalAddress;
 						break;
 					}
 				}
 
-				return (tunnelPrefix != null);
+				return (localAddress != null);
 			}
 		}
 
@@ -217,46 +217,37 @@ namespace Nabla {
 				return null;
 			}
 
-			IPAddress tunnelPrefix = null;
+			IPAddress localAddress = null;
 			foreach (OutputDevice dev in _outputDevices) {
-				if (dev.IPv6TunnelPrefix != null) {
-					tunnelPrefix = dev.IPv6TunnelPrefix;
+				if (dev.IPv6LocalAddress != null) {
+					localAddress = dev.IPv6LocalAddress;
 					break;
 				}
 			}
 
-			if (tunnelPrefix == null) {
+			if (localAddress == null) {
 				return null;
 			}
 
-			byte[] ipaddr = tunnelPrefix.GetAddressBytes();
-
-			// FIXME: This is REALLY ugly hack only for testing
-			ipaddr[13] = 0x64;
-			ipaddr[14] = 0x2c;
-			ipaddr[15] = 0x4f;
-
-			//ipaddr[13] = (byte) (tunnelId >> 16);
-			//ipaddr[14] = (byte) (tunnelId >> 8);
-			//ipaddr[15] = (byte) (tunnelId);
+			/* Construct the remote address from the local address */
+			byte[] ipaddr = localAddress.GetAddressBytes();
+			ipaddr[10] = (byte) (tunnelId >> 16);
+			ipaddr[11] = (byte) (tunnelId >> 8);
+			ipaddr[12] = (byte) (tunnelId);
 
 			return new IPAddress(ipaddr);
 		}
 
 		public IPAddress GetIPv6TunnelLocalAddress(Int64 tunnelId) {
-			IPAddress tunnelPrefix = null;
+			IPAddress localAddress = null;
 			foreach (OutputDevice dev in _outputDevices) {
-				if (dev.IPv6TunnelPrefix != null) {
-					tunnelPrefix = dev.IPv6TunnelPrefix;
+				if (dev.IPv6LocalAddress != null) {
+					localAddress = dev.IPv6LocalAddress;
 					break;
 				}
 			}
 
-			if (tunnelPrefix == null) {
-				return null;
-			}
-
-			return tunnelPrefix;
+			return localAddress;
 		}
 
 		public void Start() {

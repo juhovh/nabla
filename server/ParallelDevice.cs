@@ -78,6 +78,13 @@ namespace Nabla {
 		private IPConfig _ipv4Route;
 		private IPConfig _ipv6Route;
 
+		/* Public getter for hardware address */
+		public byte[] HardwareAddress {
+			get {
+				return _hwaddr;
+			}
+		}
+
 		/* Public getters for the IPv4Route and IPv6Route */
 		public IPConfig IPv4Route {
 			get {
