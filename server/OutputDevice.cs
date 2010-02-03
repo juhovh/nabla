@@ -102,7 +102,7 @@ namespace Nabla {
 				ipv6Bytes[15] = 0x00;
 
 				ipv6 = new IPAddress(ipv6Bytes);
-				_device.AddSubnet(ipv6, 104);
+				_device.AddSubnet(ipv6, 80);
 
 				Array.Copy(hwaddress, hwaddress.Length - 3, ipv6Bytes, 13, 3);
 				ipv6 = new IPAddress(ipv6Bytes);
