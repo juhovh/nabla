@@ -18,6 +18,8 @@
 
 using System;
 using System.Net;
+using System.Text;
+using System.Security.Cryptography;
 
 namespace Nabla.Database {
 	public class UserInfo {
@@ -35,7 +37,6 @@ namespace Nabla.Database {
 			ret += "Enabled: " + Enabled + "\n";
 
 			ret += "UserName: " + UserName + "\n";
-			ret += "Password: " + Password + "\n";
 			ret += "TunnelPassword: " + TunnelPassword + "\n";
 			ret += "FullName: " + FullName;
 			return ret;
@@ -53,7 +54,16 @@ namespace Nabla.Database {
 		public string Type;
 		public string Endpoint;
 		public bool UserEnabled;
-		public string Password;
+
+		public string Password {
+			get {
+				MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
+				byte[] bytes = Encoding.UTF8.GetBytes("" + TunnelId + OwnerId + Created + Name + Type + Endpoint);
+				byte[] hashBytes = md5.ComputeHash(bytes);
+				string hashStr = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+				return hashStr;
+			}
+		}
 
 		public override string ToString() {
 			string ret = "";
