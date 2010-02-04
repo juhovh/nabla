@@ -12,7 +12,7 @@ SRCS_rawsock   := server/Sockets/rawsock.c
 SRCS_RawSocket := server/Sockets/RawSocket.cs server/Sockets/RawSocketNative.cs server/Sockets/RawSocketPcap.cs
 SRCS_utils     := server/*.cs server/Database/*.cs
 LIBS_utils     := System,System.Data,System.Data.SQLite,Nabla.Sockets
-SRCS_createdb  := $(SRCS_utils) server/utils/CreateDatabase.cs
+SRCS_dbeditor  := $(SRCS_utils) server/utils/DatabaseEditor.cs
 SRCS_server    := $(SRCS_utils) server/utils/Server.cs
 
 TARGET_ext :=
@@ -52,7 +52,7 @@ LIBFLAGS := $(LIBFLAGS_$(PLATFORM))
 
 TARGET_client   := bin/client$(TARGET_ext)
 TARGET_rawsock  := bin/$(TARGET_libpre)rawsock$(TARGET_libext)
-TARGET_createdb := bin/CreateDatabase.exe
+TARGET_dbeditor := bin/DatabaseEditor.exe
 TARGET_server   := bin/Server.exe
 
 
@@ -85,9 +85,9 @@ endif
 
 nabla-server: nabla-rawsock
 ifneq ($(CSC),)
-	cp lib/*.dll lib/*.dll.config bin/
+	cp lib/* bin/
 	$(CSC) -lib:bin -out:$(TARGET_server) -r:$(LIBS_utils) $(SRCS_server)
-	$(CSC) -lib:bin -out:$(TARGET_createdb) -r:$(LIBS_utils) $(SRCS_createdb)
+	$(CSC) -lib:bin -out:$(TARGET_dbeditor) -r:$(LIBS_utils) $(SRCS_dbeditor)
 endif
 
 nabla-rawsock:
