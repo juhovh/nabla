@@ -110,6 +110,17 @@ namespace Nabla.Database {
 			return ourHash.Equals(theirHash);
 		}
 
+		public UserInfo[] ListUsers() {
+			List<UserInfo> users = new List<UserInfo>();
+
+			DataTable dataTable = getDataTable("users", null);
+			foreach (DataRow dataRow in dataTable.Rows) {
+				users.Add(dataRowToUserInfo(dataRow));
+			}
+
+			return users.ToArray();
+		}
+
 		public UserInfo GetUserInfo(string userName) {
 			if (userName == null) {
 				return null;
