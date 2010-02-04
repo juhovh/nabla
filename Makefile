@@ -46,7 +46,7 @@ LIBFLAGS_linux := -shared
 LIBFLAGS_netbsd := -shared
 LIBFLAGS_freebsd := -shared
 LIBFLAGS_winnt := -shared -Wl,--out-implib,bin/rawsock.lib -Wl,--output-def,bin/rawsock.def
-LIBFLAGS_darwin := -dynamiclib -install_name $(TARGET_libpre)rawsock$(TARGET_libext)
+LIBFLAGS_darwin := -arch i386 -dynamiclib -install_name $(TARGET_libpre)rawsock$(TARGET_libext)
 LIBFLAGS_sunos := $(LIBFLAGS_unix)
 LIBFLAGS := $(LIBFLAGS_$(PLATFORM))
 
