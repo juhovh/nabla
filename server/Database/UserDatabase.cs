@@ -52,8 +52,7 @@ namespace Nabla.Database {
 				", name varchar(128)" + 
 				", type varchar(32)" +
 				", endpoint varchar(39)" +
-				", userenabled boolean" +
-				", password varchar(32))";
+				", userenabled boolean)";
 			string routeString = "CREATE TABLE routes (" +
 				"id integer primary key autoincrement" +
 				", ownerid integer" + 
@@ -157,7 +156,7 @@ namespace Nabla.Database {
 
 			string commandString = "INSERT INTO tunnels " +
 				" (ownerid, created, lastmodified, enabled, " +
-				"  name, type, endpoint, userenabled, password) VALUES (" +
+				"  name, type, endpoint, userenabled) VALUES (" +
 				"'" + tunnelInfo.OwnerId + "', " +
 				"datetime('" + tunnelInfo.Created.ToString("s") + "'), " +
 				"datetime('" + tunnelInfo.LastModified.ToString("s") + "'), " +
@@ -166,8 +165,7 @@ namespace Nabla.Database {
 				"'" + tunnelInfo.Name + "', " +
 				"'" + tunnelInfo.Type + "', " +
 				"'" + tunnelInfo.Endpoint + "', " +
-				"'" + (tunnelInfo.UserEnabled ? 1 : 0) + "', " +
-				"'" + tunnelInfo.Password + "')";
+				"'" + (tunnelInfo.UserEnabled ? 1 : 0) + "')";
 
 			using (SQLiteCommand command = new SQLiteCommand(_connection)) {
 				command.CommandText = commandString;
@@ -254,7 +252,6 @@ namespace Nabla.Database {
 			tunnelInfo.Type = (string) dataRow["type"];
 			tunnelInfo.Endpoint = (string) dataRow["endpoint"];
 			tunnelInfo.UserEnabled = (bool) dataRow["userenabled"];
-			tunnelInfo.Password = (string) dataRow["password"];
 
 			return tunnelInfo;
 		}
