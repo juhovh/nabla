@@ -74,12 +74,21 @@ public class DatabaseEditor {
 	}
 
 	private static void tunnelMenu(UserDatabase userDB) {
+		Console.Write("Username: ");
+		string username = Console.ReadLine();
+		UserInfo userInfo = userDB.GetUserInfo(username);
+
+		if (userInfo == null) {
+			Console.WriteLine("User '" + username + "' not found");
+			return;
+		}
+
 		while (true) {
-			Console.WriteLine("Tunnel menu:");
+			Console.WriteLine("Tunnel menu for user '" + userInfo.UserName + "':");
 			Console.WriteLine("\t[1] List tunnels");
 			Console.WriteLine("\t[2] Add tunnel");
-			Console.WriteLine("\t[2] Edit tunnel");
-			Console.WriteLine("\t[0] Exit");
+			Console.WriteLine("\t[3] Delete tunnel");
+			Console.WriteLine("\t[0] Return to main menu");
 			Console.Write("Choose: ");
 
 			string input = Console.ReadLine();
@@ -88,9 +97,9 @@ public class DatabaseEditor {
 				if (value == 0) {
 					break;
 				} else if (value == 1) {
-					Console.WriteLine("Selected 1");
+					listTunnels(userDB, userInfo.UserId);
 				} else if (value == 2) {
-					Console.WriteLine("Selected 2");
+					addTunnel(userDB, userInfo.UserId);
 				} else {
 					Console.WriteLine("Invalid choice: " + value);
 				}
@@ -132,16 +141,16 @@ public class DatabaseEditor {
 		string password;
 		string tunnelPassword;
 
-		Console.WriteLine("Username: ");
+		Console.Write("Username: ");
 		username = Console.ReadLine();
 
-		Console.WriteLine("Full name: ");
+		Console.Write("Full name: ");
 		fullname = Console.ReadLine();
 
-		Console.WriteLine("Master password: ");
+		Console.Write("Master password: ");
 		password = Console.ReadLine();
 
-		Console.WriteLine("Tunnel password: ");
+		Console.Write("Tunnel password: ");
 		tunnelPassword = Console.ReadLine();
 
 		UserInfo userInfo = new UserInfo();
@@ -154,5 +163,49 @@ public class DatabaseEditor {
 	}
 
 	private static void deleteUserAccount(UserDatabase userDB) {
+	}
+
+	private static void listTunnels(UserDatabase userDB, Int64 ownerId) {
+		TunnelInfo[] tunnels = userDB.ListTunnels(ownerId);
+
+		Console.WriteLine("");
+		Console.WriteLine("TunnelId | Type   | Tunnel name");
+		Console.WriteLine("------------------------------------------------------------");
+		foreach (TunnelInfo tunnelInfo in tunnels) {
+			string tunnelid = "" + tunnelInfo.TunnelId;
+			string type = tunnelInfo.Type;
+			string name = tunnelInfo.Name;
+
+			for (int i=0; i<(8-tunnelid.Length); i++)
+				Console.Write(" ");
+			Console.Write(tunnelid);
+			Console.Write(" | ");
+			Console.Write(type);
+			for (int i=0; i<(6-type.Length); i++)
+				Console.Write(" ");
+
+			Console.Write(" | ");
+			Console.WriteLine(name);
+		}
+		Console.WriteLine("");
+	}
+
+	private static void addTunnel(UserDatabase userDB, Int64 ownerId) {
+		string name;
+
+		Console.Write("Tunnel name: ");
+		name = Console.ReadLine();
+
+		TunnelInfo tunnelInfo = new TunnelInfo();
+		tunnelInfo.OwnerId = ownerId;
+		tunnelInfo.Enabled = true;
+		tunnelInfo.Name = name;
+		tunnelInfo.Type = "tic";
+		tunnelInfo.Endpoint = "ayiya";
+		tunnelInfo.UserEnabled = true;
+		userDB.AddTunnelInfo(tunnelInfo);
+	}
+
+	private static void deleteTunnel(UserDatabase userDB, Int64 tunnelId) {
 	}
 }
