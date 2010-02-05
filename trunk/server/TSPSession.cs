@@ -331,7 +331,7 @@ namespace Nabla {
 		}
 
 		private string handleAcceptCommand(XmlElement doc, string type) {
-			return null;
+			return "";
 		}
 
 		private string handleRejectCommand(XmlElement doc, string type) {
