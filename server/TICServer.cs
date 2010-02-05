@@ -159,8 +159,9 @@ namespace Nabla {
 			TICSession session = new TICSession(_sessionManager, _dbName, serviceName,
 			                                    remoteEndPoint.Address, localEndPoint.Address);
 
-			StreamReader reader = new StreamReader(client.GetStream(), Encoding.UTF8);
-			StreamWriter writer = new StreamWriter(client.GetStream(), Encoding.UTF8);
+			// XXX: Should use UTF-8 but we don't want the BOM...
+			StreamReader reader = new StreamReader(client.GetStream());
+			StreamWriter writer = new StreamWriter(client.GetStream());
 
 			/* Write the initial welcome line */
 			writer.WriteLine("200 " + serviceName + " TIC Service on " + Dns.GetHostName() + " ready" +
