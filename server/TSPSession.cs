@@ -39,7 +39,7 @@ namespace Nabla {
 
 		private class SessionInfo {
 			public SessionState State = SessionState.Initial;
-			public IPAddress SourceAddress;
+			public IPAddress RemoteAddress;
 			public IPAddress LocalAddress;
 
 			public string UserName;
@@ -55,12 +55,12 @@ namespace Nabla {
 		private SASLAuth _saslAuth = null;
 
 		public TSPSession(SessionManager sessionManager, string dbName, ProtocolType type,
-		                  IPAddress sourceAddress, IPAddress localAddress) {
+		                  IPAddress remoteAddress, IPAddress localAddress) {
 			_sessionManager = sessionManager;
 			_db = new UserDatabase(dbName);
 			_protocolType = type;
 			_sessionInfo = new SessionInfo();
-			_sessionInfo.SourceAddress = sourceAddress;
+			_sessionInfo.RemoteAddress = remoteAddress;
 			_sessionInfo.LocalAddress = localAddress;
 		}
 
@@ -109,7 +109,10 @@ namespace Nabla {
 			}
 
 			Console.WriteLine("Outputting response: " + response);
-			return new string[] { response + "\r\n" };
+			if (!response.Equals("")) {
+				response += "\r\n";
+			}
+			return new string[] { response };
 		}
 
 		public bool Finished() {
@@ -162,8 +165,9 @@ namespace Nabla {
 				XmlDocument xmlDoc = new XmlDocument();
 				try {
 					xmlDoc.LoadXml(command);
-				} catch (XmlException) {
+				} catch (XmlException xmle) {
 					/* XXX: Handle parsing errors */
+					Console.WriteLine("XML parsing error: " + xmle);
 				}
 				return handleXmlCommand(xmlDoc);
 			}
@@ -216,12 +220,12 @@ namespace Nabla {
 						}
 
 						if (srcAddr.AddressFamily !=
-						    _sessionInfo.SourceAddress.AddressFamily) {
+						    _sessionInfo.RemoteAddress.AddressFamily) {
 							continue;
 						}
 
 						/* If addresses don't match, we're behind NAT */
-						behindNAT = !_sessionInfo.SourceAddress.Equals(srcAddr);
+						behindNAT = !_sessionInfo.RemoteAddress.Equals(srcAddr);
 					}
 				}
 			}
@@ -251,6 +255,7 @@ namespace Nabla {
 			TunnelInfo tunnel = null;
 			TunnelInfo[] tunnels = _db.ListTunnels(_sessionInfo.UserId, "tsp");
 			foreach (TunnelInfo t in tunnels) {
+				Console.WriteLine("Checking tunnel endpoint: " + t.Endpoint);
 				if (!t.Enabled || !t.UserEnabled)
 					continue;
 
@@ -297,7 +302,7 @@ namespace Nabla {
 			keepaliveNode.SetAttribute("interval", keepaliveInterval.ToString());
 			keepaliveNode.AppendChild(addressToElement(response, keepaliveAddress));
 
-			clientNode.AppendChild(addressToElement(response, _sessionInfo.SourceAddress));
+			clientNode.AppendChild(addressToElement(response, _sessionInfo.RemoteAddress));
 			clientNode.AppendChild(addressToElement(response, clientAddress));
 			clientNode.AppendChild(keepaliveNode);
 
@@ -312,7 +317,7 @@ namespace Nabla {
 
 			response.AppendChild(tunnelNode);
 
-			return "200 OK\r\n" + response.OuterXml;
+			return "200 Success\r\n" + response.OuterXml;
 		}
 
 		private string handleDeleteCommand(XmlElement doc, string type) {

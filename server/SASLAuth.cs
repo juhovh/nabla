@@ -77,7 +77,7 @@ namespace Nabla {
 
 			switch (_method) {
 			case SASLMethod.Plain:
-				return null;
+				return "";
 			case SASLMethod.DigestMD5:
 				string challenge = "";
 				challenge += "charset=utf-8";
@@ -100,13 +100,18 @@ namespace Nabla {
 			try {
 				switch (_method) {
 				case SASLMethod.Plain:
+					if (resp.Equals("AUTHENTICATE PLAIN")) {
+						Console.WriteLine("Requesting plain authentication multiple times, ignoring");
+						return null;
+					}
+
 					string[] words = resp.Split(new char[] {'\0'});
-					if (words.Length != 3) {
+					if (words.Length != 2) {
 						throw new Exception("Invalid plain authentication string, length: " + words.Length);
 					}
 
-					string username = words[1].Trim();
-					string password = words[2].Trim();
+					string username = words[0].Trim();
+					string password = words[1].Trim();
 
 					Console.WriteLine("Got plain authentication with: " + username + ":" + password);
 
