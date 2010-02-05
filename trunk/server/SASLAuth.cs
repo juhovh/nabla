@@ -100,11 +100,6 @@ namespace Nabla {
 			try {
 				switch (_method) {
 				case SASLMethod.Plain:
-					if (resp.Equals("AUTHENTICATE PLAIN")) {
-						Console.WriteLine("Requesting plain authentication multiple times, ignoring");
-						return null;
-					}
-
 					string[] words = resp.Split(new char[] {'\0'});
 					if (words.Length == 2) {
 						// This is the correct length, nothing to be done here
@@ -112,7 +107,8 @@ namespace Nabla {
 						// For some reason TCP connections have one additional '\0' in the beginning
 						words = new String[] { words[1], words[2] };
 					} else {
-						throw new Exception("Invalid plain authentication string, length: " + words.Length);
+						Console.WriteLine("Invalid plain authentication string, length: " + words.Length);
+						return null;
 					}
 
 					string username = words[0].Trim();
