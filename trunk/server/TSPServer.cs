@@ -105,9 +105,10 @@ namespace Nabla {
 				Console.WriteLine("Received TSP packet from {0}", sender);
 
 				IPEndPoint endPoint = InputDevice.GetIPEndPoint(sender);
+				IPEndPoint localEndPoint = (IPEndPoint) _udpSocket.LocalEndPoint;
+				Console.WriteLine("Local end point address: " + localEndPoint.Address);
 
 				if (!_udpSessions.ContainsKey(endPoint)) {
-					IPEndPoint localEndPoint = (IPEndPoint) _udpSocket.LocalEndPoint;
 					TSPSession s = new TSPSession(_sessionManager, _dbName,
 					                              ProtocolType.Udp,
 					                              endPoint.Address,
@@ -118,6 +119,27 @@ namespace Nabla {
 				Console.WriteLine("Contents of UDP packet: ");
 				byte[] tspData = new byte[datalen-8];
 				Array.Copy(data, 8, tspData, 0, tspData.Length);
+
+				string tspString = Encoding.UTF8.GetString(tspData);
+				if (tspString.StartsWith("Content-length:")) {
+					int newline = tspString.IndexOf("\r\n");
+					if (newline < 0) {
+						Console.WriteLine("Invalid packet, no newline after Content-length");
+						continue;
+					}
+
+					string firstline = tspString.Substring(0, newline);
+					string lenstr = firstline.Substring("Content-length:".Length).Trim();
+					try {
+						int len = int.Parse(lenstr);
+
+						byte[] content = new byte[len];
+						Array.Copy(tspData, newline+2, content, 0, len);
+						tspData = content;
+					} catch (Exception e) {
+						Console.WriteLine("Exception parsing Content-length: " + e);
+					}
+				}
 				Console.WriteLine(Encoding.UTF8.GetString(tspData));
 
 				TSPSession session = _udpSessions[endPoint];
