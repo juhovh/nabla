@@ -27,6 +27,10 @@ namespace Nabla {
 	public delegate void ReceivePacketCallback(byte[] data);
 
 	public class ParallelDevice {
+		private const int ETHERTYPE_IPv4 = 0x0800;
+		private const int ETHERTYPE_ARP  = 0x0806;
+		private const int ETHERTYPE_IPv6 = 0x86dd;
+
 		private const int ARP_RETRIES = 3;    	// send 3 requests before giving up
 		private const int ARP_RETRY_DELAY = 1;	// wait for 1 second between requests
 
@@ -457,15 +461,18 @@ namespace Nabla {
 			byte[] data = new byte[2048];
 
 			while (_running) {
+				/* If there are no incoming packets, simply continue */
 				if (!_socket.WaitForReadable())
 					continue;
 
+				/* Read incoming packet and check its size */
 				int datalen = _socket.Receive(data);
 				if (datalen < 14)
 					continue;
 
+				/* Read the Ethernet type of the packet */
 				int etherType = (data[12] << 8) | data[13];
-				if (etherType == 0x0806) {
+				if (etherType == ETHERTYPE_ARP) {
 					if (datalen < 22) {
 						/* XXX: Should too small ARP packet be reported? */
 						continue;
@@ -479,11 +486,11 @@ namespace Nabla {
 					} else if (opcode == 3 || opcode == 4) {
 						/* This is a RARP request not handled */
 					} else {
-						throw new Exception("Invalid ARP opcode: " + opcode);
+						Console.WriteLine("Invalid ARP opcode: " + opcode);
 					}
 
 					continue;
-				} else if (etherType == 0x0800) {
+				} else if (etherType == ETHERTYPE_IPv4) {
 					if (datalen < 14+20) {
 						/* XXX: Should too small IPv4 packet be reported? */
 						continue;
@@ -494,6 +501,7 @@ namespace Nabla {
 					Array.Copy(data, 26, ipaddr, 0, 4);
 					IPAddress dest = new IPAddress(ipaddr);
 
+					/* Check if the destination is multicast or broadcast */
 					bool multicast = (ipaddr[0] < 224 && ipaddr[0] > 239);
 					bool broadcast = (ipaddr[0] == 255 && ipaddr[1] == 255 &&
 					                  ipaddr[2] == 255 && ipaddr[3] == 255);
@@ -515,13 +523,13 @@ namespace Nabla {
 						/* Packet not destined to us */
 						continue;
 					}
-				} else if (etherType == 0x86dd) {
+				} else if (etherType == ETHERTYPE_IPv6) {
 					if (datalen < 14+40) {
 						/* XXX: Should too small IPv6 packet be reported? */
 						continue;
 					}
 
-					/* Check for ND packet, ICMPv6 next header value 58 hop limit 255 */
+					/* Check for ND packet, ICMPv6 next header value 58, hop limit 255 */
 					if (data[14+6] == 58 && data[14+7] == 255) {
 						if (datalen < 14+40+8) {
 							/* XXX: Should too small ICMPv6 packet be reported? */
@@ -572,6 +580,7 @@ namespace Nabla {
 		private bool addressInSubnets(IPAddress addr) {
 			foreach (IPConfig config in _subnets) {
 				if (config.AddressInSubnet(addr)) {
+					// XXX: If we ever use promiscuous mode, the last 3 bytes should be checked
 					return true;
 				}
 			}
