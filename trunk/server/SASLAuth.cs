@@ -106,7 +106,12 @@ namespace Nabla {
 					}
 
 					string[] words = resp.Split(new char[] {'\0'});
-					if (words.Length != 2) {
+					if (words.Length == 2) {
+						// This is the correct length, nothing to be done here
+					} else if (words.Length == 3 && words[0].Length == 0) {
+						// For some reason TCP connections have one additional '\0' in the beginning
+						words = new String[] { words[1], words[2] };
+					} else {
 						throw new Exception("Invalid plain authentication string, length: " + words.Length);
 					}
 
