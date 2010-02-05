@@ -23,14 +23,14 @@ using System.Threading;
 namespace Nabla {
 	public class Server {
 		private static void Main(string[] args) {
-			if (args.Length != 2) {
+			if (args.Length != 3) {
 				Console.WriteLine("Invalid number of arguments\n");
-				Console.WriteLine("Usage: mono Server.exe <dbname> <external device>\n");
+				Console.WriteLine("Usage: mono Server.exe <dbname> <internal device> <external device>\n");
 				return;
 			}
 
 			SessionManager sessionManager = new SessionManager();
-			sessionManager.AddOutputDevice(args[1], false, true);
+			sessionManager.AddOutputDevice(args[2], false, true);
 			sessionManager.AddInputDevice(new TICServer(args[0], args[1]));
 			//sessionManager.AddInputDevice(new TSPServer(args[0], args[1]));
 
