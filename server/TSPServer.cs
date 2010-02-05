@@ -39,6 +39,8 @@ namespace Nabla {
 
 		private Dictionary<IPEndPoint, TSPSession> _udpSessions =
 			new Dictionary<IPEndPoint, TSPSession>();
+		
+		// FIXME: This queue should be session specific, move it!
 		private List<string> _udpOutputQueue = new List<string>();
 
 		/* Use the default port */
