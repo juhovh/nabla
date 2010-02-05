@@ -145,15 +145,26 @@ namespace Nabla {
 				TSPSession session = _udpSessions[endPoint];
 				string line = Encoding.UTF8.GetString(tspData);
 
+				/* Content-length of response depends on the state before the command */
+				bool outputContentLength = session.OutputContentLength;
 				string[] responses = session.HandleCommand(line);
 				if (responses == null)
 					continue;
 
 				/* XXX: Multiple responses should be queued for seq numbers */
-				foreach (string r in responses) {
-					tspData = Encoding.UTF8.GetBytes(r);
-					Array.Copy(tspData, 0, data, 8, tspData.Length);
-					_udpSocket.SendTo(data, tspData.Length+8,
+				foreach (string response in responses) {
+					byte[] outBytes = Encoding.UTF8.GetBytes(response);
+					if (outputContentLength) {
+						string clString = "Content-length: " + outBytes.Length + "\r\n";
+						byte[] clBytes = Encoding.UTF8.GetBytes(clString);
+
+						byte[] tmpBytes = new byte[clBytes.Length + outBytes.Length];
+						Array.Copy(clBytes, 0, tmpBytes, 0, clBytes.Length);
+						Array.Copy(outBytes, 0, tmpBytes, clBytes.Length, outBytes.Length);
+						outBytes = tmpBytes;
+					}
+					Array.Copy(outBytes, 0, data, 8, outBytes.Length);
+					_udpSocket.SendTo(data, outBytes.Length+8,
 					                  SocketFlags.None, endPoint);
 				}
 			}
