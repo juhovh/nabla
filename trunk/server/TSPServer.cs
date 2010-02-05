@@ -105,16 +105,32 @@ namespace Nabla {
 				                                     ref sender);
 				Console.WriteLine("Received TSP packet from {0}", sender);
 
+				/* Too small packets are ignored */
+				if (datalen < 8)
+					continue;
+
 				IPEndPoint endPoint = InputDevice.GetIPEndPoint(sender);
 				IPEndPoint localEndPoint = (IPEndPoint) _udpSocket.LocalEndPoint;
 				Console.WriteLine("Local end point address: " + localEndPoint.Address);
 
-				if (!_udpSessions.ContainsKey(endPoint)) {
+				/* If the protocol version is 0xf, packet is a signaling packet */
+				bool signalingPacket = (data[0]&0xf0) == 0xf0;
+				Console.WriteLine("Packet is a signaling packet: " + signalingPacket);
+
+				if (signalingPacket && !_udpSessions.ContainsKey(endPoint)) {
 					TSPSession s = new TSPSession(_sessionManager, _dbName,
 					                              ProtocolType.Udp,
 					                              endPoint.Address,
 					                              localEndPoint.Address);
 					_udpSessions.Add(endPoint, s);
+				} else if (!signalingPacket) {
+					if (!_udpSessions.ContainsKey(endPoint)) {
+						Console.WriteLine("Tunnel IP packet without initiated session!");
+						continue;
+					}
+
+					// FIXME: this is raw IPv6 data, we should output it to device!
+					continue;
 				}
 
 				byte[] tspData = new byte[datalen-8];
