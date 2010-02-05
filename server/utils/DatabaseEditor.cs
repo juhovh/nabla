@@ -100,6 +100,8 @@ public class DatabaseEditor {
 					listTunnels(userDB, userInfo.UserId);
 				} else if (value == 2) {
 					addTunnel(userDB, userInfo.UserId);
+				} else if (value == 3) {
+					deleteTunnel(userDB, userInfo.UserId);
 				} else {
 					Console.WriteLine("Invalid choice: " + value);
 				}
@@ -163,6 +165,7 @@ public class DatabaseEditor {
 	}
 
 	private static void deleteUserAccount(UserDatabase userDB) {
+		Console.WriteLine("Deleting user accounts not supported yet");
 	}
 
 	private static void listTunnels(UserDatabase userDB, Int64 ownerId) {
@@ -206,6 +209,7 @@ public class DatabaseEditor {
 		userDB.AddTunnelInfo(tunnelInfo);
 	}
 
-	private static void deleteTunnel(UserDatabase userDB, Int64 tunnelId) {
+	private static void deleteTunnel(UserDatabase userDB, Int64 ownerId) {
+		Console.WriteLine("Deleting tunnels not supported yet");
 	}
 }
