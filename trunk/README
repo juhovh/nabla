@@ -19,6 +19,145 @@ libtapcfg/*      - The libtapcfg library released under LGPLv2.1
 server/Sockets/* - Nabla.Sockets library released under LGPLv2.1
 
 
+Building and running
+--------------------
+
+* In this example we have the following setup:
+
+- Device eth0 is connected to the outside network and has IPv6 autoconfiguration enabled.
+- We want to set up an AYIYA tunnel to some other host behind NAT that wants to use IPv6.
+
+* First we have to build the system, example successful build:
+
+juhovh@enlightened:~/Source/nabla$ make
+Building Nabla for platform linux ...
+/usr/bin/gcc -fPIC -Wall -Werror -Ilibtapcfg -o bin/client client/client.c client/tunnel.c client/tunnel_ipv4.c client/tunnel_ipv6.c client/tunnel_ayiya.c client/login_tic.c client/conf_aiccu.c client/compat.c client/logger.c client/hash_sha1.c client/hash_md5.c client/command.c client/tic/common.c client/tic/tic.c libtapcfg/tapcfg.c libtapcfg/taplog.c libtapcfg/dlpi.c -lpthread 
+/usr/bin/gcc -fPIC -Wall -Werror -Ilibtapcfg -o bin/librawsock.so server/Sockets/rawsock.c -shared -lpthread 
+/usr/bin/gmcs -t:library -r:System -out:bin/Nabla.Sockets.dll server/Sockets/RawSocket.cs server/Sockets/RawSocketNative.cs server/Sockets/RawSocketPcap.cs
+cp lib/*.dll lib/*.dll.config lib/*.so bin/
+/usr/bin/gmcs -lib:bin -out:bin/Server.exe -r:System,System.Data,System.Data.SQLite,Nabla.Sockets server/*.cs server/Database/*.cs server/utils/Server.cs
+/usr/bin/gmcs -lib:bin -out:bin/DatabaseEditor.exe -r:System,System.Data,System.Data.SQLite,Nabla.Sockets server/*.cs server/Database/*.cs server/utils/DatabaseEditor.cs
+
+* Then we need to create a database for the server:
+
+juhovh@enlightened:~/Source/nabla$ cd bin
+juhovh@enlightened:~/Source/nabla/bin$ mono DatabaseEditor.exe nabla.db
+Main menu:
+	[1] Edit user accounts
+	[2] Edit tunnels
+	[0] Exit
+Choose: 1
+User account menu:
+[1] List user accounts
+[2] Add user account
+[3] Delete user account
+[0] Back to main menu
+Choose: 2
+Username: juhovh
+Full name: Juho Vähä-Herttua
+Master password: password
+Tunnel password: tunnelpass
+User account menu:
+[1] List user accounts
+[2] Add user account
+[3] Delete user account
+[0] Back to main menu
+Choose: 0
+Main menu:
+[1] Edit user accounts
+[2] Edit tunnels
+[0] Exit
+Choose: 2
+Username: juhovh
+Tunnel menu for user 'juhovh':
+[1] List tunnels
+[2] Add tunnel
+[3] Delete tunnel
+[0] Return to main menu
+Choose: 2
+Tunnel name: New tunnel
+Tunnel menu for user 'juhovh':
+[1] List tunnels
+[2] Add tunnel
+[3] Delete tunnel
+[0] Return to main menu
+Choose: 1
+
+TunnelId | Type   | Tunnel name
+------------------------------------------------------------
+       1 | tic    | New tunnel
+
+Tunnel menu for user 'juhovh':
+[1] List tunnels
+[2] Add tunnel
+[3] Delete tunnel
+[0] Return to main menu
+Choose: 0
+Main menu:
+[1] Edit user accounts
+[2] Edit tunnels
+[0] Exit
+Choose: 0
+
+* The database is now created, we can start the server.
+* We need to give database name and device name two times as parameters and run as root:
+
+juhovh@enlightened:~/Source/nabla/bin$ sudo mono Server.exe nabla.db eth0 eth0
+Password:
+Configure took timespan: 00:00:00.2910250
+Configure success was: True
+Added IPv6 subnet: 2001:708:30:14e0:1837:0:64:2c4f/104
+
+Modified session:
+TunnelType: AyiyaIPv6
+AddressFamily: InterNetworkV6
+EndPoint: 
+LocalAddress: 2001:708:30:14e0:1837:0:64:2c4f
+RemoteAddress: 2001:708:30:14e0:1837:0:164:2c4f
+Password: 3bc8341e583a143036b92d590995eff2
+LastAlive: 2010-02-05T12:15:04
+
+Parallel device started
+Added hardware address 00:00:0c:9f:f1:7a for IP address 82.130.46.62 into ARP table
+
+* Now we should have a server running successfully, we need to go to the client machine
+  and start AICCU. The following config file is used:
+
+# Example AICCU config file, server at 192.168.1.10
+protocol tic
+server 192.168.1.10
+automatic true
+
+username juhovh
+password tunnelpass
+
+* Finally AICCU should be started:
+
+vagabond:aiccu juhovh$ sudo ./aiccu start aiccu.conf
+Succesfully retrieved tunnel information for T1
+add net default: gateway 2001:708:30:14e0:1837:0:64:2c4f
+[AYIYA-start] : Anything in Anything (draft-02)
+[AYIYA-tun->tundev] : (Socket to TUN) started
+
+* Now we can open another console and test the connection:
+
+vagabond:~ juhovh$ ping6 ipv6.google.com
+PING6(56=40+8+8 bytes) 2001:708:30:14e0:1837::164:2c4f --> 2a00:1450:8001::93
+16 bytes from 2a00:1450:8001::93, icmp_seq=0 hlim=52 time=63.413 ms
+16 bytes from 2a00:1450:8001::93, icmp_seq=1 hlim=52 time=42.561 ms
+16 bytes from 2a00:1450:8001::93, icmp_seq=2 hlim=52 time=42.789 ms
+16 bytes from 2a00:1450:8001::93, icmp_seq=3 hlim=52 time=40.058 ms
+16 bytes from 2a00:1450:8001::93, icmp_seq=4 hlim=52 time=43.417 ms
+16 bytes from 2a00:1450:8001::93, icmp_seq=5 hlim=52 time=42.288 ms
+^C
+--- ipv6.l.google.com ping6 statistics ---
+6 packets transmitted, 6 packets received, 0.0% packet loss
+round-trip min/avg/max/std-dev = 40.058/45.754/63.413/7.966 ms
+
+* The tunnel should be up and running!
+
+
+
 Information for developers
 --------------------------
 
