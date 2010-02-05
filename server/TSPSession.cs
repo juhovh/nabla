@@ -90,7 +90,7 @@ namespace Nabla {
 					_sessionInfo.State = SessionState.Main;
 
 					if (response == null) {
-						response = "200 Authentication successful";
+						response = "200 Success";
 					} else {
 						/* We need to reply in two separate packets, very stupid */
 						return new string[] { response, "200 Success\r\n" };

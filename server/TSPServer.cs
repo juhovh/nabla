@@ -39,6 +39,7 @@ namespace Nabla {
 
 		private Dictionary<IPEndPoint, TSPSession> _udpSessions =
 			new Dictionary<IPEndPoint, TSPSession>();
+		private List<string> _udpOutputQueue = new List<string>();
 
 		/* Use the default port */
 		public TSPServer(string dbName, string deviceName) : this(dbName, deviceName, 3653) {}
@@ -116,7 +117,6 @@ namespace Nabla {
 					_udpSessions.Add(endPoint, s);
 				}
 
-				Console.WriteLine("Contents of UDP packet: ");
 				byte[] tspData = new byte[datalen-8];
 				Array.Copy(data, 8, tspData, 0, tspData.Length);
 
@@ -140,29 +140,39 @@ namespace Nabla {
 						Console.WriteLine("Exception parsing Content-length: " + e);
 					}
 				}
-				Console.WriteLine(Encoding.UTF8.GetString(tspData));
 
 				TSPSession session = _udpSessions[endPoint];
 				string line = Encoding.UTF8.GetString(tspData);
 
+				Console.WriteLine("Contents of UDP packet: ");
+				Console.WriteLine(Encoding.UTF8.GetString(tspData));
+
 				/* Content-length of response depends on the state before the command */
 				bool outputContentLength = session.OutputContentLength;
 				string[] responses = session.HandleCommand(line);
-				if (responses == null)
+				if (responses == null && _udpOutputQueue.Count == 0) {
 					continue;
+				}
+
+				if (responses != null) {
+					foreach (string response in responses) {
+						if (outputContentLength) {
+							int length = Encoding.UTF8.GetBytes(response).Length;
+							_udpOutputQueue.Add("Content-length: " + length + "\r\n" + response);
+						} else {
+							_udpOutputQueue.Add(response);
+						}
+					}
+				}
 
 				/* XXX: Multiple responses should be queued for seq numbers */
-				foreach (string response in responses) {
-					byte[] outBytes = Encoding.UTF8.GetBytes(response);
-					if (outputContentLength) {
-						string clString = "Content-length: " + outBytes.Length + "\r\n";
-						byte[] clBytes = Encoding.UTF8.GetBytes(clString);
+				if (_udpOutputQueue.Count > 0) {
+					/* Dequeue the first response from output queue */
+					string response = _udpOutputQueue[0];
+					_udpOutputQueue.RemoveAt(0);
+					Console.WriteLine("Dequeued element");
 
-						byte[] tmpBytes = new byte[clBytes.Length + outBytes.Length];
-						Array.Copy(clBytes, 0, tmpBytes, 0, clBytes.Length);
-						Array.Copy(outBytes, 0, tmpBytes, clBytes.Length, outBytes.Length);
-						outBytes = tmpBytes;
-					}
+					byte[] outBytes = Encoding.UTF8.GetBytes(response);
 					Array.Copy(outBytes, 0, data, 8, outBytes.Length);
 					_udpSocket.SendTo(data, outBytes.Length+8,
 					                  SocketFlags.None, endPoint);
@@ -261,15 +271,12 @@ namespace Nabla {
 					continue;
 
 				foreach (string response in responses) {
-					byte[] outBytes = Encoding.UTF8.GetBytes(response);
+					byte[] outBytes;
 					if (outputContentLength) {
-						string clString = "Content-length: " + outBytes.Length + "\r\n";
-						byte[] clBytes = Encoding.UTF8.GetBytes(clString);
-
-						byte[] tmpBytes = new byte[clBytes.Length + outBytes.Length];
-						Array.Copy(clBytes, 0, tmpBytes, 0, clBytes.Length);
-						Array.Copy(outBytes, 0, tmpBytes, clBytes.Length, outBytes.Length);
-						outBytes = tmpBytes;
+						int length = Encoding.UTF8.GetBytes(response).Length;
+						outBytes = Encoding.UTF8.GetBytes("Content-length: " + length + "\r\n" + response);
+					} else {
+						outBytes = Encoding.UTF8.GetBytes(response);
 					}
 					stream.Write(outBytes, 0, outBytes.Length);
 					stream.Flush();
