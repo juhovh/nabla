@@ -129,6 +129,7 @@ namespace Nabla {
 
 		public TunnelSession GetSession(TunnelType type, IPEndPoint source, IPAddress address) {
 			lock (_sessionlock) {
+				Console.WriteLine("Getting session for type " + type);
 				if (_sessions[type].ContainsKey(source)) {
 					return _sessions[type][source];
 				}

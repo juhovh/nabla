@@ -66,6 +66,7 @@ namespace Nabla {
 				_tunnelTypes.Add(TunnelType.AyiyaIPv6);
 				break;
 			case GenericInputType.Heartbeat:
+				addressFamily = AddressFamily.InterNetwork;
 				_udpSocket = new Socket(AddressFamily.InterNetwork,
 				                        SocketType.Dgram,
 				                        ProtocolType.Udp);

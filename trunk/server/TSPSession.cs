@@ -109,8 +109,6 @@ namespace Nabla {
 				return;
 			}
 
-			Console.WriteLine("Handling command: " + command);
-
 			/* If authentication in process, send the command there */
 			if (_saslAuth != null && !_saslAuth.Finished) {
 				string response = _saslAuth.GetResponse(command);
@@ -262,9 +260,9 @@ namespace Nabla {
 			}
 
 			if (_sessionInfo.LocalAddress.AddressFamily ==
-			    AddressFamily.InterNetwork &&
+			    AddressFamily.InterNetworkV6 &&
 			    type.Equals("v6udpv4")) {
-				return "303 Can't initiate v6udpv4 tunnel over IPv4";
+				return "303 Can't initiate v6udpv4 tunnel over IPv6";
 			}
 
 			TunnelInfo tunnel = null;
@@ -304,7 +302,7 @@ namespace Nabla {
 			}
 
 			/* XXX: Set the real keepalive interval and address */
-			string lifetime = "1440";
+			string lifetime = "604800";
 			IPAddress keepaliveAddress = serverAddress;
 			int keepaliveInterval = 30;
 
