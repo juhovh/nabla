@@ -1,5 +1,7 @@
 using System;
+using System.Net;
 using System.Net.Sockets;
+using System.Collections.Generic;
 using Nabla.Sockets;
 
 public class RawSocketTest {
@@ -13,6 +15,11 @@ public class RawSocketTest {
 		if (address != null) {
 			Console.WriteLine("Got address: {0}",
 				BitConverter.ToString(address).Replace('-', ':').ToLower());
+		}
+
+		Dictionary<IPAddress, IPAddress> ipaddrs = RawSocket.GetIPAddresses(args[0]);
+		foreach (IPAddress addr in ipaddrs.Keys) {
+			Console.WriteLine("IP address: {0}", addr);
 		}
 
 		RawSocket rawSocket =
