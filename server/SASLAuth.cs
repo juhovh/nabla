@@ -77,7 +77,7 @@ namespace Nabla {
 
 			switch (_method) {
 			case SASLMethod.Plain:
-				return "";
+				return null;
 			case SASLMethod.DigestMD5:
 				string challenge = "";
 				challenge += "charset=utf-8";
@@ -92,20 +92,12 @@ namespace Nabla {
 		}
 
 		public string GetResponse(string resp) {
-			if (resp.Length > 0 && resp[0] == '\0') {
-				/* Strip the null byte that Gateway6 client always sends */
-				resp = resp.Substring(1);
-			}
-
 			try {
 				switch (_method) {
 				case SASLMethod.Plain:
 					string[] words = resp.Split(new char[] {'\0'});
 					if (words.Length == 2) {
 						// This is the correct length, nothing to be done here
-					} else if (words.Length == 3 && words[0].Length == 0) {
-						// For some reason TCP connections have one additional '\0' in the beginning
-						words = new String[] { words[1], words[2] };
 					} else {
 						Console.WriteLine("Invalid plain authentication string, length: " + words.Length);
 						return null;
