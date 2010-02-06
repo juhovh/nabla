@@ -68,7 +68,9 @@ namespace Nabla {
 					}
 				}
 			}
-			Console.WriteLine("Binding TSP service to address: " + bindAddr);
+			if (bindAddr == null) {
+				throw new Exception("Couldn't find an address to bind TSP service to");
+			}
 			
 			_udpSocket = new Socket(AddressFamily.InterNetwork,
 			                        SocketType.Dgram,
@@ -91,8 +93,10 @@ namespace Nabla {
 		}
 
 		public override TunnelType[] GetSupportedTypes() {
-			/* We will handle IPv6inUDP ourselves */
-			return new TunnelType[] { TunnelType.IPv6inUDP };
+			if (!_ipv6) {
+				/* We will handle IPv6inUDP ourselves */
+				return new TunnelType[] { TunnelType.IPv6inUDP };
+			}
 		}
 
 		public override void Start() {
