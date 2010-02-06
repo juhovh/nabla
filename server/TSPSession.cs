@@ -111,6 +111,7 @@ namespace Nabla {
 
 			Console.WriteLine("Handling command: " + command);
 
+			/* If authentication in process, send the command there */
 			if (_saslAuth != null && !_saslAuth.Finished) {
 				string response = _saslAuth.GetResponse(command);
 				if (_saslAuth.Success) {
@@ -121,11 +122,13 @@ namespace Nabla {
 
 					_sessionInfo.State = SessionState.Main;
 				} else if (_saslAuth.Finished) {
+					/* Authentication failed, start again */
 					_saslAuth = null;
 					_sessionInfo.UserName = null;
 					_sessionInfo.UserId = 0;
 				}
 			} else {
+				/* Handle all other commands here */
 				string response = handleCommand(command);
 				if (response != null) {
 					QueueResponse(response + "\r\n");
