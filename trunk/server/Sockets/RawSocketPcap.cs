@@ -179,8 +179,15 @@ namespace Nabla.Sockets {
 
 						IPAddress address = pointerToIPAddress(addr.addr);
 						IPAddress netmask = pointerToIPAddress(addr.netmask);
+						if (address != null && netmask == null) {
+							if (address.AddressFamily == AddressFamily.InterNetwork) {
+								netmask = IPAddress.Any;
+							} else {
+								netmask = IPAddress.IPv6Any;
+							}
+						}
 
-						if (address != null && netmask != null) {
+						if (address != null) {
 							addresses.Add(address, netmask);
 						}
 					}
