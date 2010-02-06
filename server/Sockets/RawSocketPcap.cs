@@ -188,10 +188,6 @@ namespace Nabla.Sockets {
 			}
 			pcap_freealldevs(ifaces);
 
-			foreach (IPAddress addr in addresses.Keys) {
-				Console.WriteLine("Found IP address: " + addr);
-			}
-
 			return addresses;
 		}
 
