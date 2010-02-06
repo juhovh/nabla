@@ -100,13 +100,18 @@ namespace Nabla {
 						// This is the correct length, nothing to be done here
 					} else {
 						Console.WriteLine("Invalid plain authentication string, length: " + words.Length);
+						_finished = true;
 						return null;
 					}
 
 					string username = words[0].Trim();
 					string password = words[1].Trim();
 
-					Console.WriteLine("Got plain authentication with: " + username + ":" + password);
+					string dbpass = _callback(username);
+					if (dbpass == null || !dbpass.Equals(password)) {
+						_finished = true;
+						return "300 Invalid username or password";
+					}
 
 					_finished = true;
 					_success = true;
@@ -128,6 +133,7 @@ namespace Nabla {
 					string realmValue = dict["realm"];
 					string passwd = _callback(unq(usernameValue));
 					if (passwd == null) {
+						_finished = true;
 						return "300 Invalid username or password";
 					}
 
