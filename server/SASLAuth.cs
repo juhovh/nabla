@@ -25,19 +25,23 @@ namespace Nabla {
 	public delegate string SASLAuthCallback(string username);
 
 	public class SASLAuth {
+		/* List to keep track of currently used method */
 		private enum SASLMethod {
 			Unsupported,
 			Plain,
 			DigestMD5
 		}
 
+		/* Authentication method in both string and enum form */
 		private string _methodString;
 		private SASLMethod _method;
+
+		/* Realm string and callback to get the password */
 		private string _realm;
 		private SASLAuthCallback _callback;
 
-		private bool _finished = false;
-		private bool _success = false;
+		private bool _finished = false;  // Indicates a finished authentication
+		private bool _success = false;   // Indicates a successful password match
 
 		public bool Finished {
 			get {
@@ -51,6 +55,12 @@ namespace Nabla {
 			}
 		}
 
+		/* List methods that are supported by the code */
+		public static string[] GetSupportedMethods() {
+			return new string[] { "PLAIN", "DIGEST-MD5" };
+		}
+
+		/* Create a new SASL session with method, realm and callback */
 		public SASLAuth(string method, string realm, SASLAuthCallback callback) {
 			_methodString = method;
 			switch (method) {
@@ -68,10 +78,7 @@ namespace Nabla {
 			_callback = callback;
 		}
 
-		public static string[] GetSupportedMethods() {
-			return new string[] { "PLAIN", "DIGEST-MD5" };
-		}
-
+		/* Get challenge for the authentication */
 		public string GetChallenge() {
 			UInt32 nonce = (UInt32) (DateTime.UtcNow-new DateTime(1970, 1, 1)).TotalSeconds;
 
@@ -91,17 +98,15 @@ namespace Nabla {
 			}
 		}
 
+		/* Get response for the authentication, takes challenge response as input */
 		public string GetResponse(string resp) {
 			try {
 				switch (_method) {
 				case SASLMethod.Plain:
 					string[] words = resp.Split(new char[] {'\0'});
-					if (words.Length == 2) {
-						// This is the correct length, nothing to be done here
-					} else {
-						Console.WriteLine("Invalid plain authentication string, length: " + words.Length);
+					if (words.Length != 2) {
 						_finished = true;
-						return null;
+						return "300 Invalid authentication string count: " + words.Length;
 					}
 
 					string username = words[0].Trim();
@@ -117,6 +122,7 @@ namespace Nabla {
 					_success = true;
 					return null;
 				case SASLMethod.DigestMD5:
+					/* Create a dictionary where all SASL parameters are added */
 					Dictionary<string, string> dict = new Dictionary<string, string>();
 					string respString = Encoding.UTF8.GetString(Convert.FromBase64String(resp));
 					string[] values = respString.Split(new char[] {','}, StringSplitOptions.RemoveEmptyEntries);
@@ -129,6 +135,7 @@ namespace Nabla {
 						dict.Add(key, value);
 					}
 
+					/* Find the username and fetch the corresponding password */
 					string usernameValue = dict["username"];
 					string realmValue = dict["realm"];
 					string passwd = _callback(unq(usernameValue));
@@ -137,6 +144,7 @@ namespace Nabla {
 						return "300 Invalid username or password";
 					}
 
+					/* Get other used values from the dictionary */
 					string nonceValue = dict["nonce"];
 					string ncValue = dict["nc"];
 					string cnonceValue = dict["cnonce"];
@@ -144,9 +152,8 @@ namespace Nabla {
 					string responseValue = dict["response"];
 					string qopValue = dict["qop"];
 
-					MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
-
 					/* Directly from RFC 2617 / RFC 2831 */
+					MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
 					string A1_1 = unq(usernameValue) + ":" + unq(realmValue) + ":" + passwd;
 					byte[] HA1_1Bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(A1_1));
 
@@ -179,17 +186,20 @@ namespace Nabla {
 					byte[] digestBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(digestString));
 					string digest = BitConverter.ToString(digestBytes).Replace("-", "").ToLower();
 
+					/* Check that our digest equals the response we got from server */
 					if (!digest.Equals(responseValue)) {
 						_finished = true;
 						return "300 Invalid username or password";
 					}
 
+					/* Construct the final response digest using cHA2 instead of HA2 */
 					digestString =
 						HA1 + ":" + unq(nonceValue) + ":" + ncValue + ":" +
 						unq(cnonceValue) + ":" + unq(qopValue) + ":" + cHA2;
 					digestBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(digestString));
 					digest = BitConverter.ToString(digestBytes).Replace("-", "").ToLower();
 
+					/* Get the response string from the response digest */
 					byte[] rspBytes = Encoding.UTF8.GetBytes("rspauth=" + digest);
 					string rspauth = Convert.ToBase64String(rspBytes);
 
@@ -205,6 +215,7 @@ namespace Nabla {
 			return "300 Error parsing challenge response";
 		}
 
+		/* Remove doublequotes from the string if present */
 		private string unq(string str) {
 			if (str[0] == '"' && str[str.Length-1] == '"')
 				return str.Substring(1, str.Length-2);
