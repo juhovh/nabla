@@ -90,7 +90,13 @@ namespace Nabla {
 		}
 
 		public override void SendPacket(TunnelSession session, byte[] data) {
-			/* XXX: Handle IPv6inUDP incoming data */
+			TSPSession tspSession = null;
+			if (_udpSessions.ContainsKey(session.EndPoint)) {
+				tspSession = _udpSessions[session.EndPoint];
+			}
+
+			// XXX: Should check that tunnel type is v6udpv4
+			_udpSocket.SendTo(data, session.EndPoint);
 		}
 
 		private void udpListenerThread() {
@@ -116,19 +122,28 @@ namespace Nabla {
 				bool signalingPacket = (data[0]&0xf0) == 0xf0;
 				Console.WriteLine("Packet is a signaling packet: " + signalingPacket);
 
-				if (signalingPacket && !_udpSessions.ContainsKey(endPoint)) {
-					TSPSession s = new TSPSession(_sessionManager, _dbName,
-					                              ProtocolType.Udp,
-					                              endPoint.Address,
-					                              localEndPoint.Address);
-					_udpSessions.Add(endPoint, s);
-				} else if (!signalingPacket) {
-					if (!_udpSessions.ContainsKey(endPoint)) {
+				TSPSession session = null;
+				if (_udpSessions.ContainsKey(endPoint)) {
+					session = _udpSessions[endPoint];
+				} else {
+					if (signalingPacket) {
+						session = new TSPSession(_sessionManager, _dbName,
+						                         ProtocolType.Udp,
+						                         endPoint.Address,
+						                         localEndPoint.Address);
+						_udpSessions.Add(endPoint, session);
+					}
+				}
+
+				if (!signalingPacket) {
+					if (session == null) {
 						Console.WriteLine("Tunnel IP packet without initiated session!");
 						continue;
 					}
 
-					// FIXME: this is raw IPv6 data, we should output it to device!
+					// XXX: Should check that tunnel type is v6udpv4
+					_sessionManager.PacketFromInputDevice(TunnelType.IPv6inUDP,
+					                                      endPoint, data, 0, datalen);
 					continue;
 				}
 
@@ -156,9 +171,7 @@ namespace Nabla {
 					}
 				}
 
-				TSPSession session = _udpSessions[endPoint];
 				string line = Encoding.UTF8.GetString(tspData);
-
 				Console.WriteLine("Contents of UDP packet: ");
 				Console.WriteLine(line);
 				session.HandleCommand(line);
