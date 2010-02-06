@@ -96,6 +96,8 @@ namespace Nabla {
 			if (!_ipv6) {
 				/* We will handle IPv6inUDP ourselves */
 				return new TunnelType[] { TunnelType.IPv6inUDP };
+			} else {
+				return new TunnelType[] {};
 			}
 		}
 
@@ -138,7 +140,6 @@ namespace Nabla {
 				int datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,
 				                                     SocketFlags.None,
 				                                     ref sender);
-				Console.WriteLine("Received TSP packet from {0}", sender);
 
 				/* Too small packets are ignored */
 				if (datalen < 8)
@@ -146,11 +147,9 @@ namespace Nabla {
 
 				IPEndPoint endPoint = InputDevice.GetIPEndPoint(sender);
 				IPEndPoint localEndPoint = (IPEndPoint) _udpSocket.LocalEndPoint;
-				Console.WriteLine("Local end point address: " + localEndPoint.Address);
 
 				/* If the protocol version is 0xf, packet is a signaling packet */
 				bool signalingPacket = (data[0]&0xf0) == 0xf0;
-				Console.WriteLine("Packet is a signaling packet: " + signalingPacket);
 
 				TSPSession session = null;
 				if (_udpSessions.ContainsKey(endPoint)) {
@@ -172,6 +171,7 @@ namespace Nabla {
 					}
 
 					// XXX: Should check that tunnel type is v6udpv4
+					Console.WriteLine("Received packet from input device");
 					_sessionManager.PacketFromInputDevice(TunnelType.IPv6inUDP,
 					                                      endPoint, data, 0, datalen);
 					continue;
@@ -201,10 +201,8 @@ namespace Nabla {
 					}
 				}
 
-				string line = Encoding.UTF8.GetString(tspData);
-				Console.WriteLine("Contents of UDP packet: ");
-				Console.WriteLine(line);
-				session.HandleCommand(line);
+				string command = Encoding.UTF8.GetString(tspData);
+				session.HandleCommand(command);
 
 				byte[] outBytes = session.DequeueResponse();
 				if (outBytes == null) {
