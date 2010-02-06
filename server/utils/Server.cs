@@ -32,7 +32,7 @@ namespace Nabla {
 			SessionManager sessionManager = new SessionManager();
 			sessionManager.AddOutputDevice(args[2], false, true);
 			sessionManager.AddInputDevice(new TICServer(args[0], args[1]));
-			sessionManager.AddInputDevice(new TSPServer(args[0], args[1]));
+			sessionManager.AddInputDevice(new TSPServer(args[0], args[1], false));
 
 			sessionManager.Start();
 

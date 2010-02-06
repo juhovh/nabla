@@ -23,6 +23,7 @@ using System.Text;
 using System.Net.Sockets;
 using System.Threading;
 using System.Collections.Generic;
+using Nabla.Sockets;
 
 namespace Nabla {
 	public class TSPServer : InputDevice {
@@ -31,6 +32,8 @@ namespace Nabla {
 
 		private string _dbName;
 		private string _deviceName;
+		private bool _ipv6;
+
 		private Socket _udpSocket;
 		private TcpListener _tcpListener;
 		private SessionManager _sessionManager;
@@ -41,25 +44,48 @@ namespace Nabla {
 			new Dictionary<IPEndPoint, TSPSession>();
 
 		/* Use the default port */
-		public TSPServer(string dbName, string deviceName) : this(dbName, deviceName, 3653) {}
+		public TSPServer(string dbName, string deviceName, bool ipv6) : this(dbName, deviceName, ipv6, 3653) {}
 
-		public TSPServer(string dbName, string deviceName, int port) {
+		public TSPServer(string dbName, string deviceName, bool ipv6, int port) {
 			_dbName = dbName;
 			_deviceName = deviceName;
+			_ipv6 = ipv6;
 
+			IPAddress bindAddr = null;
+			Dictionary<IPAddress, IPAddress> addrs = RawSocket.GetIPAddresses(deviceName);
+			if (ipv6) {
+				foreach (IPAddress addr in addrs.Keys) {
+					if (addr.AddressFamily == AddressFamily.InterNetworkV6 && !addr.IsIPv6LinkLocal) {
+						bindAddr = addr;
+						break;
+					}
+				}
+			} else {
+				foreach (IPAddress addr in addrs.Keys) {
+					if (addr.AddressFamily == AddressFamily.InterNetwork) {
+						bindAddr = addr;
+						break;
+					}
+				}
+			}
+			Console.WriteLine("Binding TSP service to address: " + bindAddr);
+			
 			_udpSocket = new Socket(AddressFamily.InterNetwork,
 			                        SocketType.Dgram,
 			                        ProtocolType.Udp);
-			_udpSocket.Bind(new IPEndPoint(IPAddress.Any, port));
-			_tcpListener = new TcpListener(IPAddress.Any, port);
+			_udpSocket.Bind(new IPEndPoint(bindAddr, port));
+			_tcpListener = new TcpListener(bindAddr, port);
 		}
 
 		public override void SetSessionManager(SessionManager sessionManager) {
 			InputDevice dev;
-			dev = new GenericInputDevice(_deviceName, GenericInputType.IPv6inIPv4);
-			sessionManager.AddInputDevice(dev);
-			dev = new GenericInputDevice(_deviceName, GenericInputType.IPv4inIPv6);
-			sessionManager.AddInputDevice(dev);
+			if (_ipv6) {
+				dev = new GenericInputDevice(_deviceName, GenericInputType.IPv4inIPv6);
+				sessionManager.AddInputDevice(dev);
+			} else {
+				dev = new GenericInputDevice(_deviceName, GenericInputType.IPv6inIPv4);
+				sessionManager.AddInputDevice(dev);
+			}
 
 			_sessionManager = sessionManager;
 		}
