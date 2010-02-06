@@ -39,9 +39,6 @@ namespace Nabla {
 
 		private Dictionary<IPEndPoint, TSPSession> _udpSessions =
 			new Dictionary<IPEndPoint, TSPSession>();
-		
-		// FIXME: This queue should be session specific, move it!
-		private List<string> _udpOutputQueue = new List<string>();
 
 		/* Use the default port */
 		public TSPServer(string dbName, string deviceName) : this(dbName, deviceName, 3653) {}
@@ -163,34 +160,14 @@ namespace Nabla {
 				string line = Encoding.UTF8.GetString(tspData);
 
 				Console.WriteLine("Contents of UDP packet: ");
-				Console.WriteLine(Encoding.UTF8.GetString(tspData));
+				Console.WriteLine(line);
+				session.HandleCommand(line);
 
-				/* Content-length of response depends on the state before the command */
-				bool outputContentLength = session.OutputContentLength;
-				string[] responses = session.HandleCommand(line);
-				if (responses == null && _udpOutputQueue.Count == 0) {
-					continue;
-				}
-
-				if (responses != null) {
-					foreach (string response in responses) {
-						if (outputContentLength) {
-							int length = Encoding.UTF8.GetBytes(response).Length;
-							_udpOutputQueue.Add("Content-length: " + length + "\r\n" + response);
-						} else {
-							_udpOutputQueue.Add(response);
-						}
-					}
-				}
-
-				/* XXX: Multiple responses should be queued for seq numbers */
-				if (_udpOutputQueue.Count > 0) {
-					/* Dequeue the first response from output queue */
-					string response = _udpOutputQueue[0];
-					_udpOutputQueue.RemoveAt(0);
-					Console.WriteLine("Dequeued element");
-
-					byte[] outBytes = Encoding.UTF8.GetBytes(response);
+				byte[] outBytes = session.DequeueResponse();
+				if (outBytes == null) {
+					/* Return an empty packet, shouldn't happen really */
+					_udpSocket.SendTo(data, 8, SocketFlags.None, endPoint);
+				} else {
 					Array.Copy(outBytes, 0, data, 8, outBytes.Length);
 					_udpSocket.SendTo(data, outBytes.Length+8,
 					                  SocketFlags.None, endPoint);
@@ -244,7 +221,7 @@ namespace Nabla {
 
 				string line = Encoding.UTF8.GetString(buf, 0, newline);
 
-				/* Move the additional bytes to the beginning of buffer */
+				/* Move the bytes after first line to the beginning of the buffer */
 				buflen -= newline+2;
 				Array.Copy(buf, newline+2, buf, 0, buflen);
 
@@ -282,20 +259,9 @@ namespace Nabla {
 					}
 				}
 
-				/* Content-length of response depends on the state before the command */
-				bool outputContentLength = session.OutputContentLength;
-				string[] responses = session.HandleCommand(line);
-				if (responses == null)
-					continue;
-
-				foreach (string response in responses) {
-					byte[] outBytes;
-					if (outputContentLength) {
-						int length = Encoding.UTF8.GetBytes(response).Length;
-						outBytes = Encoding.UTF8.GetBytes("Content-length: " + length + "\r\n" + response);
-					} else {
-						outBytes = Encoding.UTF8.GetBytes(response);
-					}
+				byte[] outBytes;
+				session.HandleCommand(line);
+				while ((outBytes = session.DequeueResponse()) != null) {
 					stream.Write(outBytes, 0, outBytes.Length);
 					stream.Flush();
 				}
