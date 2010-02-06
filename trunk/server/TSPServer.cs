@@ -47,10 +47,10 @@ namespace Nabla {
 			_dbName = dbName;
 			_deviceName = deviceName;
 
-			_udpSocket = new Socket(AddressFamily.InterNetworkV6,
+			_udpSocket = new Socket(AddressFamily.InterNetwork,
 			                        SocketType.Dgram,
 			                        ProtocolType.Udp);
-			_udpSocket.Bind(new IPEndPoint(IPAddress.IPv6Any, port));
+			_udpSocket.Bind(new IPEndPoint(IPAddress.Any, port));
 			_tcpListener = new TcpListener(IPAddress.Any, port);
 		}
 
