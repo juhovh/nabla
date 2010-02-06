@@ -22,6 +22,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Xml;
 using System.Text;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using Nabla.Database;
 
@@ -50,6 +51,7 @@ namespace Nabla {
 		private ProtocolType _protocolType;
 		private UserDatabase _db;
 		private SessionInfo _sessionInfo;
+		private List<string> _responseQueue;
 		private bool _finished = false;
 
 		private SASLAuth _saslAuth = null;
@@ -62,67 +64,77 @@ namespace Nabla {
 			_sessionInfo = new SessionInfo();
 			_sessionInfo.RemoteAddress = remoteAddress;
 			_sessionInfo.LocalAddress = localAddress;
+			_responseQueue = new List<string>();
 		}
 
 		public void Cleanup() {
 			_db.Dispose();
 		}
 
-		public string[] HandleCommand(string command) {
-			/* XXX: Can remove when UDP handling knows how to do this */
-			if (command.EndsWith("\0")) {
-				/* This looks like a Gateway6 client bug */
+		public void QueueResponse(string response) {
+			if (_sessionInfo.State == SessionState.Main) {
+				int length = Encoding.UTF8.GetBytes(response).Length;
+				response = "Content-length: " + length + "\r\n" + response;
+			}
+			_responseQueue.Add(response);
+		}
+
+		public byte[] DequeueResponse() {
+			if (_responseQueue.Count == 0) {
+				return null;
+			}
+
+			string response = _responseQueue[0];
+			_responseQueue.RemoveAt(0);
+			return Encoding.UTF8.GetBytes(response);
+		}
+
+		public void HandleCommand(string command) {
+			/* Remove null bytes from beginning and end, Gateway6 client
+			 * seems to insert them in the end of strings, that sucks */
+			while (command.StartsWith("\0")) {
+				command = command.Substring(1);
+			}
+			while (command.EndsWith("\0")) {
 				command = command.Substring(0, command.Length-1);
 			}
+
+			/* Trim the last newline from the command as useless */
 			if (command.EndsWith("\r\n")) {
 				command = command.Substring(0, command.Length-2);
 			}
+
+			/* If it's an empty command, simply don't do anything */
 			if (command.Trim().Equals("")) {
-				return null;
+				return;
 			}
 
 			Console.WriteLine("Handling command: " + command);
 
-			string response;
 			if (_saslAuth != null && !_saslAuth.Finished) {
-				response = _saslAuth.GetResponse(command);
+				string response = _saslAuth.GetResponse(command);
 				if (_saslAuth.Success) {
-					_sessionInfo.State = SessionState.Main;
-
-					if (response == null) {
-						response = "200 Success";
-					} else {
-						/* We need to reply in two separate packets, very stupid */
-						return new string[] { response, "200 Success\r\n" };
+					if (response != null) {
+						QueueResponse(response);
 					}
+					QueueResponse("200 Success\r\n");
+
+					_sessionInfo.State = SessionState.Main;
 				} else if (_saslAuth.Finished) {
 					_saslAuth = null;
 					_sessionInfo.UserName = null;
 					_sessionInfo.UserId = 0;
 				}
 			} else {
-				response = handleCommand(command);
+				string response = handleCommand(command);
+				if (response != null) {
+					QueueResponse(response + "\r\n");
+				}
 			}
-
-			if (response == null) {
-				return null;
-			}
-
-			Console.WriteLine("Outputting response: " + response);
-			if (!response.Equals("")) {
-				response += "\r\n";
-			}
-			return new string[] { response };
 		}
 
 		public bool Finished() {
 			return _finished;
-		}
-
-		public bool OutputContentLength {
-			get {
-				return (_sessionInfo.State == SessionState.Main);
-			}
 		}
 
 		private string handleCommand(string command) {
