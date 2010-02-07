@@ -19,6 +19,8 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Collections.Generic;
+using Nabla.Sockets;
 
 namespace Nabla {
 	public abstract class InputDevice {
@@ -27,5 +29,28 @@ namespace Nabla {
 		public abstract void Start();
 		public abstract void Stop();
 		public abstract void SendPacket(Int64 tunnelId, byte[] data);
+
+		protected static IPAddress GetBindAddress(string deviceName, bool ipv6) {
+			IPAddress bindAddr = null;
+
+			Dictionary<IPAddress, IPAddress> addrs = RawSocket.GetIPAddresses(deviceName);
+			if (ipv6) {
+				foreach (IPAddress addr in addrs.Keys) {
+					if (addr.AddressFamily == AddressFamily.InterNetworkV6 && !addr.IsIPv6LinkLocal) {
+						bindAddr = addr;
+						break;
+					}
+				}
+			} else {
+				foreach (IPAddress addr in addrs.Keys) {
+					if (addr.AddressFamily == AddressFamily.InterNetwork) {
+						bindAddr = addr;
+						break;
+					}
+				}
+			}
+
+			return bindAddr;
+		}
 	}
 }

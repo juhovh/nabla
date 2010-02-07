@@ -23,7 +23,6 @@ using System.Text;
 using System.Net.Sockets;
 using System.Threading;
 using System.Collections.Generic;
-using Nabla.Sockets;
 
 namespace Nabla {
 	public class TSPServer : InputDevice {
@@ -51,23 +50,7 @@ namespace Nabla {
 			_deviceName = deviceName;
 			_ipv6 = ipv6;
 
-			IPAddress bindAddr = null;
-			Dictionary<IPAddress, IPAddress> addrs = RawSocket.GetIPAddresses(deviceName);
-			if (ipv6) {
-				foreach (IPAddress addr in addrs.Keys) {
-					if (addr.AddressFamily == AddressFamily.InterNetworkV6 && !addr.IsIPv6LinkLocal) {
-						bindAddr = addr;
-						break;
-					}
-				}
-			} else {
-				foreach (IPAddress addr in addrs.Keys) {
-					if (addr.AddressFamily == AddressFamily.InterNetwork) {
-						bindAddr = addr;
-						break;
-					}
-				}
-			}
+			IPAddress bindAddr = InputDevice.GetBindAddress(deviceName, ipv6);
 			if (bindAddr == null) {
 				throw new Exception("Couldn't find an address to bind TSP service to");
 			}
