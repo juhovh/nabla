@@ -22,9 +22,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Collections.Generic;
 using Nabla.Database;
-using Nabla.Sockets;
 
 namespace Nabla {
 	public class TICServer : InputDevice {
@@ -46,16 +44,9 @@ namespace Nabla {
 			_dbName = dbName;
 			_deviceName = deviceName;
 
-			IPAddress bindAddr = null;
-			Dictionary<IPAddress, IPAddress> addrs = RawSocket.GetIPAddresses(deviceName);
-			foreach (IPAddress addr in addrs.Keys) {
-				if (addr.AddressFamily == AddressFamily.InterNetwork) {
-					bindAddr = addr;
-					break;
-				}
-			}
+			IPAddress bindAddr = InputDevice.GetBindAddress(deviceName, false);
 			if (bindAddr == null) {
-				throw new Exception("Couldn't find an address to bind TSP service to");
+				throw new Exception("Couldn't find an address to bind TIC service to");
 			}
 
 			_listener = new TcpListener(bindAddr, port);

@@ -43,45 +43,52 @@ namespace Nabla {
 		public GenericInputDevice(string deviceName, TunnelType type) {
 			_type = type;
 
-			AddressFamily addressFamily = AddressFamily.Unknown;
-			int protocol = 0;
+			AddressFamily rawFamily = AddressFamily.Unknown;
+			int rawProtocol = 0;
+			int udpPort = 0;
 
 			switch (type) {
 			case TunnelType.AYIYAinIPv4:
-				_udpSocket = new Socket(AddressFamily.InterNetwork,
-				                        SocketType.Dgram,
-				                        ProtocolType.Udp);
-				_udpSocket.Bind(new IPEndPoint(IPAddress.Any, 5072));
+				udpPort = 5072;
 				break;
 			case TunnelType.Heartbeat:
-				addressFamily = AddressFamily.InterNetwork;
-				_udpSocket = new Socket(AddressFamily.InterNetwork,
-				                        SocketType.Dgram,
-				                        ProtocolType.Udp);
-				_udpSocket.Bind(new IPEndPoint(IPAddress.Any, 3740));
+				udpPort = 3740;
+				rawFamily = AddressFamily.InterNetwork;
 				break;
 			case TunnelType.IPv4inIPv4:
-				addressFamily = AddressFamily.InterNetwork;
-				protocol = 4;
+				rawFamily = AddressFamily.InterNetwork;
+				rawProtocol = 4;
 				break;
 			case TunnelType.IPv4inIPv6:
-				addressFamily = AddressFamily.InterNetworkV6;
-				protocol = 4;
+				rawFamily = AddressFamily.InterNetworkV6;
+				rawProtocol = 4;
 				break;
 			case TunnelType.IPv6inIPv4:
-				addressFamily = AddressFamily.InterNetwork;
-				protocol = 41;
+				rawFamily = AddressFamily.InterNetwork;
+				rawProtocol = 41;
 				break;
 			case TunnelType.IPv6inIPv6:
-				addressFamily = AddressFamily.InterNetworkV6;
-				protocol = 41;
+				rawFamily = AddressFamily.InterNetworkV6;
+				rawProtocol = 41;
 				break;
 			default:
 				throw new Exception("Unsupported input type: " + type);
 			}
 
-			if (addressFamily != AddressFamily.Unknown) {
-				_rawSocket = RawSocket.GetRawSocket(deviceName, addressFamily, protocol, waitms);
+			if (udpPort != 0) {
+				IPAddress bindAddr = InputDevice.GetBindAddress(deviceName, false);
+				if (bindAddr == null) {
+					throw new Exception("Couldn't find an address to bind generic input device to");
+				}
+
+				_udpSocket = new Socket(AddressFamily.InterNetwork,
+				                        SocketType.Dgram,
+				                        ProtocolType.Udp);
+				_udpSocket.Bind(new IPEndPoint(bindAddr, udpPort));
+			}
+
+			if (rawFamily != AddressFamily.Unknown) {
+				_rawSocket = RawSocket.GetRawSocket(deviceName, rawFamily, rawProtocol, waitms);
 			}
 
 			_thread = new Thread(new ThreadStart(this.threadLoop));
