@@ -158,7 +158,7 @@ namespace Nabla {
 						                                     SocketFlags.None,
 						                                     ref sender);
 						//Console.WriteLine("Received an AYIYA packet from {0}", sender);
-						IPEndPoint endPoint = InputDevice.GetIPEndPoint(sender);
+						IPEndPoint endPoint = (IPEndPoint) sender;
 
 						if (datalen < 8) {
 							Console.WriteLine("Packet length {0} invalid", datalen);

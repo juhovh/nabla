@@ -27,31 +27,5 @@ namespace Nabla {
 		public abstract void Start();
 		public abstract void Stop();
 		public abstract void SendPacket(Int64 tunnelId, byte[] data);
-
-		public static IPEndPoint GetIPEndPoint(EndPoint ep) {
-			IPEndPoint endPoint = (IPEndPoint) ep;
-			if (endPoint.AddressFamily == AddressFamily.InterNetworkV6) {
-				byte[] addrBytes = endPoint.Address.GetAddressBytes();
-
-				bool isIPv4Address = true;
-				for (int i=0; i<12; i++) {
-					if (i<10 && addrBytes[i] != 0x00) {
-						isIPv4Address = false;
-						break;
-					} else if (i>=10 && addrBytes[i] != 0xff) {
-						isIPv4Address = false;
-						break;
-					}
-				}
-
-				if (isIPv4Address) {
-					/* IPv4 address in form ::ffff:x.x.x.x, replace IPEndPoint */
-					byte[] ipaddr = new byte[4];
-					Array.Copy(addrBytes, 12, ipaddr, 0, 4);
-					endPoint = new IPEndPoint(new IPAddress(ipaddr), endPoint.Port);
-				}
-			}
-			return endPoint;
-		}
 	}
 }

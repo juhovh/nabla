@@ -147,7 +147,7 @@ namespace Nabla {
 				if (datalen < 8)
 					continue;
 
-				IPEndPoint endPoint = InputDevice.GetIPEndPoint(sender);
+				IPEndPoint endPoint = (IPEndPoint) sender;
 				IPEndPoint localEndPoint = (IPEndPoint) _udpSocket.LocalEndPoint;
 
 				/* If the protocol version is 0xf, packet is a signaling packet */
@@ -232,8 +232,8 @@ namespace Nabla {
 
 			TcpClient client = (TcpClient) data;
 
-			IPEndPoint remoteEndPoint = InputDevice.GetIPEndPoint(client.Client.RemoteEndPoint);
-			IPEndPoint localEndPoint = InputDevice.GetIPEndPoint(client.Client.LocalEndPoint);
+			IPEndPoint remoteEndPoint = (IPEndPoint) client.Client.RemoteEndPoint;
+			IPEndPoint localEndPoint = (IPEndPoint) client.Client.LocalEndPoint;
 			TSPSession session = new TSPSession(_sessionManager, _dbName, ProtocolType.Tcp,
 			                                    remoteEndPoint.Address, localEndPoint.Address);
 
