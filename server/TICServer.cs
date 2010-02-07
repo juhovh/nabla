@@ -57,7 +57,7 @@ namespace Nabla {
 			dev = new GenericInputDevice(_deviceName, GenericInputType.Heartbeat);
 			sessionManager.AddInputDevice(dev);
 */
-			dev = new GenericInputDevice(_deviceName, GenericInputType.Ayiya);
+			dev = new GenericInputDevice(_deviceName, TunnelType.AyiyaIPv4);
 			sessionManager.AddInputDevice(dev);
 
 			using (UserDatabase db = new UserDatabase(_dbName)) {
