@@ -151,8 +151,8 @@ namespace Nabla {
 			string serviceName = "Nabla";
 			string serviceUrl = "http://code.google.com/p/nabla/";
 
-			IPEndPoint remoteEndPoint = InputDevice.GetIPEndPoint(client.Client.RemoteEndPoint);
-			IPEndPoint localEndPoint = InputDevice.GetIPEndPoint(client.Client.LocalEndPoint);
+			IPEndPoint remoteEndPoint = (IPEndPoint) client.Client.RemoteEndPoint;
+			IPEndPoint localEndPoint = (IPEndPoint) client.Client.LocalEndPoint;
 			TICSession session = new TICSession(_sessionManager, _dbName, serviceName,
 			                                    remoteEndPoint.Address, localEndPoint.Address);
 
