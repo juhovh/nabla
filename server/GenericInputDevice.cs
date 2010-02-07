@@ -112,14 +112,29 @@ namespace Nabla {
 			}
 
 			if (_type == TunnelType.AYIYAinIPv4) {
-				// FIXME: Not necessarily IPv6, could be also IPv4
-				IPAddress localAddress = _sessionManager.GetIPv6TunnelLocalAddress(tunnelId);
+				byte[] identityBytes;
+				int datalen;
+
+				int version = ((data[0]&0xf0) >> 4);
+				if (version == 4) {
+					IPAddress localAddress = _sessionManager.GetIPv4TunnelLocalAddress(tunnelId);
+					identityBytes = localAddress.GetAddressBytes();
+					datalen = data[2]*256 + data[3];
+				} else if (version == 6) {
+					IPAddress localAddress = _sessionManager.GetIPv6TunnelLocalAddress(tunnelId);
+					identityBytes = localAddress.GetAddressBytes();
+					datalen = 40 + data[4]*256 + data[5];
+				} else {
+					/* Unknown IP protocol version */
+					return;
+				}
+
 				string password = _sessionManager.GetSessionPassword(tunnelId);
 
-				int datalen = 40 + data[4]*256 + data[5];
+				byte[] outdata = new byte[8 + identityBytes.Length + 20 + datalen];
+				outdata[0] = (byte) ((identityBytes.Length << 2) & 0xf0);
+				outdata[0] |= 0x01;
 
-				byte[] outdata = new byte[44 + datalen];
-				outdata[0] = 0x41;
 				outdata[1] = 0x52;
 				outdata[2] = 0x11;
 				outdata[3] = 41;
@@ -129,14 +144,14 @@ namespace Nabla {
 				outdata[5] = (byte) (epochnow >> 16);
 				outdata[6] = (byte) (epochnow >> 8);
 				outdata[7] = (byte) (epochnow);
-				Array.Copy(localAddress.GetAddressBytes(), 0, outdata, 8, 16);
+				Array.Copy(identityBytes, 0, outdata, 8, identityBytes.Length);
 
 				SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
 				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(password));
 
-				int hashOffset = 8 + (outdata[0] >> 4)*4;
+				int hashOffset = 8 + identityBytes.Length*4;
 				Array.Copy(passwdHash, 0, outdata, hashOffset, 20);
-				Array.Copy(data, 0, outdata, 44, datalen);
+				Array.Copy(data, 0, outdata, hashOffset+20, datalen);
 
 				byte[] ourHash = sha1.ComputeHash(outdata, 0, outdata.Length);
 				Array.Copy(ourHash, 0, outdata, hashOffset, 20);
