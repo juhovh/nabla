@@ -122,7 +122,12 @@ namespace Nabla {
 			_thread.Join();
 		}
 
-		public override void SendPacket(Int64 tunnelId, IPEndPoint endPoint, byte[] data) {
+		public override void SendPacket(Int64 tunnelId, byte[] data) {
+			IPEndPoint endPoint = _sessionManager.GetSessionEndPoint(tunnelId);
+			if (endPoint == null) {
+				return;
+			}
+
 			if (_type == GenericInputType.Ayiya) {
 				/* FIXME: not necessarily IPv6 */
 				IPAddress localAddress = _sessionManager.GetIPv6TunnelLocalAddress(tunnelId);

@@ -131,7 +131,7 @@ namespace Nabla {
 			}
 		}
 
-		public override void SendPacket(Int64 tunnelId, IPEndPoint endPoint, byte[] data) {
+		public override void SendPacket(Int64 tunnelId, byte[] data) {
 			/* Never called because we have no types set */
 			throw new Exception("Send packet called on TICServer");
 		}

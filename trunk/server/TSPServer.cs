@@ -121,7 +121,9 @@ namespace Nabla {
 			}
 		}
 
-		public override void SendPacket(Int64 tunnelId, IPEndPoint endPoint, byte[] data) {
+		public override void SendPacket(Int64 tunnelId, byte[] data) {
+			IPEndPoint endPoint = _sessionManager.GetSessionEndPoint(tunnelId);
+
 			TSPSession tspSession = null;
 			if (_udpSessions.ContainsKey(endPoint)) {
 				tspSession = _udpSessions[endPoint];
