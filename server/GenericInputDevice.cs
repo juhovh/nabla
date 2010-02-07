@@ -122,14 +122,8 @@ namespace Nabla {
 			_thread.Join();
 		}
 
-		public override void SendPacket(IPEndPoint endPoint, byte[] data) {
+		public override void SendPacket(Int64 tunnelId, IPEndPoint endPoint, byte[] data) {
 			if (_type == GenericInputType.Ayiya) {
-				Int64 tunnelId = _sessionManager.TunnelIdFromEndPoint(endPoint);
-				if (tunnelId < 0) {
-					Console.WriteLine("Packet to unknown tunnel id");
-					return;
-				}
-
 				/* FIXME: not necessarily IPv6 */
 				IPAddress localAddress = _sessionManager.GetIPv6TunnelLocalAddress(tunnelId);
 				string password = _sessionManager.GetSessionPassword(tunnelId);
@@ -202,11 +196,11 @@ namespace Nabla {
 					if (!_rawSocket.WaitForReadable())
 						continue;
 
-					IPEndPoint endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);;
+					IPEndPoint endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
 					int datalen = _rawSocket.ReceiveFrom(data, ref endPoint);
 					Console.WriteLine("Received a packet from {0}", endPoint);
 
-					_sessionManager.PacketFromInputDevice(endPoint, data, 0, datalen);
+					_sessionManager.PacketFromInputDevice(data, 0, datalen);
 				}
 			}
 		}
@@ -361,7 +355,7 @@ namespace Nabla {
 				return;
 			}
 
-			_sessionManager.PacketFromInputDevice(source, data, hlen, datalen-hlen);
+			_sessionManager.PacketFromInputDevice(data, hlen, datalen-hlen);
 		}
 	}
 }
