@@ -24,12 +24,11 @@ using System.Net.Sockets;
 using Nabla.Sockets;
 
 namespace Nabla {
-	public delegate void OutputDeviceCallback(IPEndPoint destination, byte[] data);
+	public delegate void OutputDeviceCallback(byte[] data, int offset, int length);
 
 	public class OutputDevice {
 		private ParallelDevice _device;
 		private NATMapper _mapper = new NATMapper();
-		private Dictionary<IPAddress, IPEndPoint> _ipv6map = new Dictionary<IPAddress, IPEndPoint>();
 		private OutputDeviceCallback _callback;
 
 		public IPAddress IPv6LocalAddress = null;
@@ -120,7 +119,7 @@ namespace Nabla {
 			_device.Stop();
 		}
 
-		public void SendPacket(IPEndPoint source, byte[] data) {
+		public void SendPacket(byte[] data) {
 			AddressFamily addressFamily = getPacketFamily(data);
 
 			if (addressFamily == AddressFamily.InterNetwork) {
@@ -142,7 +141,6 @@ namespace Nabla {
 				if (m == null) {
 					Console.WriteLine("Unmapped connection, add mapping");
 					m = new NATMapping(packet.ProtocolType,
-					                   source,
 					                   packet.SourceAddress,
 					                   packet.IntNatID);
 					_mapper.AddMapping(m);
@@ -157,17 +155,6 @@ namespace Nabla {
 
 				/* Override the original data packet */
 				data = packet.Bytes;
-			} else {
-				/* Get the source address of the IPv6 packet */
-				byte[] ipaddress = new byte[16];
-				Array.Copy(data, 8, ipaddress, 0, 16);
-				IPAddress addr = new IPAddress(ipaddress);
-
-				/* If the source IPv6 address is not found from the mapping,
-				 * map it to the source endpoint (tunnel endpoint) correctly */
-				if (!_ipv6map.ContainsKey(addr)) {
-					_ipv6map.Add(addr, source);
-				}
 			}
 
 			/* FIXME: Catch exceptions */
@@ -176,8 +163,6 @@ namespace Nabla {
 
 		private void receivePacket(byte[] data) {
 			AddressFamily addressFamily = getPacketFamily(data);
-
-			IPEndPoint destination;
 			if (addressFamily == AddressFamily.InterNetwork) {
 				NATPacket packet;
 				try {
@@ -201,26 +186,10 @@ namespace Nabla {
 				packet.DestinationAddress = m.InternalAddress;
 				packet.ExtNatID = m.InternalID;
 
-				destination = m.ClientEndPoint;
 				data = packet.Bytes;
-			} else {
-				/* Get the destination address of the packet */
-				byte[] ipaddress = new byte[16];
-				Array.Copy(data, 24, ipaddress, 0, 16);
-				IPAddress addr = new IPAddress(ipaddress);
-
-				/* If the packet is sent to an unknown IPv6 destination, simply
-				 * drop the packet from sending data. */
-				// FIXME: Should handle multicast
-				if (!_ipv6map.ContainsKey(addr)) {
-					return;
-				}
-
-				/* Get the (tunnel) endpoint from mapping */
-				destination = _ipv6map[addr];
 			}
 
-			_callback(destination, data);
+			_callback(data, 0, data.Length);
 		}
 
 		private AddressFamily getPacketFamily(byte[] data) {

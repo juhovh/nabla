@@ -33,7 +33,6 @@ namespace Nabla {
 
 		private Object _sessionlock = new Object();
 		private Dictionary<Int64, TunnelSession> _sessions = new Dictionary<Int64, TunnelSession>();
-		private Dictionary<IPEndPoint, TunnelSession> _endpoints = new Dictionary<IPEndPoint, TunnelSession>();
 
 		public SessionManager() {
 		}
@@ -65,17 +64,6 @@ namespace Nabla {
 
 		public void AddSession(TunnelSession session) {
 			_sessions[session.TunnelId] = session;
-			if (session.EndPoint != null) {
-				_endpoints[session.EndPoint] = session;
-			}
-		}
-
-		public Int64 TunnelIdFromEndPoint(IPEndPoint endPoint) {
-			if (!_endpoints.ContainsKey(endPoint)) {
-				return -1;
-			}
-
-			return _endpoints[endPoint].TunnelId;
 		}
 
 		public Int64 TunnelIdFromAddress(IPAddress remoteAddress) {
@@ -107,11 +95,8 @@ namespace Nabla {
 		public void UpdateSession(IPAddress remoteAddress, IPEndPoint endPoint) {
 			Int64 tunnelId = TunnelIdFromAddress(remoteAddress);
 			TunnelSession session = _sessions[tunnelId];
-			
-			if (session.EndPoint != null && _endpoints.ContainsKey(session.EndPoint)) {
-				_endpoints.Remove(session.EndPoint);
-			}
-			_endpoints[endPoint] = session;
+			session.EndPoint = endPoint;
+			// XXX: Update the last alive
 		}
 
 		public string GetSessionPassword(Int64 tunnelId) {
@@ -244,27 +229,56 @@ namespace Nabla {
 			}
 		}
 
-		private bool sessionAlive(IPEndPoint endPoint) {
-			return _endpoints.ContainsKey(endPoint);
-		}
-
 		/* Incoming packet from an InputDevice.
 		 * type - type of the tunnel sending this data through, indicates the encapsulation type
 		 * source - the source address and port where the encapsulated packet is originally coming from
 		 * data - actual packet bytes
 		 * offset - offset where the actual data of the packet begins
 		 * length - length of the data in bytes */
-		public void PacketFromInputDevice(IPEndPoint source, byte[] data, int offset, int length) {
-			if (!sessionAlive(source)) {
+		public void PacketFromInputDevice(byte[] data, int offset, int length) {
+			if (offset+length > data.Length) {
+				/* Not enough data to work on */
 				return;
 			}
+
+			IPAddress source;
+			int version = ((data[offset]&0xff) >> 4);
+			if (version == 4) {
+				if (length < 20) {
+					/* Not enough bytes for IPv4 header */
+					return;
+				}
+
+				byte[] ipaddr = new byte[4];
+				Array.Copy(data, offset+12, ipaddr, 0, 4);
+				source = new IPAddress(ipaddr);
+			} else if (version == 6) {
+				if (length < 40) {
+					/* Not enough bytes for IPv6 header */
+					return;
+				}
+
+				byte[] ipaddr = new byte[16];
+				Array.Copy(data, offset+8, ipaddr, 0, 16);
+				source = new IPAddress(ipaddr);
+			} else {
+				/* Unknown protocol version */
+				return;
+			}
+
+			Int64 tunnelId = TunnelIdFromAddress(source);
+			if (tunnelId < 0) {
+				return;
+			}
+
+			// XXX: Should check if the session is alive
 
 			byte[] outdata = new byte[length];
 			Array.Copy(data, offset, outdata, 0, length);
 
 			foreach (OutputDevice dev in _outputDevices) {
 				try {
-					dev.SendPacket(source, outdata);
+					dev.SendPacket(outdata);
 				} catch (Exception e) {
 					Console.WriteLine("Exception sending packet: " + e);
 				}
@@ -272,19 +286,57 @@ namespace Nabla {
 		}
 
 		/* Incoming packet from an OutputDevice.
-		 * family - the address family of the data packet that was received
-		 * destination - the destination address and port where the encapsulated tunnel packet should be sent
 		 * data - actual packet bytes */
-		private void packetFromOutputDevice(IPEndPoint destination, byte[] data) {
-			if (!sessionAlive(destination)) {
+		private void packetFromOutputDevice(byte[] data, int offset, int length) {
+			if (offset+length > data.Length) {
+				/* Not enough data to work on */
 				return;
 			}
 
-			TunnelSession session = _endpoints[destination];
+			IPAddress destination;
+			int version = ((data[offset]&0xff) >> 4);
+			if (version == 4) {
+				if (length < 20) {
+					/* Not enough bytes for IPv4 header */
+					return;
+				}
+
+				byte[] ipaddr = new byte[4];
+				Array.Copy(data, offset+16, ipaddr, 0, 4);
+				destination = new IPAddress(ipaddr);
+			} else if (version == 6) {
+				if (length < 40) {
+					/* Not enough bytes for IPv6 header */
+					return;
+				}
+
+				byte[] ipaddr = new byte[16];
+				Array.Copy(data, offset+24, ipaddr, 0, 16);
+				destination = new IPAddress(ipaddr);
+			} else {
+				/* Unknown protocol version */
+				return;
+			}
+
+			Int64 tunnelId = TunnelIdFromAddress(destination);
+			if (tunnelId < 0) {
+				return;
+			}
+
+			if (!_sessions.ContainsKey(tunnelId)) {
+				return;
+			}
+
+			// XXX: Should check if the session is alive
+
+			byte[] outdata = new byte[length];
+			Array.Copy(data, offset, outdata, 0, length);
+
+			TunnelSession session = _sessions[tunnelId];
 			foreach (InputDevice dev in _inputDevices) {
 				foreach (TunnelType t in dev.GetSupportedTypes()) {
 					if (t == session.TunnelType) {
-						dev.SendPacket(destination, data);
+						dev.SendPacket(tunnelId, session.EndPoint, data);
 						break;
 					}
 				}

@@ -26,7 +26,6 @@ namespace Nabla {
 		public readonly ProtocolType Protocol;
 		public DateTime LastActive;
 
-		public readonly IPEndPoint ClientEndPoint;
 		public readonly IPAddress InternalAddress;
 		public readonly UInt16 InternalID;
 
@@ -34,11 +33,9 @@ namespace Nabla {
 		public UInt16 ExternalID;
 
 		public NATMapping(ProtocolType protocol,
-				  IPEndPoint endPoint,
 				  IPAddress internalIP,
 				  UInt16 id) {
 			Protocol = protocol;
-			ClientEndPoint = endPoint;
 			InternalAddress = internalIP;
 			InternalID = id;
 		}
