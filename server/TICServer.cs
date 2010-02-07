@@ -67,7 +67,6 @@ namespace Nabla {
 				foreach (TunnelInfo t in tunnels) {
 
 					/* Get the IPv6 address that is reserved for the server and this tunnel endpoint */
-					IPAddress localAddress = sessionManager.GetIPv6TunnelLocalAddress(t.TunnelId);
 					IPAddress remoteAddress = sessionManager.GetIPv6TunnelRemoteAddress(t.TunnelId);
 
 					/* AYIYA and Heartbeat both require sessions to be available */
@@ -86,11 +85,9 @@ namespace Nabla {
 					TunnelSession session = null;
 					if (t.Endpoint.Equals("ayiya")) {
 						session = new TunnelSession(t.TunnelId, TunnelType.AyiyaIPv6,
-						                            localAddress, remoteAddress,
 						                            t.Password);
 					} else if (t.Endpoint.Equals("heartbeat")) {
 						session = new TunnelSession(t.TunnelId, TunnelType.Heartbeat,
-						                            localAddress, remoteAddress,
 						                            t.Password);
 					} else {
 						IPAddress address = IPAddress.Parse(t.Endpoint);
@@ -103,9 +100,7 @@ namespace Nabla {
 							type = TunnelType.IPv4inIPv6;
 						}
 
-						session = new TunnelSession(t.TunnelId, type,
-						                            localAddress, remoteAddress,
-						                            endPoint);
+						session = new TunnelSession(t.TunnelId, type, endPoint);
 					}
 
 					sessionManager.AddSession(session);

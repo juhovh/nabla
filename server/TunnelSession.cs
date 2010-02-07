@@ -30,12 +30,10 @@ namespace Nabla {
 		public readonly AddressFamily AddressFamily;
 		public IPEndPoint EndPoint = null;
 
-		public readonly IPAddress LocalAddress = null;
-		public readonly IPAddress RemoteAddress = null;
 		public readonly string Password = null;
 		public DateTime LastAlive;
 
-		private TunnelSession(Int64 id, TunnelType type, IPAddress localAddress, IPAddress remoteAddress) {
+		private TunnelSession(Int64 id, TunnelType type) {
 			TunnelId = id;
 			TunnelType = type;
 			switch (type) {
@@ -54,29 +52,23 @@ namespace Nabla {
 				throw new Exception("Unknown tunnel type: " + type);
 			}
 			LastAlive = DateTime.Now;
-
-			LocalAddress = localAddress;
-			RemoteAddress = remoteAddress;
 		}
 
-		public TunnelSession(Int64 id, TunnelType type, IPAddress localAddress, IPAddress remoteAddress, string password) :
-				this(id, type, localAddress, remoteAddress) {
+		public TunnelSession(Int64 id, TunnelType type, string password) : this(id, type) {
 			Password = password;
 		}
 
-		public TunnelSession(Int64 id, TunnelType type, IPAddress localAddress, IPAddress remoteAddress, IPEndPoint endPoint) :
-				this(id, type, localAddress, remoteAddress) {
+		public TunnelSession(Int64 id, TunnelType type, IPEndPoint endPoint) : this(id, type) {
 			EndPoint = endPoint;
 		}
 
 		public override string ToString() {
 			string ret = "";
 
+			ret += "TunnelId: " + TunnelId + "\n";
 			ret += "TunnelType: " + TunnelType + "\n";
 			ret += "AddressFamily: " + AddressFamily + "\n";
 			ret += "EndPoint: " + EndPoint + "\n";
-			ret += "LocalAddress: " + LocalAddress + "\n";
-			ret += "RemoteAddress: " + RemoteAddress + "\n";
 			ret += "Password: " + Password + "\n";
 			ret += "LastAlive: " + LastAlive.ToString("s");
 
