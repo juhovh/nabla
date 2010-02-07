@@ -230,8 +230,6 @@ namespace Nabla {
 		}
 
 		/* Incoming packet from an InputDevice.
-		 * type - type of the tunnel sending this data through, indicates the encapsulation type
-		 * source - the source address and port where the encapsulated packet is originally coming from
 		 * data - actual packet bytes
 		 * offset - offset where the actual data of the packet begins
 		 * length - length of the data in bytes */
@@ -286,7 +284,9 @@ namespace Nabla {
 		}
 
 		/* Incoming packet from an OutputDevice.
-		 * data - actual packet bytes */
+		 * data - actual packet bytes
+		 * offset - offset where the actual data of the packet begins
+		 * length - length of the data in bytes */
 		private void packetFromOutputDevice(byte[] data, int offset, int length) {
 			if (offset+length > data.Length) {
 				/* Not enough data to work on */
