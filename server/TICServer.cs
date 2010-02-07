@@ -85,11 +85,11 @@ namespace Nabla {
 
 					TunnelSession session = null;
 					if (t.Endpoint.Equals("ayiya")) {
-						session = new TunnelSession(TunnelType.AyiyaIPv6,
+						session = new TunnelSession(t.TunnelId, TunnelType.AyiyaIPv6,
 						                            localAddress, remoteAddress,
 						                            t.Password);
 					} else if (t.Endpoint.Equals("heartbeat")) {
-						session = new TunnelSession(TunnelType.Heartbeat,
+						session = new TunnelSession(t.TunnelId, TunnelType.Heartbeat,
 						                            localAddress, remoteAddress,
 						                            t.Password);
 					} else {
@@ -103,7 +103,9 @@ namespace Nabla {
 							type = TunnelType.IPv4inIPv6;
 						}
 
-						session = new TunnelSession(type, endPoint);
+						session = new TunnelSession(t.TunnelId, type,
+						                            localAddress, remoteAddress,
+						                            endPoint);
 					}
 
 					sessionManager.AddSession(session);
@@ -134,7 +136,7 @@ namespace Nabla {
 			}
 		}
 
-		public override void SendPacket(TunnelSession session, byte[] data) {
+		public override void SendPacket(IPEndPoint endPoint, byte[] data) {
 			/* Never called because we have no types set */
 			throw new Exception("Send packet called on TICServer");
 		}
