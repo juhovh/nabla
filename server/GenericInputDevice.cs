@@ -280,13 +280,11 @@ namespace Nabla {
 			}
 
 			int length = hlen;
-			if (data[3] == 4) { /* IPPROTO_IPIP */
+			if (data[3] == 4 && datalen >= hlen+20) { /* IPPROTO_IPIP */
 				/* In case of IPv4, add the total length */
-				/* XXX: possible indexoutofbounds */
 				length += data[length+2]*256 + data[length+3];
-			} else if (data[3] == 41) { /* IPPROTO_IPV6 */
+			} else if (data[3] == 41 && datalen >= hlen+40) { /* IPPROTO_IPV6 */
 				/* In case of IPv6, add the header and payload lengths */
-				/* XXX: possible indexoutofbounds */
 				length += 40 + data[length+4]*256 + data[length+5];
 			} else if (data[3] == 59) { /* IPPROTO_NONE */
 				/* In case of no content, opcode should be nop or echo response */
@@ -294,7 +292,7 @@ namespace Nabla {
 					return;
 				}
 			} else {
-				Console.WriteLine("Unknown next header in AYIYA packet: " + data[3]);
+				Console.WriteLine("Invalid next header in AYIYA packet: " + data[3]);
 				return;
 			}
 
