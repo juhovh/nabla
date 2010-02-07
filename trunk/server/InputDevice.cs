@@ -26,7 +26,7 @@ namespace Nabla {
 		public abstract TunnelType[] GetSupportedTypes();
 		public abstract void Start();
 		public abstract void Stop();
-		public abstract void SendPacket(TunnelSession session, byte[] data);
+		public abstract void SendPacket(IPEndPoint endPoint, byte[] data);
 
 		public static IPEndPoint GetIPEndPoint(EndPoint ep) {
 			IPEndPoint endPoint = (IPEndPoint) ep;

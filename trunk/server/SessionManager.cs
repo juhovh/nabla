@@ -32,18 +32,10 @@ namespace Nabla {
 		private List<OutputDevice> _outputDevices = new List<OutputDevice>();
 
 		private Object _sessionlock = new Object();
-		private List<TunnelSession> _uninitiatedSessions = new List<TunnelSession>();
-		private Dictionary<TunnelType, Dictionary<IPEndPoint, TunnelSession>> _sessions
-			= new Dictionary<TunnelType, Dictionary<IPEndPoint, TunnelSession>>();
-		private Dictionary<AddressFamily, Dictionary<IPEndPoint, TunnelSession>> _rsessions
-			= new Dictionary<AddressFamily, Dictionary<IPEndPoint, TunnelSession>>();
+		private Dictionary<Int64, TunnelSession> _sessions = new Dictionary<Int64, TunnelSession>();
+		private Dictionary<IPEndPoint, TunnelSession> _endpoints = new Dictionary<IPEndPoint, TunnelSession>();
 
 		public SessionManager() {
-			/* Only these two protocols are supported, so we can add both */
-			_rsessions.Add(AddressFamily.InterNetwork,
-			               new Dictionary<IPEndPoint, TunnelSession>());
-			_rsessions.Add(AddressFamily.InterNetworkV6,
-			               new Dictionary<IPEndPoint, TunnelSession>());
 		}
 
 		public void AddInputDevice(InputDevice dev) {
@@ -53,18 +45,9 @@ namespace Nabla {
 				}
 
 				lock (_sessionlock) {
-					bool missing = true;
-
+					// Check that this type is not already added
 					dev.SetSessionManager(this);
-					foreach (TunnelType t in dev.GetSupportedTypes()) {
-						/* If this TunnelType is not in sessions table, add it there */
-						if (!_sessions.ContainsKey(t)) {
-							_sessions.Add(t, new Dictionary<IPEndPoint, TunnelSession>());
-							missing = true;
-						}
-					}
-
-					if (missing || dev.GetSupportedTypes().Length == 0) {
+					if (dev.GetSupportedTypes().Length == 0) {
 						_inputDevices.Add(dev);
 					}
 				}
@@ -83,99 +66,53 @@ namespace Nabla {
 		}
 
 		public void AddSession(TunnelSession session) {
-			lock (_sessionlock) {
-				if (!_sessions.ContainsKey(session.TunnelType)) {
-					throw new Exception("Session with unconfigured type: " + session.TunnelType);
-				}
-
-				if (session.EndPoint == null && session.Password != null) {
-					/* EndPoint not known, wait for first packet */
-					_uninitiatedSessions.Add(session);
-				} else if (session.EndPoint != null) {
-					if (_sessions[session.TunnelType].ContainsKey(session.EndPoint)) {
-						throw new Exception("Session with type " + session.TunnelType +
-						                    " and EndPoint " + session.EndPoint +
-						                    " already exists");
-					}
-
-					if (_rsessions[session.AddressFamily].ContainsKey(session.EndPoint)) {
-						throw new Exception("Session with family " + session.AddressFamily +
-						                    " and EndPoint " + session.EndPoint +
-						                    " already exists");
-					}
-
-					_sessions[session.TunnelType][session.EndPoint] = session;
-					_rsessions[session.AddressFamily][session.EndPoint] = session;
-				} else {
-					throw new Exception("Session without EndPoint and Password");
-				}
-
-				Console.WriteLine("\nModified session:\n" + session + "\n");
-			}
+			_sessions[session.TunnelId] = session;
 		}
 
-		/* This is simply a helper function that changes the endpoint and then adds
-		 * the session to the session arrays. It's here because the updated session
-		 * might be an unitialized session that needs to be added. This is ugly though */
-		public bool UpdateSession(TunnelSession session, IPEndPoint endpoint) {
-			try {
-				session.EndPoint = endpoint;
-				AddSession(session);
-				return true;
-			} catch (Exception) {}
+		public Int64 TunnelIdFromEndPoint(IPEndPoint endPoint) {
+			if (!_endpoints.ContainsKey(endPoint)) {
+				return -1;
+			}
 
-			return false;
+			return _endpoints[endPoint].TunnelId;
 		}
 
-		public TunnelSession GetSession(TunnelType type, IPEndPoint source, IPAddress address) {
-			lock (_sessionlock) {
-				Console.WriteLine("Getting session for type " + type);
-				if (_sessions[type].ContainsKey(source)) {
-					return _sessions[type][source];
-				}
+		public Int64 TunnelIdFromAddress(IPAddress remoteAddress) {
+			Int64 tunnelId = 0;
 
-				if (address == null) {
-					/* Unable to fetch by address */
-					return null;
-				}
+			if (remoteAddress.AddressFamily == AddressFamily.InterNetwork) {
+				byte[] addrBytes = remoteAddress.GetAddressBytes();
 
-				foreach (TunnelSession ts in _sessions[type].Values) {
-					IPAddress gwaddr = ts.RemoteAddress;
-					if (gwaddr != null && gwaddr.Equals(address)) {
-						_sessions[ts.TunnelType].Remove(ts.EndPoint);
-						_rsessions[ts.AddressFamily].Remove(ts.EndPoint);
-						return ts;
-					}
-				}
+				tunnelId += (Int64) (addrBytes[1] << 14);
+				tunnelId += (Int64) (addrBytes[2] << 6);
+				tunnelId += (Int64) ((addrBytes[3]&0xfc) >> 2);
+			} else if (remoteAddress.AddressFamily == AddressFamily.InterNetworkV6) {
+				byte[] addrBytes = remoteAddress.GetAddressBytes();
 
-				foreach (TunnelSession ts in _uninitiatedSessions) {
-					if (type == ts.TunnelType && address.Equals(ts.RemoteAddress)) {
-						_uninitiatedSessions.Remove(ts);
-						return ts;
-					}
-				}
+				tunnelId += (Int64) (addrBytes[10] << 16);
+				tunnelId += (Int64) (addrBytes[11] << 8);
+				tunnelId += (Int64) (addrBytes[12]);
+			} else {
+				return -1;
 			}
 
-			return null;
+			if (!_sessions.ContainsKey(tunnelId)) {
+				return -1;
+			}
+
+			return tunnelId;
 		}
 
-		private bool sessionAlive(TunnelType type, IPEndPoint source) {
-			TunnelSession session = null;
-			lock (_sessionlock) {
-				try {
-					session = _sessions[type][source];
-				} catch (Exception) {
-					return false;
-				}
-			}
+		public void UpdateSession(IPAddress remoteAddress, IPEndPoint endPoint) {
+			Int64 tunnelId = TunnelIdFromAddress(remoteAddress);
+			TunnelSession session = _sessions[tunnelId];
+			_endpoints[session.EndPoint] = null;
+			_endpoints[endPoint] = session;
+		}
 
-
-			/* XXX: Check that the session is alive by setting some timeout value... */
-			if (DateTime.Now - session.LastAlive > TimeSpan.Zero) {
-				return true;
-			}
-
-			return false;
+		public string GetSessionPassword(Int64 tunnelId) {
+			// XXX: Check that the session exists
+			return _sessions[tunnelId].Password;
 		}
 
 		public bool IPv4IsAvailable {
@@ -303,14 +240,18 @@ namespace Nabla {
 			}
 		}
 
+		private bool sessionAlive(IPEndPoint endPoint) {
+			return _endpoints.ContainsKey(endPoint);
+		}
+
 		/* Incoming packet from an InputDevice.
 		 * type - type of the tunnel sending this data through, indicates the encapsulation type
 		 * source - the source address and port where the encapsulated packet is originally coming from
 		 * data - actual packet bytes
 		 * offset - offset where the actual data of the packet begins
 		 * length - length of the data in bytes */
-		public void PacketFromInputDevice(TunnelType type, IPEndPoint source, byte[] data, int offset, int length) {
-			if (!sessionAlive(type, source)) {
+		public void PacketFromInputDevice(IPEndPoint source, byte[] data, int offset, int length) {
+			if (!sessionAlive(source)) {
 				return;
 			}
 
@@ -330,22 +271,16 @@ namespace Nabla {
 		 * family - the address family of the data packet that was received
 		 * destination - the destination address and port where the encapsulated tunnel packet should be sent
 		 * data - actual packet bytes */
-		private void packetFromOutputDevice(AddressFamily family, IPEndPoint destination, byte[] data) {
-			TunnelSession session;
-
-			lock (_sessionlock) {
-				try {
-					session = _rsessions[family][destination];
-				} catch (Exception) {
-					/* Unknown protocol or destination, drop packet */
-					return;
-				}
+		private void packetFromOutputDevice(IPEndPoint destination, byte[] data) {
+			if (!sessionAlive(destination)) {
+				return;
 			}
 
+			TunnelSession session = _endpoints[destination];
 			foreach (InputDevice dev in _inputDevices) {
 				foreach (TunnelType t in dev.GetSupportedTypes()) {
 					if (t == session.TunnelType) {
-						dev.SendPacket(session, data);
+						dev.SendPacket(destination, data);
 						break;
 					}
 				}

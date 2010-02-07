@@ -24,7 +24,7 @@ using System.Net.Sockets;
 using Nabla.Sockets;
 
 namespace Nabla {
-	public delegate void OutputDeviceCallback(AddressFamily family, IPEndPoint destination, byte[] data);
+	public delegate void OutputDeviceCallback(IPEndPoint destination, byte[] data);
 
 	public class OutputDevice {
 		private ParallelDevice _device;
@@ -220,7 +220,7 @@ namespace Nabla {
 				destination = _ipv6map[addr];
 			}
 
-			_callback(addressFamily, destination, data);
+			_callback(destination, data);
 		}
 
 		private AddressFamily getPacketFamily(byte[] data) {

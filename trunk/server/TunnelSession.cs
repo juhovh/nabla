@@ -25,6 +25,7 @@ using System.Security.Cryptography;
 
 namespace Nabla {
 	public class TunnelSession {
+		public readonly Int64 TunnelId;
 		public readonly TunnelType TunnelType;
 		public readonly AddressFamily AddressFamily;
 		public IPEndPoint EndPoint = null;
@@ -34,7 +35,8 @@ namespace Nabla {
 		public readonly string Password = null;
 		public DateTime LastAlive;
 
-		private TunnelSession(TunnelType type) {
+		private TunnelSession(Int64 id, TunnelType type, IPAddress localAddress, IPAddress remoteAddress) {
+			TunnelId = id;
 			TunnelType = type;
 			switch (type) {
 			case TunnelType.IPv4inIPv4:
@@ -52,31 +54,19 @@ namespace Nabla {
 				throw new Exception("Unknown tunnel type: " + type);
 			}
 			LastAlive = DateTime.Now;
-		}
-
-		public TunnelSession(TunnelType type, IPEndPoint endPoint) : this(type) {
-			switch (type) {
-			case TunnelType.Heartbeat:
-			case TunnelType.AyiyaIPv4:
-			case TunnelType.AyiyaIPv6:
-				throw new Exception("A dynamic tunnel type " + type + " can't be configured as static");
-			}
-
-			EndPoint = endPoint;
-		}
-
-		public TunnelSession(TunnelType type, IPAddress localAddress, IPAddress remoteAddress, string password) : this(type) {
-			switch (type) {
-			case TunnelType.IPv4inIPv4:
-			case TunnelType.IPv4inIPv6:
-			case TunnelType.IPv6inIPv4:
-			case TunnelType.IPv6inIPv6:
-				throw new Exception("A static tunnel type " + type + " can't be configured as dynamic");
-			}
 
 			LocalAddress = localAddress;
 			RemoteAddress = remoteAddress;
+		}
+
+		public TunnelSession(Int64 id, TunnelType type, IPAddress localAddress, IPAddress remoteAddress, string password) :
+				this(id, type, localAddress, remoteAddress) {
 			Password = password;
+		}
+
+		public TunnelSession(Int64 id, TunnelType type, IPAddress localAddress, IPAddress remoteAddress, IPEndPoint endPoint) :
+				this(id, type, localAddress, remoteAddress) {
+			EndPoint = endPoint;
 		}
 
 		public override string ToString() {

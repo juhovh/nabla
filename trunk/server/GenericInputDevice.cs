@@ -122,9 +122,18 @@ namespace Nabla {
 			_thread.Join();
 		}
 
-		public override void SendPacket(TunnelSession session, byte[] data) {
+		public override void SendPacket(IPEndPoint endPoint, byte[] data) {
 			if (_type == GenericInputType.Ayiya) {
+				Int64 tunnelId = _sessionManager.TunnelIdFromEndPoint(endPoint);
+				if (tunnelId < 0) {
+					Console.WriteLine("Packet to unknown tunnel id");
+					return;
+				}
+
 				/* FIXME: not necessarily IPv6 */
+				IPAddress localAddress = _sessionManager.GetIPv6TunnelLocalAddress(tunnelId);
+				string password = _sessionManager.GetSessionPassword(tunnelId);
+
 				int datalen = 40 + data[4]*256 + data[5];
 
 				byte[] outdata = new byte[44 + datalen];
@@ -138,10 +147,10 @@ namespace Nabla {
 				outdata[5] = (byte) (epochnow >> 16);
 				outdata[6] = (byte) (epochnow >> 8);
 				outdata[7] = (byte) (epochnow);
-				Array.Copy(session.LocalAddress.GetAddressBytes(), 0, outdata, 8, 16);
+				Array.Copy(localAddress.GetAddressBytes(), 0, outdata, 8, 16);
 
 				SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
-				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
+				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(password));
 
 				int hashOffset = 8 + (outdata[0] >> 4)*4;
 				Array.Copy(passwdHash, 0, outdata, hashOffset, 20);
@@ -150,9 +159,9 @@ namespace Nabla {
 				byte[] ourHash = sha1.ComputeHash(outdata, 0, outdata.Length);
 				Array.Copy(ourHash, 0, outdata, hashOffset, 20);
 
-				_udpSocket.SendTo(outdata, session.EndPoint);
+				_udpSocket.SendTo(outdata, endPoint);
 			} else {
-				_rawSocket.SendTo(data, session.EndPoint);
+				_rawSocket.SendTo(data, endPoint);
 			}
 		}
 
@@ -193,40 +202,11 @@ namespace Nabla {
 					if (!_rawSocket.WaitForReadable())
 						continue;
 
-					TunnelType tunnelType;
-					switch (_type) {
-					case GenericInputType.IPv4inIPv4:
-						tunnelType = TunnelType.IPv4inIPv4;
-						break;
-					case GenericInputType.IPv6inIPv4:
-						tunnelType = TunnelType.IPv6inIPv4;
-						break;
-					case GenericInputType.IPv4inIPv6:
-						tunnelType = TunnelType.IPv4inIPv6;
-						break;
-					case GenericInputType.IPv6inIPv6:
-						tunnelType = TunnelType.IPv6inIPv6;
-						break;
-					default:
-						throw new Exception("Unsupported input type: " + _type);
-					}
-
 					IPEndPoint endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);;
 					int datalen = _rawSocket.ReceiveFrom(data, ref endPoint);
 					Console.WriteLine("Received a packet from {0}", endPoint);
 
-					if (tunnelType == TunnelType.IPv6inIPv4) {
-						TunnelSession session;
-						session = _sessionManager.GetSession(TunnelType.Heartbeat,
-						                                     endPoint, null);
-						if (session != null) {
-							/* Heartbeat session alive with this endpoint */
-							Console.WriteLine("IPv6inIPv4 packet to Heartbeat session");
-							tunnelType = TunnelType.Heartbeat;
-						}
-					}
-
-					_sessionManager.PacketFromInputDevice(tunnelType, endPoint, data, 0, datalen);
+					_sessionManager.PacketFromInputDevice(endPoint, data, 0, datalen);
 				}
 			}
 		}
@@ -279,8 +259,8 @@ namespace Nabla {
 				return;
 			}
 
-			TunnelSession session = _sessionManager.GetSession(TunnelType.Heartbeat, source, identifier);
-			if (session == null) {
+			Int64 tunnelId = _sessionManager.TunnelIdFromAddress(identifier);
+			if (tunnelId < 0) {
 				/* Invalid or timed out session */
 				Console.WriteLine("Session for Heartbeat not found");
 				return;
@@ -288,7 +268,7 @@ namespace Nabla {
 
 			string theirHashStr = str.Substring(str.Length-32, 32);
 			str = str.Substring(0, str.Length-32);
-			str += session.Password;
+			str += _sessionManager.GetSessionPassword(tunnelId);
 
 			MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider();
 			byte[] ourHash = md5.ComputeHash(Encoding.ASCII.GetBytes(str));
@@ -299,7 +279,7 @@ namespace Nabla {
 				return;
 			}
 
-			_sessionManager.UpdateSession(session, source);
+			_sessionManager.UpdateSession(identifier, source);
 		}
 
 		private void handleAyiyaPacket(IPEndPoint source, byte[] data, int datalen) {
@@ -318,17 +298,14 @@ namespace Nabla {
 			}
 
 			int length = hlen;
-			TunnelType tunnelType = TunnelType.Unknown;
 			if (data[3] == 4) { /* IPPROTO_IPIP */
 				/* In case of IPv4, add the total length */
 				/* XXX: possible indexoutofbounds */
 				length += data[length+2]*256 + data[length+3];
-				tunnelType = TunnelType.AyiyaIPv4;
 			} else if (data[3] == 41) { /* IPPROTO_IPV6 */
 				/* In case of IPv6, add the header and payload lengths */
 				/* XXX: possible indexoutofbounds */
 				length += 40 + data[length+4]*256 + data[length+5];
-				tunnelType = TunnelType.AyiyaIPv6;
 			} else if (data[3] == 59) { /* IPPROTO_NONE */
 				/* In case of no content, opcode should be nop or echo response */
 				if ((data[2] & 0x0f) != 0 && (data[2] & 0x0f) != 4) {
@@ -355,29 +332,16 @@ namespace Nabla {
 			Array.Copy(data, 8, ipaddr, 0, ipaddr.Length);
 			IPAddress identifier = new IPAddress(ipaddr);
 
-			TunnelSession session;
-			if (tunnelType == TunnelType.Unknown) {
-				/* This is a packet with no protocol, try to determine the type */
-				session = _sessionManager.GetSession(TunnelType.AyiyaIPv4, source, identifier);
-				if (session != null) {
-					tunnelType = TunnelType.AyiyaIPv4;
-				} else {
-					session = _sessionManager.GetSession(TunnelType.AyiyaIPv6, source, identifier);
-					if (session != null) {
-						tunnelType = TunnelType.AyiyaIPv6;
-					}
-				}
-			} else {
-				session = _sessionManager.GetSession(tunnelType, source, identifier);
-			}
-			if (session == null) {
+			Int64 tunnelId = _sessionManager.TunnelIdFromAddress(identifier);
+			if (tunnelId < 0) {
 				/* Invalid or timed out session */
 				Console.WriteLine("Session for AYIYA not found");
 				return;
 			}
 
 			SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
-			byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(session.Password));
+			string passwd = _sessionManager.GetSessionPassword(tunnelId);
+			byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(passwd));
 
 			/* Replace the hash with password hash */
 			byte[] theirHash = new byte[20];
@@ -390,14 +354,14 @@ namespace Nabla {
 				Console.WriteLine("Incorrect AYIYA hash");
 				return;
 			}
-			_sessionManager.UpdateSession(session, source);
+			_sessionManager.UpdateSession(identifier, source);
 
 			/* In case of NOP act like it would be a heartbeat */
 			if ((data[2] & 0x0f) == 0) {
 				return;
 			}
 
-			_sessionManager.PacketFromInputDevice(tunnelType, source, data, hlen, datalen-hlen);
+			_sessionManager.PacketFromInputDevice(source, data, hlen, datalen-hlen);
 		}
 	}
 }
