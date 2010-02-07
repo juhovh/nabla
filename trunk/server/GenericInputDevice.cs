@@ -149,7 +149,7 @@ namespace Nabla {
 				SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider();
 				byte[] passwdHash = sha1.ComputeHash(Encoding.ASCII.GetBytes(password));
 
-				int hashOffset = 8 + identityBytes.Length*4;
+				int hashOffset = 8 + identityBytes.Length;
 				Array.Copy(passwdHash, 0, outdata, hashOffset, 20);
 				Array.Copy(data, 0, outdata, hashOffset+20, datalen);
 

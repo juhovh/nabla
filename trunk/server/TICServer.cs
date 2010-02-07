@@ -42,7 +42,7 @@ namespace Nabla {
 		public TICServer(string dbName, string deviceName, int port) {
 			_dbName = dbName;
 			_deviceName = deviceName;
-			_listener = new TcpListener(IPAddress.IPv6Any, port);
+			_listener = new TcpListener(IPAddress.Any, port);
 		}
 
 		public override void SetSessionManager(SessionManager sessionManager) {
