@@ -47,7 +47,7 @@ namespace Nabla {
 				lock (_sessionlock) {
 					// Check that this type is not already added
 					dev.SetSessionManager(this);
-					if (dev.GetSupportedTypes().Length == 0) {
+					if (dev.GetSupportedTypes().Length > 0) {
 						_inputDevices.Add(dev);
 					}
 				}
