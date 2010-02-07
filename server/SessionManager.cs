@@ -47,9 +47,7 @@ namespace Nabla {
 				lock (_sessionlock) {
 					// Check that this type is not already added
 					dev.SetSessionManager(this);
-					if (dev.GetSupportedTypes().Length > 0) {
-						_inputDevices.Add(dev);
-					}
+					_inputDevices.Add(dev);
 				}
 			}
 		}
@@ -67,6 +65,9 @@ namespace Nabla {
 
 		public void AddSession(TunnelSession session) {
 			_sessions[session.TunnelId] = session;
+			if (session.EndPoint != null) {
+				_endpoints[session.EndPoint] = session;
+			}
 		}
 
 		public Int64 TunnelIdFromEndPoint(IPEndPoint endPoint) {
@@ -106,7 +107,10 @@ namespace Nabla {
 		public void UpdateSession(IPAddress remoteAddress, IPEndPoint endPoint) {
 			Int64 tunnelId = TunnelIdFromAddress(remoteAddress);
 			TunnelSession session = _sessions[tunnelId];
-			_endpoints[session.EndPoint] = null;
+			
+			if (session.EndPoint != null && _endpoints.ContainsKey(session.EndPoint)) {
+				_endpoints.Remove(session.EndPoint);
+			}
 			_endpoints[endPoint] = session;
 		}
 
