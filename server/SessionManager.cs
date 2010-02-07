@@ -99,6 +99,11 @@ namespace Nabla {
 			// XXX: Update the last alive
 		}
 
+		public IPEndPoint GetSessionEndPoint(Int64 tunnelId) {
+			// XXX: Check that the session exists
+			return _sessions[tunnelId].EndPoint;
+		}
+
 		public string GetSessionPassword(Int64 tunnelId) {
 			// XXX: Check that the session exists
 			return _sessions[tunnelId].Password;
@@ -336,7 +341,7 @@ namespace Nabla {
 			foreach (InputDevice dev in _inputDevices) {
 				foreach (TunnelType t in dev.GetSupportedTypes()) {
 					if (t == session.TunnelType) {
-						dev.SendPacket(tunnelId, session.EndPoint, data);
+						dev.SendPacket(tunnelId, data);
 						break;
 					}
 				}
