@@ -57,7 +57,7 @@ namespace Nabla {
 			dev = new GenericInputDevice(_deviceName, GenericInputType.Heartbeat);
 			sessionManager.AddInputDevice(dev);
 */
-			dev = new GenericInputDevice(_deviceName, TunnelType.AyiyaIPv4);
+			dev = new GenericInputDevice(_deviceName, TunnelType.AYIYAinIPv4);
 			sessionManager.AddInputDevice(dev);
 
 			using (UserDatabase db = new UserDatabase(_dbName)) {
@@ -84,7 +84,7 @@ namespace Nabla {
 
 					TunnelSession session = null;
 					if (t.Endpoint.Equals("ayiya")) {
-						session = new TunnelSession(t.TunnelId, TunnelType.AyiyaIPv6,
+						session = new TunnelSession(t.TunnelId, TunnelType.AYIYAinIPv4,
 						                            t.Password);
 					} else if (t.Endpoint.Equals("heartbeat")) {
 						session = new TunnelSession(t.TunnelId, TunnelType.Heartbeat,

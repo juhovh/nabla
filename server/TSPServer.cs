@@ -94,8 +94,8 @@ namespace Nabla {
 
 		public override TunnelType[] GetSupportedTypes() {
 			if (!_ipv6) {
-				/* We will handle IPv6inUDP ourselves */
-				return new TunnelType[] { TunnelType.IPv6inUDP };
+				/* We will handle IPv6inUDPv4 ourselves */
+				return new TunnelType[] { TunnelType.IPv6inUDPv4 };
 			} else {
 				return new TunnelType[] {};
 			}
