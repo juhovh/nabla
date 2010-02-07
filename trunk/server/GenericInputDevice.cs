@@ -58,10 +58,10 @@ namespace Nabla {
 
 			switch (type) {
 			case GenericInputType.Ayiya:
-				_udpSocket = new Socket(AddressFamily.InterNetworkV6,
+				_udpSocket = new Socket(AddressFamily.InterNetwork,
 				                        SocketType.Dgram,
 				                        ProtocolType.Udp);
-				_udpSocket.Bind(new IPEndPoint(IPAddress.IPv6Any, 5072));
+				_udpSocket.Bind(new IPEndPoint(IPAddress.Any, 5072));
 				_tunnelTypes.Add(TunnelType.AyiyaIPv4);
 				_tunnelTypes.Add(TunnelType.AyiyaIPv6);
 				break;
