@@ -82,10 +82,10 @@ namespace Nabla {
 		public override void SetSessionManager(SessionManager sessionManager) {
 			InputDevice dev;
 			if (_ipv6) {
-				dev = new GenericInputDevice(_deviceName, GenericInputType.IPv4inIPv6);
+				dev = new GenericInputDevice(_deviceName, TunnelType.IPv4inIPv6);
 				sessionManager.AddInputDevice(dev);
 			} else {
-				dev = new GenericInputDevice(_deviceName, GenericInputType.IPv6inIPv4);
+				dev = new GenericInputDevice(_deviceName, TunnelType.IPv6inIPv4);
 				sessionManager.AddInputDevice(dev);
 			}
 

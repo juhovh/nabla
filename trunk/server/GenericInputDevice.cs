@@ -26,18 +26,11 @@ using System.Security.Cryptography;
 using Nabla.Sockets;
 
 namespace Nabla {
-	public enum GenericInputType {
-		Ayiya,
-		Heartbeat,
-		IPv4inIPv4,
-		IPv4inIPv6,
-		IPv6inIPv4,
-		IPv6inIPv6
-	}
-
 	public class GenericInputDevice : InputDevice {
 		private const int CLOCK_MAX_OFFSET = 120;
 		private const int waitms = 100;
+
+		private TunnelType _type;
 
 		private Thread _thread;
 		private volatile bool _running;
@@ -47,51 +40,41 @@ namespace Nabla {
 		private Socket _udpSocket = null;
 		private RawSocket _rawSocket = null;
 
-		private GenericInputType _type;
-		private List<TunnelType> _tunnelTypes = new List<TunnelType>();
-
-		public GenericInputDevice(string deviceName, GenericInputType type) {
+		public GenericInputDevice(string deviceName, TunnelType type) {
 			_type = type;
 
 			AddressFamily addressFamily = AddressFamily.Unknown;
 			int protocol = 0;
 
 			switch (type) {
-			case GenericInputType.Ayiya:
+			case TunnelType.AyiyaIPv4:
 				_udpSocket = new Socket(AddressFamily.InterNetwork,
 				                        SocketType.Dgram,
 				                        ProtocolType.Udp);
 				_udpSocket.Bind(new IPEndPoint(IPAddress.Any, 5072));
-				_tunnelTypes.Add(TunnelType.AyiyaIPv4);
-				_tunnelTypes.Add(TunnelType.AyiyaIPv6);
 				break;
-			case GenericInputType.Heartbeat:
+			case TunnelType.Heartbeat:
 				addressFamily = AddressFamily.InterNetwork;
 				_udpSocket = new Socket(AddressFamily.InterNetwork,
 				                        SocketType.Dgram,
 				                        ProtocolType.Udp);
 				_udpSocket.Bind(new IPEndPoint(IPAddress.Any, 3740));
-				_tunnelTypes.Add(TunnelType.Heartbeat);
 				break;
-			case GenericInputType.IPv4inIPv4:
+			case TunnelType.IPv4inIPv4:
 				addressFamily = AddressFamily.InterNetwork;
 				protocol = 4;
-				_tunnelTypes.Add(TunnelType.IPv4inIPv4);
 				break;
-			case GenericInputType.IPv4inIPv6:
+			case TunnelType.IPv4inIPv6:
 				addressFamily = AddressFamily.InterNetworkV6;
 				protocol = 4;
-				_tunnelTypes.Add(TunnelType.IPv4inIPv6);
 				break;
-			case GenericInputType.IPv6inIPv4:
+			case TunnelType.IPv6inIPv4:
 				addressFamily = AddressFamily.InterNetwork;
 				protocol = 41;
-				_tunnelTypes.Add(TunnelType.IPv6inIPv4);
 				break;
-			case GenericInputType.IPv6inIPv6:
+			case TunnelType.IPv6inIPv6:
 				addressFamily = AddressFamily.InterNetworkV6;
 				protocol = 41;
-				_tunnelTypes.Add(TunnelType.IPv6inIPv6);
 				break;
 			default:
 				throw new Exception("Unsupported input type: " + type);
@@ -109,7 +92,7 @@ namespace Nabla {
 		}
 
 		public override TunnelType[] GetSupportedTypes() {
-			return _tunnelTypes.ToArray();
+			return new TunnelType[] { _type };
 		}
 
 		public override void Start() {
@@ -128,8 +111,8 @@ namespace Nabla {
 				return;
 			}
 
-			if (_type == GenericInputType.Ayiya) {
-				/* FIXME: not necessarily IPv6 */
+			if (_type == TunnelType.AyiyaIPv4) {
+				// FIXME: Not necessarily IPv6, could be also IPv4
 				IPAddress localAddress = _sessionManager.GetIPv6TunnelLocalAddress(tunnelId);
 				string password = _sessionManager.GetSessionPassword(tunnelId);
 
@@ -168,7 +151,7 @@ namespace Nabla {
 			byte[] data = new byte[2048];
 
 			while (_running) {
-				if (_type == GenericInputType.Ayiya) {
+				if (_type == TunnelType.AyiyaIPv4) {
 					while (_udpSocket.Poll(waitms*1000, SelectMode.SelectRead)) {
 						EndPoint sender = (EndPoint) new IPEndPoint(IPAddress.IPv6Any, 0);
 						int datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,
@@ -184,7 +167,7 @@ namespace Nabla {
 
 						handleAyiyaPacket(endPoint, data, datalen);
 					}
-				} else if (_type == GenericInputType.Heartbeat) {
+				} else if (_type == TunnelType.Heartbeat) {
 					while (_udpSocket.Poll(waitms*1000, SelectMode.SelectRead)) {
 						EndPoint sender = (EndPoint) new IPEndPoint(IPAddress.Any, 0);
 						int datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,
