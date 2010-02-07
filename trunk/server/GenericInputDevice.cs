@@ -47,7 +47,7 @@ namespace Nabla {
 			int protocol = 0;
 
 			switch (type) {
-			case TunnelType.AyiyaIPv4:
+			case TunnelType.AYIYAinIPv4:
 				_udpSocket = new Socket(AddressFamily.InterNetwork,
 				                        SocketType.Dgram,
 				                        ProtocolType.Udp);
@@ -111,7 +111,7 @@ namespace Nabla {
 				return;
 			}
 
-			if (_type == TunnelType.AyiyaIPv4) {
+			if (_type == TunnelType.AYIYAinIPv4) {
 				// FIXME: Not necessarily IPv6, could be also IPv4
 				IPAddress localAddress = _sessionManager.GetIPv6TunnelLocalAddress(tunnelId);
 				string password = _sessionManager.GetSessionPassword(tunnelId);
@@ -151,7 +151,7 @@ namespace Nabla {
 			byte[] data = new byte[2048];
 
 			while (_running) {
-				if (_type == TunnelType.AyiyaIPv4) {
+				if (_type == TunnelType.AYIYAinIPv4) {
 					while (_udpSocket.Poll(waitms*1000, SelectMode.SelectRead)) {
 						EndPoint sender = (EndPoint) new IPEndPoint(IPAddress.IPv6Any, 0);
 						int datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,

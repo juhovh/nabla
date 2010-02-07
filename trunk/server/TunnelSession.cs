@@ -39,13 +39,13 @@ namespace Nabla {
 			switch (type) {
 			case TunnelType.IPv4inIPv4:
 			case TunnelType.IPv4inIPv6:
-			case TunnelType.AyiyaIPv4:
+			case TunnelType.AYIYAinIPv4:
 				AddressFamily = AddressFamily.InterNetwork;
 				break;
 			case TunnelType.IPv6inIPv4:
 			case TunnelType.IPv6inIPv6:
 			case TunnelType.Heartbeat:
-			case TunnelType.AyiyaIPv6:
+			case TunnelType.AYIYAinIPv6:
 				AddressFamily = AddressFamily.InterNetworkV6;
 				break;
 			default:
