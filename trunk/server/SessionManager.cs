@@ -186,17 +186,37 @@ namespace Nabla {
 		}
 
 		public IPAddress GetIPv4TunnelRemoteAddress(Int64 tunnelId) {
-			if (tunnelId > 0xffffff) {
+			if (tunnelId > 0x3fffff) {
 				return null;
 			}
 
-			/* XXX: Should check from OutputDevice that this is ok */
-			return IPAddress.Parse("10.123.45.2");
+			byte[] addrBytes = new byte[4];
+			addrBytes[0] = 10;
+			addrBytes[1] = (byte) ((tunnelId >> 14) & 0xff);
+			addrBytes[2] = (byte) ((tunnelId >>  6) & 0xff);
+			addrBytes[3] = (byte) ((tunnelId <<  2) & 0xfc);
+
+			/* Remote address is the second one in subnet */
+			addrBytes[3] |= 0x02;
+
+			return new IPAddress(addrBytes);
 		}
 
 		public IPAddress GetIPv4TunnelLocalAddress(Int64 tunnelId) {
-			/* XXX: Should check from OutputDevice that this is ok */
-			return IPAddress.Parse("10.123.45.1");
+			if (tunnelId > 0x3fffff) {
+				return null;
+			}
+
+			byte[] addrBytes = new byte[4];
+			addrBytes[0] = 10;
+			addrBytes[1] = (byte) ((tunnelId >> 14) & 0xff);
+			addrBytes[2] = (byte) ((tunnelId >>  6) & 0xff);
+			addrBytes[3] = (byte) ((tunnelId <<  2) & 0xfc);
+
+			/* Local address is the first one in subnet */
+			addrBytes[3] |= 0x01;
+
+			return new IPAddress(addrBytes);
 		}
 
 		public bool IPv6IsAvailable {
