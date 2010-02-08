@@ -23,6 +23,7 @@ using System.Text;
 using System.Net.Sockets;
 using System.Threading;
 using System.Collections.Generic;
+using Nabla.Database;
 
 namespace Nabla {
 	public class TSPServer : InputDevice {
@@ -70,6 +71,22 @@ namespace Nabla {
 			} else {
 				dev = new GenericInputDevice(_deviceName, TunnelType.IPv6inIPv4);
 				sessionManager.AddInputDevice(dev);
+			}
+
+			using (UserDatabase db = new UserDatabase(_dbName)) {
+				TunnelInfo[] tunnels = db.ListTunnels("tsp");
+
+				/* Iterate through the tunnels and add each tunnel session to the session manager */
+				foreach (TunnelInfo t in tunnels) {
+					TunnelSession session = null;
+					if (t.Endpoint.Equals("ipv6") && _ipv6) {
+						session = new TunnelSession(t.TunnelId, TunnelType.IPv4inIPv6);
+					} else if (t.Endpoint.Equals("ipv4") && !_ipv6) {
+						session = new TunnelSession(t.TunnelId, TunnelType.IPv6inIPv4);
+					}
+
+					sessionManager.AddSession(session);
+				}
 			}
 
 			_sessionManager = sessionManager;

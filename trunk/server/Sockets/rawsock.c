@@ -77,9 +77,9 @@ rawsock_get_family(struct sockaddr *saddr)
 	case AF_INET6:
 		return 23;
 #if defined(_WIN32) || defined(_WIN64)
+	case AF_DLI:
 #elif defined(__linux__)
 	case AF_PACKET:
-#elif defined(__sun__)
 #else
 	case AF_LINK:
 #endif

@@ -63,6 +63,10 @@ namespace Nabla {
 		}
 
 		public void AddSession(TunnelSession session) {
+			if (session == null) {
+				return;
+			}
+
 			_sessions[session.TunnelId] = session;
 		}
 
@@ -270,6 +274,7 @@ namespace Nabla {
 			}
 
 			Int64 tunnelId = TunnelIdFromAddress(source);
+			Console.WriteLine("Got tunnel id " + tunnelId + " for source " + source);
 			if (tunnelId < 0) {
 				return;
 			}
@@ -324,6 +329,7 @@ namespace Nabla {
 			}
 
 			Int64 tunnelId = TunnelIdFromAddress(destination);
+			Console.WriteLine("Got tunnel id " + tunnelId + " for destination " + destination);
 			if (tunnelId < 0) {
 				return;
 			}
