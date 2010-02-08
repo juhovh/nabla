@@ -33,7 +33,7 @@ namespace Nabla {
 		public readonly string Password = null;
 		public DateTime LastAlive;
 
-		private TunnelSession(Int64 id, TunnelType type) {
+		public TunnelSession(Int64 id, TunnelType type) {
 			TunnelId = id;
 			TunnelType = type;
 			switch (type) {

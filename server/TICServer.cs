@@ -72,7 +72,6 @@ namespace Nabla {
 
 				/* Iterate through the tunnels and add each tunnel session to the session manager */
 				foreach (TunnelInfo t in tunnels) {
-
 					/* Get the IPv6 address that is reserved for the server and this tunnel endpoint */
 					IPAddress remoteAddress = sessionManager.GetIPv6TunnelRemoteAddress(t.TunnelId);
 
@@ -86,6 +85,7 @@ namespace Nabla {
 					}
 
 					if (!t.Enabled || !t.UserEnabled) {
+						// XXX: We add it anyway, but should mark session as not enabled
 						Console.WriteLine("Tunnel T" + t.TunnelId + " not enabled, session not added");
 					}
 

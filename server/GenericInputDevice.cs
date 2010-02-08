@@ -208,9 +208,27 @@ namespace Nabla {
 
 					IPEndPoint endPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
 					int datalen = _rawSocket.ReceiveFrom(data, ref endPoint);
-					Console.WriteLine("Received a packet from {0}", endPoint);
+					endPoint = new IPEndPoint(endPoint.Address, 0);
 
-					_sessionManager.PacketFromInputDevice(data, 0, datalen);
+					if (datalen < 20) {
+						/* Not enough data for IP header, skip packet */
+						continue;
+					}
+
+					int offset = 0;
+					int version = ((data[0]&0xf0) >> 4);
+					if (version == 4) {
+						/* IPv4 header from raw socket needs to be stripped off */
+						offset = (data[0]&0x0f)*4;
+						datalen = (data[2]*256 + data[3]) - offset;
+					} else if (version == 6) {
+						offset = 0;
+						datalen = 40 + (data[4]*246 + data[5]);
+					} else {
+						continue;
+					}
+
+					_sessionManager.PacketFromInputDevice(data, offset, datalen);
 				}
 			}
 		}
