@@ -317,6 +317,7 @@ namespace Nabla {
 					/* Not enough bytes for IPv4 header */
 					return;
 				}
+				length = data[offset+2]*256 + data[offset+3];
 
 				byte[] ipaddr = new byte[4];
 				Array.Copy(data, offset+16, ipaddr, 0, 4);
@@ -326,12 +327,18 @@ namespace Nabla {
 					/* Not enough bytes for IPv6 header */
 					return;
 				}
+				length = 40 + data[offset+4]*256 + data[offset+5];
 
 				byte[] ipaddr = new byte[16];
 				Array.Copy(data, offset+24, ipaddr, 0, 16);
 				destination = new IPAddress(ipaddr);
 			} else {
 				/* Unknown protocol version */
+				return;
+			}
+
+			if (offset+length > data.Length) {
+				/* Invalid length field in the packet */
 				return;
 			}
 
@@ -346,7 +353,6 @@ namespace Nabla {
 			}
 
 			// XXX: Should check if the session is alive
-
 			byte[] outdata = new byte[length];
 			Array.Copy(data, offset, outdata, 0, length);
 
@@ -354,7 +360,7 @@ namespace Nabla {
 			foreach (InputDevice dev in _inputDevices) {
 				foreach (TunnelType t in dev.GetSupportedTypes()) {
 					if (t == session.TunnelType) {
-						dev.SendPacket(tunnelId, data);
+						dev.SendPacket(tunnelId, outdata, 0, outdata.Length);
 						break;
 					}
 				}

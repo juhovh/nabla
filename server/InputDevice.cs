@@ -28,7 +28,7 @@ namespace Nabla {
 		public abstract TunnelType[] GetSupportedTypes();
 		public abstract void Start();
 		public abstract void Stop();
-		public abstract void SendPacket(Int64 tunnelId, byte[] data);
+		public abstract void SendPacket(Int64 tunnelId, byte[] data, int offset, int length);
 
 		protected static IPAddress GetBindAddress(string deviceName, bool ipv6) {
 			IPAddress bindAddr = null;

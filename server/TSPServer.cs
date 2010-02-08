@@ -121,12 +121,12 @@ namespace Nabla {
 			}
 		}
 
-		public override void SendPacket(Int64 tunnelId, byte[] data) {
+		public override void SendPacket(Int64 tunnelId, byte[] data, int offset, int length) {
 			IPEndPoint endPoint = _sessionManager.GetSessionEndPoint(tunnelId);
 
 			// XXX: Should check that tunnel type is v6udpv4
 
-			_udpSocket.SendTo(data, endPoint);
+			_udpSocket.SendTo(data, offset, length, SocketFlags.None, endPoint);
 		}
 
 		private void udpListenerThread() {
