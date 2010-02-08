@@ -112,7 +112,7 @@ namespace Nabla {
 			_thread.Join();
 		}
 
-		public override void SendPacket(Int64 tunnelId, byte[] data) {
+		public override void SendPacket(Int64 tunnelId, byte[] data, int offset, int length) {
 			IPEndPoint endPoint = _sessionManager.GetSessionEndPoint(tunnelId);
 			if (endPoint == null) {
 				return;
