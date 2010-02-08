@@ -228,7 +228,7 @@ namespace Nabla {
 						continue;
 					}
 
-					_sessionManager.PacketFromInputDevice(data, offset, datalen);
+					_sessionManager.PacketFromInputDevice(this, data, offset, datalen);
 				}
 			}
 		}
@@ -381,7 +381,7 @@ namespace Nabla {
 				return;
 			}
 
-			_sessionManager.PacketFromInputDevice(data, hlen, datalen-hlen);
+			_sessionManager.PacketFromInputDevice(this, data, hlen, datalen-hlen);
 		}
 	}
 }

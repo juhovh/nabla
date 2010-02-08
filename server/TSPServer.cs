@@ -174,7 +174,7 @@ namespace Nabla {
 
 					// XXX: Should check that tunnel type is v6udpv4
 					Console.WriteLine("Received packet from input device");
-					_sessionManager.PacketFromInputDevice(data, 0, datalen);
+					_sessionManager.PacketFromInputDevice(this, data, 0, datalen);
 					continue;
 				}
 
