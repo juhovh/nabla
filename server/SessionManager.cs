@@ -97,7 +97,14 @@ namespace Nabla {
 		}
 
 		public void UpdateSession(IPAddress remoteAddress, IPEndPoint endPoint) {
-			Int64 tunnelId = TunnelIdFromAddress(remoteAddress);
+			UpdateSession(TunnelIdFromAddress(remoteAddress), endPoint);
+		}
+
+		public void UpdateSession(Int64 tunnelId, IPEndPoint endPoint) {
+			if (tunnelId <= 0 || !_sessions.ContainsKey(tunnelId)) {
+				return;
+			}
+
 			TunnelSession session = _sessions[tunnelId];
 			session.EndPoint = endPoint;
 			// XXX: Update the last alive

@@ -82,7 +82,7 @@ namespace Nabla {
 					if (t.Endpoint.Equals("ipv6") && _ipv6) {
 						session = new TunnelSession(t.TunnelId, TunnelType.IPv4inIPv6);
 					} else if (t.Endpoint.Equals("ipv4") && !_ipv6) {
-						session = new TunnelSession(t.TunnelId, TunnelType.IPv6inIPv4);
+						session = new TunnelSession(t.TunnelId, TunnelType.IPv6inUDPv4);
 					}
 
 					sessionManager.AddSession(session);
@@ -124,12 +124,8 @@ namespace Nabla {
 		public override void SendPacket(Int64 tunnelId, byte[] data) {
 			IPEndPoint endPoint = _sessionManager.GetSessionEndPoint(tunnelId);
 
-			TSPSession tspSession = null;
-			if (_udpSessions.ContainsKey(endPoint)) {
-				tspSession = _udpSessions[endPoint];
-			}
-
 			// XXX: Should check that tunnel type is v6udpv4
+
 			_udpSocket.SendTo(data, endPoint);
 		}
 
@@ -173,7 +169,12 @@ namespace Nabla {
 					}
 
 					// XXX: Should check that tunnel type is v6udpv4
-					Console.WriteLine("Received packet from input device");
+					Int64 tunnelId = session.NegotiatedTunnelId;
+					if (tunnelId < 0) {
+						continue;
+					}
+
+					_sessionManager.UpdateSession(tunnelId, endPoint);
 					_sessionManager.PacketFromInputDevice(this, data, 0, datalen);
 					continue;
 				}

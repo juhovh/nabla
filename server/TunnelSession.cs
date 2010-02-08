@@ -27,7 +27,6 @@ namespace Nabla {
 	public class TunnelSession {
 		public readonly Int64 TunnelId;
 		public readonly TunnelType TunnelType;
-		public readonly AddressFamily AddressFamily;
 		public IPEndPoint EndPoint = null;
 
 		public readonly string Password = null;
@@ -36,21 +35,6 @@ namespace Nabla {
 		public TunnelSession(Int64 id, TunnelType type) {
 			TunnelId = id;
 			TunnelType = type;
-			switch (type) {
-			case TunnelType.IPv4inIPv4:
-			case TunnelType.IPv4inIPv6:
-			case TunnelType.AYIYAinIPv4:
-				AddressFamily = AddressFamily.InterNetwork;
-				break;
-			case TunnelType.IPv6inIPv4:
-			case TunnelType.IPv6inIPv6:
-			case TunnelType.Heartbeat:
-			case TunnelType.AYIYAinIPv6:
-				AddressFamily = AddressFamily.InterNetworkV6;
-				break;
-			default:
-				throw new Exception("Unknown tunnel type: " + type);
-			}
 			LastAlive = DateTime.Now;
 		}
 
@@ -67,7 +51,6 @@ namespace Nabla {
 
 			ret += "TunnelId: " + TunnelId + "\n";
 			ret += "TunnelType: " + TunnelType + "\n";
-			ret += "AddressFamily: " + AddressFamily + "\n";
 			ret += "EndPoint: " + EndPoint + "\n";
 			ret += "Password: " + Password + "\n";
 			ret += "LastAlive: " + LastAlive.ToString("s");
