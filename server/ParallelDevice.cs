@@ -341,6 +341,7 @@ namespace Nabla {
 				hwaddr = resolveHardwareAddress(src, dest);
 				if (hwaddr == null) {
 					Console.WriteLine("Resolving address " + dest + " not successful, packet dropped");
+					return;
 				}
 			}
 
