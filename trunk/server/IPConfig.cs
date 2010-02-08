@@ -1,6 +1,6 @@
 /**
  *  Nabla - Automatic IP Tunneling and Connectivity
- *  Copyright (C) 2009  Juho Vähä-Herttua
+ *  Copyright (C) 2009-2010  Juho Vähä-Herttua
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
