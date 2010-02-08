@@ -242,13 +242,13 @@ namespace Nabla {
 		 * data - actual packet bytes
 		 * offset - offset where the actual data of the packet begins
 		 * length - length of the data in bytes */
-		public void PacketFromInputDevice(byte[] data, int offset, int length) {
+		public void PacketFromInputDevice(InputDevice source, byte[] data, int offset, int length) {
 			if (offset+length > data.Length) {
 				/* Not enough data to work on */
 				return;
 			}
 
-			IPAddress source;
+			IPAddress sourceAddress;
 			int version = ((data[offset]&0xff) >> 4);
 			if (version == 4) {
 				if (length < 20) {
@@ -258,7 +258,7 @@ namespace Nabla {
 
 				byte[] ipaddr = new byte[4];
 				Array.Copy(data, offset+12, ipaddr, 0, 4);
-				source = new IPAddress(ipaddr);
+				sourceAddress = new IPAddress(ipaddr);
 			} else if (version == 6) {
 				if (length < 40) {
 					/* Not enough bytes for IPv6 header */
@@ -267,14 +267,14 @@ namespace Nabla {
 
 				byte[] ipaddr = new byte[16];
 				Array.Copy(data, offset+8, ipaddr, 0, 16);
-				source = new IPAddress(ipaddr);
+				sourceAddress = new IPAddress(ipaddr);
 			} else {
 				/* Unknown protocol version */
 				return;
 			}
 
-			Int64 tunnelId = TunnelIdFromAddress(source);
-			Console.WriteLine("Got tunnel id " + tunnelId + " for source " + source);
+			Int64 tunnelId = TunnelIdFromAddress(sourceAddress);
+			Console.WriteLine("Got tunnel id " + tunnelId + " for source " + sourceAddress);
 			if (tunnelId < 0) {
 				return;
 			}
@@ -297,7 +297,7 @@ namespace Nabla {
 		 * data - actual packet bytes
 		 * offset - offset where the actual data of the packet begins
 		 * length - length of the data in bytes */
-		private void packetFromOutputDevice(byte[] data, int offset, int length) {
+		private void packetFromOutputDevice(OutputDevice source, byte[] data, int offset, int length) {
 			if (offset+length > data.Length) {
 				/* Not enough data to work on */
 				return;
