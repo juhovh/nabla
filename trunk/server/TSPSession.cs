@@ -32,10 +32,7 @@ namespace Nabla {
 			Initial,
 			Authenticate,
 			Main,
-
-			Tunnel,
-			Route,
-			Pop
+			Tunnel
 		};
 
 		private class SessionInfo {
@@ -45,6 +42,7 @@ namespace Nabla {
 
 			public string UserName;
 			public Int64 UserId;
+			public Int64 TunnelId;
 		}
 
 		private SessionManager _sessionManager;
@@ -131,6 +129,16 @@ namespace Nabla {
 				if (response != null) {
 					QueueResponse(response + "\r\n");
 				}
+			}
+		}
+
+		public Int64 NegotiatedTunnelId {
+			get {
+				if (_sessionInfo.State != SessionState.Tunnel) {
+					return -1;
+				}
+
+				return _sessionInfo.TunnelId;
 			}
 		}
 
@@ -330,6 +338,7 @@ namespace Nabla {
 
 			response.AppendChild(tunnelNode);
 
+			_sessionInfo.TunnelId = tunnel.TunnelId;
 			return "200 Success\r\n" + response.OuterXml;
 		}
 
@@ -344,10 +353,13 @@ namespace Nabla {
 		}
 
 		private string handleAcceptCommand(XmlElement doc, string type) {
+			_sessionInfo.State = SessionState.Tunnel;
 			return null;
 		}
 
 		private string handleRejectCommand(XmlElement doc, string type) {
+			_sessionInfo.TunnelId = 0;
+			_sessionInfo.State = SessionState.Main;
 			return null;
 		}
 
