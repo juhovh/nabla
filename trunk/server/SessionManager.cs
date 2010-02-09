@@ -46,7 +46,17 @@ namespace Nabla {
 				lock (_sessionlock) {
 					// Check that this type is not already added
 					dev.SetSessionManager(this);
-					_inputDevices.Add(dev);
+
+					bool duplicated = false;
+					foreach (InputDevice d in _inputDevices) {
+						if (d.GetSupportedType() == dev.GetSupportedType()) {
+							duplicated = true;
+						}
+					}
+					
+					if (!duplicated) {
+						_inputDevices.Add(dev);
+					}
 				}
 			}
 		}
@@ -358,11 +368,9 @@ namespace Nabla {
 
 			TunnelSession session = _sessions[tunnelId];
 			foreach (InputDevice dev in _inputDevices) {
-				foreach (TunnelType t in dev.GetSupportedTypes()) {
-					if (t == session.TunnelType) {
-						dev.SendPacket(tunnelId, outdata, 0, outdata.Length);
-						break;
-					}
+				if (dev.GetSupportedType() == session.TunnelType) {
+					dev.SendPacket(tunnelId, outdata, 0, outdata.Length);
+					break;
 				}
 			}
 		}

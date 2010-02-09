@@ -18,7 +18,7 @@
 
 namespace Nabla {
 	public enum TunnelType {
-		Unknown,
+		None,
 		IPv4inIPv4,
 		IPv4inIPv6,
 		IPv6inIPv4,
@@ -28,6 +28,7 @@ namespace Nabla {
 		AYIYAinIPv4,
 		AYIYAinIPv6,
 		IPv6inUDPv4,
-		IPv6inUDPv6
+		IPv6inUDPv6,
+		Unknown
 	};
 }

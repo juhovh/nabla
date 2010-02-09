@@ -113,8 +113,8 @@ namespace Nabla {
 			_sessionManager = sessionManager;
 		}
 
-		public override TunnelType[] GetSupportedTypes() {
-			return new TunnelType[] {};
+		public override TunnelType GetSupportedType() {
+			return TunnelType.None;
 		}
 
 		public override void Start() {

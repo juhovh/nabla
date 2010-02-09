@@ -92,12 +92,12 @@ namespace Nabla {
 			_sessionManager = sessionManager;
 		}
 
-		public override TunnelType[] GetSupportedTypes() {
+		public override TunnelType GetSupportedType() {
 			if (!_ipv6) {
 				/* We will handle IPv6inUDPv4 ourselves */
-				return new TunnelType[] { TunnelType.IPv6inUDPv4 };
+				return TunnelType.IPv6inUDPv4;
 			} else {
-				return new TunnelType[] {};
+				return TunnelType.None;
 			}
 		}
 
@@ -169,12 +169,12 @@ namespace Nabla {
 					}
 
 					// XXX: Should check that tunnel type is v6udpv4
-					Int64 tunnelId = session.NegotiatedTunnelId;
-					if (tunnelId < 0) {
+					Int64 tid = session.NegotiatedTunnelId;
+					if (tid < 0) {
 						continue;
 					}
 
-					_sessionManager.UpdateSession(tunnelId, endPoint);
+					_sessionManager.UpdateSession(tid, endPoint);
 					_sessionManager.PacketFromInputDevice(this, data, 0, datalen);
 					continue;
 				}
@@ -205,6 +205,11 @@ namespace Nabla {
 
 				string command = Encoding.UTF8.GetString(tspData);
 				session.HandleCommand(command);
+
+				Int64 tunnelId = session.NegotiatedTunnelId;
+				if (tunnelId > 0) {
+					_sessionManager.UpdateSession(tunnelId, endPoint);
+				}
 
 				byte[] outBytes = session.DequeueResponse();
 				if (outBytes == null) {
