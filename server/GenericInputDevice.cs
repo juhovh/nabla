@@ -51,7 +51,7 @@ namespace Nabla {
 			case TunnelType.AYIYAinIPv4:
 				udpPort = 5072;
 				break;
-			case TunnelType.Heartbeat:
+			case TunnelType.HeartbeatIPv4:
 				udpPort = 3740;
 				rawFamily = AddressFamily.InterNetwork;
 				break;
@@ -189,7 +189,7 @@ namespace Nabla {
 
 						handleAyiyaPacket(endPoint, data, datalen);
 					}
-				} else if (_type == TunnelType.Heartbeat) {
+				} else if (_type == TunnelType.HeartbeatIPv4) {
 					while (_udpSocket.Poll(waitms*1000, SelectMode.SelectRead)) {
 						EndPoint sender = (EndPoint) new IPEndPoint(IPAddress.Any, 0);
 						int datalen = _udpSocket.ReceiveFrom(data, 0, data.Length,
