@@ -167,10 +167,10 @@ namespace Nabla {
 				byte[] ourHash = sha1.ComputeHash(outdata, 0, outdata.Length);
 				Array.Copy(ourHash, 0, outdata, hashOffset, 20);
 
-				_udpSocket.SendTo(outdata, endPoint);
+				_udpSocket.SendTo(outdata, offset, length, SocketFlags.None, endPoint);
 			} else {
 				Console.WriteLine("Writing " + data.Length + " bytes to raw socket");
-				_rawSocket.SendTo(data, endPoint);
+				_rawSocket.SendTo(data, offset, length, endPoint);
 			}
 		}
 
