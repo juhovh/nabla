@@ -82,7 +82,7 @@ namespace Nabla {
 					if (t.Endpoint.Equals("ipv6") && _ipv6) {
 						session = new TunnelSession(t.TunnelId, TunnelType.IPv4inIPv6);
 					} else if (t.Endpoint.Equals("ipv4") && !_ipv6) {
-						session = new TunnelSession(t.TunnelId, TunnelType.IPv6inUDPv4);
+						session = new TunnelSession(t.TunnelId, TunnelType.IPv6inIPv4);
 					}
 
 					sessionManager.AddSession(session);

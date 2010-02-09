@@ -23,9 +23,11 @@ namespace Nabla {
 		IPv4inIPv6,
 		IPv6inIPv4,
 		IPv6inIPv6,
-		Heartbeat,
+		HeartbeatIPv4,
+		HeartbeatIPv6,
 		AYIYAinIPv4,
 		AYIYAinIPv6,
-		IPv6inUDPv4
+		IPv6inUDPv4,
+		IPv6inUDPv6
 	};
 }
