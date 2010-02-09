@@ -53,7 +53,6 @@ namespace Nabla {
 				break;
 			case TunnelType.HeartbeatIPv4:
 				udpPort = 3740;
-				rawFamily = AddressFamily.InterNetwork;
 				break;
 			case TunnelType.IPv4inIPv4:
 				rawFamily = AddressFamily.InterNetwork;
@@ -98,8 +97,8 @@ namespace Nabla {
 			_sessionManager = sessionManager;
 		}
 
-		public override TunnelType[] GetSupportedTypes() {
-			return new TunnelType[] { _type };
+		public override TunnelType GetSupportedType() {
+			return _type;
 		}
 
 		public override void Start() {
@@ -122,17 +121,22 @@ namespace Nabla {
 				byte[] identityBytes;
 				int datalen;
 
-				int version = ((data[0]&0xf0) >> 4);
+				int version = ((data[offset]&0xf0) >> 4);
 				if (version == 4) {
 					IPAddress localAddress = _sessionManager.GetIPv4TunnelLocalAddress(tunnelId);
 					identityBytes = localAddress.GetAddressBytes();
-					datalen = data[2]*256 + data[3];
+					datalen = data[offset+2]*256 + data[offset+3];
 				} else if (version == 6) {
 					IPAddress localAddress = _sessionManager.GetIPv6TunnelLocalAddress(tunnelId);
 					identityBytes = localAddress.GetAddressBytes();
-					datalen = 40 + data[4]*256 + data[5];
+					datalen = 40 + data[offset+4]*256 + data[offset+5];
 				} else {
 					/* Unknown IP protocol version */
+					return;
+				}
+
+				if (datalen > length) {
+					/* Data length got from IP packet too long */
 					return;
 				}
 
@@ -158,13 +162,14 @@ namespace Nabla {
 
 				int hashOffset = 8 + identityBytes.Length;
 				Array.Copy(passwdHash, 0, outdata, hashOffset, 20);
-				Array.Copy(data, 0, outdata, hashOffset+20, datalen);
+				Array.Copy(data, offset, outdata, hashOffset+20, datalen);
 
 				byte[] ourHash = sha1.ComputeHash(outdata, 0, outdata.Length);
 				Array.Copy(ourHash, 0, outdata, hashOffset, 20);
 
 				_udpSocket.SendTo(outdata, endPoint);
 			} else {
+				Console.WriteLine("Writing " + data.Length + " bytes to raw socket");
 				_rawSocket.SendTo(data, endPoint);
 			}
 		}

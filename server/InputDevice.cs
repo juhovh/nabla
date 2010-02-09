@@ -25,7 +25,7 @@ using Nabla.Sockets;
 namespace Nabla {
 	public abstract class InputDevice {
 		public abstract void SetSessionManager(SessionManager sessionManager);
-		public abstract TunnelType[] GetSupportedTypes();
+		public abstract TunnelType GetSupportedType();
 		public abstract void Start();
 		public abstract void Stop();
 		public abstract void SendPacket(Int64 tunnelId, byte[] data, int offset, int length);

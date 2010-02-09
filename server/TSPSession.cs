@@ -354,6 +354,7 @@ namespace Nabla {
 
 		private string handleAcceptCommand(XmlElement doc, string type) {
 			_sessionInfo.State = SessionState.Tunnel;
+
 			return null;
 		}
 
