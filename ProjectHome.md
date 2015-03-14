@@ -1,0 +1,10 @@
+**nabla** is a project to create a free and portable IPv6 software tunneling client and server utility. It works as a server where [AICCU](http://www.sixxs.net/tools/aiccu/) (Automatic IPv6 Connectivity Client Utility) and [Gateway6 Client](http://go6.net/4105/application.asp) both can connect to. Both [TIC](http://www.sixxs.net/tools/tic/) (Tunnel Information and Control protocol) and TSP (Tunnel Setup Protocol) are supported. Support is planned for all tunnel types: IPv4inIPv4, IPv4inIPv6, IPv6inIPv4 and IPv6inIPv6. In case TIC is used, automatic session endpoint and timeout can be done using [Heartbeat](http://www.sixxs.net/tools/heartbeat/) protocol. Tunneling behind NAT is also possiple with either TIC+[AYIYA](http://www.sixxs.net/tools/ayiya/) (Anything In Anything) or TSP+UDP.
+
+Problem with AICCU is that large parts of it, especially Windows support and GUI, have never been open source and some latest improvements, like TSP support, are not released as open source either. Therefore **nabla** tries to also provide fully functional client equally available on all platforms preserving compatibility with other tools like AICCU as far as possible, up to the configuration file compatibility.
+
+All software will works in userland and interface with the kernel and drivers in standard ways, therefore installing it should be easy. Only standard TAP drivers (for client) and pcap library (for server) are used. Because of the design, however, **nabla** is not suitable for very large networks. It works best if you simply have an IPv6 or IPv4 connection that you want to share with some remote workstations, like friends for example.
+
+Supported platforms currently include recent versions of Linux, Mac OS X, Windows XP/Vista, FreeBSD, NetBSD, Solaris.
+
+
+The project is released under GPLv3+, it is uses LGPLv2.1+ licensed code from [tapcfg](http://code.google.com/p/tapcfg/) project and some BSD licensed code from [AICCU](http://www.sixxs.net/tools/aiccu/).
